@@ -213,5 +213,15 @@
       "attach": "Attach",
       "save": "Save expense"
     }
+  },
+  "settings": {
+    "title": "Settings",
+    "stock": {
+      "section": "Stock"
+    },
+    "negativeStock": {
+      "label": "Allow negative stock",
+      "hint": "When on, you can issue more than on-hand and the balance may go negative. Default: over-issue is blocked."
+    }
   }
 }
