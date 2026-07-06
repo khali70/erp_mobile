@@ -473,9 +473,9 @@ Header ─► DocumentsListScreen ──► IncomingDocScreen
 - [ ] `DocumentsListScreen`, `IncomingDocScreen`, `OutgoingDocScreen`; register routes + zod route schemas.
 
 **M3 — Movement & stock**
-- [ ] `useItemMovementQuery`; `MovementRow` with running balance.
-- [ ] `ItemMovementScreen` (header on-hand + list); wire tap-through to source docs.
-- [ ] `inventory-ui-store` (filter/sort + persisted `allowNegativeStock`); settings toggle surfaced in list header.
+- [x] `useItemMovementQuery`; `MovementRow` with running balance. *(as `useItemMovement` plain hook — no TanStack in project; `MovementRow` + `presentMovement`, commit pending)*
+- [x] `ItemMovementScreen` (header on-hand + list); wire tap-through to source docs. *(on-hand header + chronological list + empty state; row tap → Documents; ItemsListScreen row tap → movement, long-press → edit)*
+- [~] `inventory-ui-store` (filter/sort + persisted `allowNegativeStock`); settings toggle surfaced in list header. *(persisted `allowNegativeStock` done via `settings-store` + MMKV; filter/sort still in `useItemFilter`; settings-toggle UI still TODO)*
 
 **M4 — Polish & verify**
 - [ ] Loading/Empty/Error states on every screen (UI primitives).
