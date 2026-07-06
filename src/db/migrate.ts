@@ -5,9 +5,11 @@ import { openDatabaseSync } from 'expo-sqlite';
 export function runMigrations(): void {
   const sqlite = openDatabaseSync('erp.db');
 
-  // PRAGMA journal_mode returns a row ("wal"); it must run isolated, not inside
-  // the result-less DDL batch below, or execSync rejects with a native NPE.
-  sqlite.execSync('PRAGMA journal_mode = WAL;');
+  // PRAGMA journal_mode returns a row ("wal"). execSync is result-less and
+  // rejects any row-returning statement with a native NPE — use a result-aware
+  // call so the row is consumed. (WAL is already expo-sqlite's default; this
+  // just makes it explicit.)
+  sqlite.getFirstSync('PRAGMA journal_mode = WAL;');
 
   sqlite.execSync(`
     CREATE TABLE IF NOT EXISTS items (

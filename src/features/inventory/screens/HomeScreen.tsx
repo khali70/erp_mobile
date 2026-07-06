@@ -230,7 +230,7 @@ export function HomeScreen() {
             <View className="w-8 h-8 rounded-full items-center justify-center bg-primary-light">
               <Feather name="arrow-down" size={16} color={colors.primary} />
             </View>
-            <Text className="text-xs font-bold text-primary">وارد جديد</Text>
+            <Text className="text-xs font-bold text-primary">{t('dashboard.actions.newIncoming')}</Text>
           </Pressable>
 
           <Pressable
@@ -240,15 +240,15 @@ export function HomeScreen() {
             <View className="w-8 h-8 rounded-full items-center justify-center bg-background">
               <MaterialCommunityIcons name="barcode-scan" size={16} color={colors.muted} />
             </View>
-            <Text className="text-xs font-bold text-ink">باركود</Text>
+            <Text className="text-xs font-bold text-ink">{t('dashboard.actions.barcode')}</Text>
           </Pressable>
         </View>
 
         {/* Sections header */}
         <View className={`${rowDir} items-center justify-between`}>
-          <Text className="text-base font-extrabold text-ink">الأقسام</Text>
+          <Text className="text-base font-extrabold text-ink">{t('dashboard.sections.title')}</Text>
           <View className="bg-background px-2.5 py-1 rounded-full">
-            <Text className="text-[11px] text-muted font-medium">٦ تخصصات</Text>
+            <Text className="text-[11px] text-muted font-medium">{t('dashboard.sections.count')}</Text>
           </View>
         </View>
 
@@ -257,39 +257,39 @@ export function HomeScreen() {
           <Tile
             icon={<Feather name="file-text" size={22} color={colors.primary} />}
             iconBgClass="bg-primary-light"
-            label="المستندات"
-            badge={DEMO.docCount}
+            label={t('dashboard.sections.documents')}
+            badgeText={num(DEMO.docCount)}
             onPress={noop}
           />
           <Tile
             icon={<Feather name="package" size={22} color={colors.primary} />}
             iconBgClass="bg-primary-light"
-            label="البضائع"
-            badge={DEMO.lowStockCount}
+            label={t('dashboard.sections.goods')}
+            badgeText={num(DEMO.lowStockCount)}
             onPress={() => navigation.navigate('Items')}
           />
           <Tile
             icon={<MaterialCommunityIcons name="cash" size={22} color={colors.expense} />}
             iconBgClass="bg-expense-light"
-            label="النفقات"
+            label={t('dashboard.sections.expenses')}
             onPress={noop}
           />
           <Tile
             icon={<Feather name="bar-chart-2" size={22} color={colors.info} />}
             iconBgClass="bg-info-light"
-            label="التقارير"
+            label={t('dashboard.sections.reports')}
             onPress={noop}
           />
           <Tile
             icon={<Feather name="users" size={22} color={colors.accent} />}
             iconBgClass="bg-accent-light"
-            label="الزبائن"
+            label={t('dashboard.sections.customers')}
             onPress={() => navigation.navigate('Customers')}
           />
           <Tile
             icon={<Feather name="truck" size={22} color={colors['warning-dark']} />}
             iconBgClass="bg-warning-light"
-            label="الموردون"
+            label={t('dashboard.sections.suppliers')}
             onPress={noop}
           />
         </View>
@@ -300,10 +300,10 @@ export function HomeScreen() {
         >
           <View className="gap-1 flex-1">
             <Text className="text-xs font-semibold text-slate-400 text-right">
-              إحصائية التحصيل اليومي
+              {t('dashboard.banner.title')}
             </Text>
             <Text className="text-[15px] font-bold text-primary-300 text-right">
-              تم تحصيل ٪٧٤ من الفواتير الآجلة
+              {t('dashboard.banner.line')}
             </Text>
             <View className="w-36 h-1.5 bg-slate-800 rounded-full mt-1.5 overflow-hidden self-end">
               <View className="w-[74%] h-full bg-primary-400 rounded-full" />

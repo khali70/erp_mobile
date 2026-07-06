@@ -7,12 +7,14 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { RootNavigator } from '@/navigation/RootNavigator';
 import { runMigrations } from '@/db/migrate';
+import { seedDemoDataIfEmpty } from '@/db/seed';
 
 export default function App() {
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
     runMigrations();
+    seedDemoDataIfEmpty();
     setReady(true);
   }, []);
 
