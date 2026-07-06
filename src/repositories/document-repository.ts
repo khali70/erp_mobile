@@ -1,4 +1,4 @@
-import { and, eq, inArray, isNull } from 'drizzle-orm';
+import { and, asc, eq, inArray, isNull } from 'drizzle-orm';
 import type { BaseSQLiteDatabase } from 'drizzle-orm/sqlite-core';
 import * as schema from '@/db/schema';
 import { newId, now } from '@/utils/id';
@@ -30,6 +30,19 @@ export interface CreateDocumentInput {
   docDate?: number;
   note?: string;
   status?: 'draft' | 'posted'; // default 'draft'
+}
+
+/** One posted ledger movement for an item, with running balance + source doc. */
+export interface MovementEntry {
+  documentId: string;
+  docNo: string | null;
+  docDate: number | null;
+  kind: DocKind;
+  direction: Direction;
+  qty: number;
+  unitPrice: number; // minor units
+  signedQty: number;
+  runningBalance: number;
 }
 
 export interface PostOptions {
@@ -257,6 +270,55 @@ export function createDocumentRepository(db: DocDb) {
         )
         .all();
       return { ...doc, lines };
+    },
+
+    /**
+     * Chronological posted movement for one item with a cumulative running
+     * balance. Oldest first (by doc date, then creation). Each row carries its
+     * source document so the movement screen can tap through. Final
+     * runningBalance equals `onHand(itemId)`.
+     */
+    movement(itemId: string): MovementEntry[] {
+      const rows = db
+        .select({
+          documentId: schema.documents.id,
+          docNo: schema.documents.docNo,
+          docDate: schema.documents.docDate,
+          direction: schema.documents.direction,
+          kind: schema.documents.kind,
+          qty: schema.documentLines.qty,
+          unitPrice: schema.documentLines.unitPrice,
+        })
+        .from(schema.documentLines)
+        .innerJoin(schema.documents, eq(schema.documents.id, schema.documentLines.documentId))
+        .where(
+          and(
+            eq(schema.documentLines.itemId, itemId),
+            eq(schema.documents.status, 'posted'),
+            isNull(schema.documents.deletedAt),
+            isNull(schema.documentLines.deletedAt),
+          ),
+        )
+        .orderBy(asc(schema.documents.docDate), asc(schema.documents.createdAt))
+        .all();
+
+      let balance = 0;
+      return rows.map((r) => {
+        const direction = r.direction as Direction;
+        const signed = r.qty * direction;
+        balance += signed;
+        return {
+          documentId: r.documentId,
+          docNo: r.docNo,
+          docDate: r.docDate,
+          kind: r.kind === 'in' ? ('incoming' as const) : ('outgoing' as const),
+          direction,
+          qty: r.qty,
+          unitPrice: r.unitPrice,
+          signedQty: signed,
+          runningBalance: balance,
+        };
+      });
     },
 
     list(filter: { kind?: DocKind; status?: 'draft' | 'posted' } = {}) {
