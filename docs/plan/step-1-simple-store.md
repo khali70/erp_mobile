@@ -445,11 +445,18 @@ Header ─► DocumentsListScreen ──► IncomingDocScreen
 
 ## 9. Task Backlog (M0 → done, ordered)
 
+> **Autonomous build log** — layout note: repo uses `src/db/` + `src/repositories/`
+> (AGENTS.md-canonical) instead of the older `features/inventory/services/` sketch
+> below; data-model.md wins. Schema follows data-model.md (lines-as-ledger, direction
+> on the document header) not the separate `ledger_entries` table.
+> Also added (prereq, not in original backlog): jest (ts-jest) + eslint flat config
+> enforcing AGENTS.md hard rules — the quality gates. Commit `5992384`.
+
 **M0 — Scaffolding**
-- [ ] Add `expo-sqlite`, `expo-image-picker`, `uuid`/`expo-crypto` deps (justify in PR).
-- [ ] Create `src/features/inventory/` skeleton (folders + `types.ts` from §3.4 + `index.ts`).
-- [ ] `services/db.ts`: open DB, transaction helper; `migrations.ts` with §3.2 DDL + `schema_version`.
-- [ ] Ensure RTL: `I18nManager.forceRTL(true)` + `ar` default in `src/app/`; add `inventory.*` keys to `ar.json`/`en.json`.
+- [x] Add `expo-sqlite`, `expo-image-picker`, `uuid`/`expo-crypto` deps (justify in PR). *(all present; image-picker added `5992384`)*
+- [~] Create `src/features/inventory/` skeleton (folders + `types.ts` from §3.4 + `index.ts`). *(folders/types/components/hooks exist; feature `index.ts` public surface still TODO)*
+- [~] `services/db.ts`: open DB, transaction helper; `migrations.ts` with §3.2 DDL + `schema_version`. *(src/db/client+migrate+schema exist; missing: draft/posted `status`, doc numbering, `schema_version` bookkeeping, tx helper — M2 slice)*
+- [x] Ensure RTL: `I18nManager.forceRTL(true)` + `ar` default in `src/app/`; add `inventory.*` keys to `ar.json`/`en.json`. *(i18n + theme/rtl.ts in place)*
 
 **M1 — Items**
 - [ ] `mappers.ts` + `itemService.ts` (create/update/archive/getById/listWithStock) + tests.
