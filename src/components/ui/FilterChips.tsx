@@ -1,22 +1,21 @@
 import { View, Text, Pressable } from 'react-native';
 import { ROW } from '@/theme/rtl';
-import type { StockFilter } from '../types';
 
-export interface FilterOption {
-  key: StockFilter;
+export interface FilterOption<K extends string> {
+  key: K;
   label: string;
   /** Tailwind bg class applied when this chip is active. */
   activeClass: string;
 }
 
-interface FilterChipsProps {
-  options: FilterOption[];
-  value: StockFilter;
-  onChange: (key: StockFilter) => void;
+interface FilterChipsProps<K extends string> {
+  options: FilterOption<K>[];
+  value: K;
+  onChange: (key: K) => void;
 }
 
-/** Horizontal pill selector for the stock filter. */
-export function FilterChips({ options, value, onChange }: FilterChipsProps) {
+/** Horizontal pill selector, generic over the filter key type. */
+export function FilterChips<K extends string>({ options, value, onChange }: FilterChipsProps<K>) {
   return (
     <View className={`${ROW} gap-2`}>
       {options.map((option) => {

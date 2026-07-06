@@ -15,11 +15,13 @@ const standard = {
 export const items = sqliteTable('items', {
   ...standard,
   name: text('name').notNull(),
+  category: text('category'), // domain category key (e.g. 'tshirts'); null = uncategorized
   barcode: text('barcode'),
   unit: text('unit').notNull().default('pcs'),
   costPrice: integer('cost_price').notNull().default(0), // minor units
   salePrice: integer('sale_price').notNull().default(0), // minor units
   currency: text('currency').notNull().default('EGP'),
+  lowStockThreshold: integer('low_stock_threshold').notNull().default(0),
   photoUri: text('photo_uri'),
 });
 
@@ -47,7 +49,26 @@ export const stockLevels = sqliteTable('stock_levels', {
   updatedAt: integer('updated_at').notNull(),
 });
 
+// Parties. `balance` is minor units; sign encodes direction of debt:
+//   customers: + = customer owes the shop (receivable / ديون لك)
+//   suppliers: + = shop owes the supplier (payable / ديون عليك)
+export const customers = sqliteTable('customers', {
+  ...standard,
+  name: text('name').notNull(),
+  phone: text('phone'),
+  balance: integer('balance').notNull().default(0),
+});
+
+export const suppliers = sqliteTable('suppliers', {
+  ...standard,
+  name: text('name').notNull(),
+  phone: text('phone'),
+  balance: integer('balance').notNull().default(0),
+});
+
 export type Item = typeof items.$inferSelect;
 export type NewItem = typeof items.$inferInsert;
 export type Document = typeof documents.$inferSelect;
+export type Customer = typeof customers.$inferSelect;
+export type Supplier = typeof suppliers.$inferSelect;
 export type DocumentLine = typeof documentLines.$inferSelect;

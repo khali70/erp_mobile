@@ -5,7 +5,7 @@ import Feather from '@expo/vector-icons/Feather';
 import colors from '@/theme/colors';
 import { ROW, HEADER_OVERLAY } from '@/theme/rtl';
 import type { ItemDraft } from '../types';
-import { LabeledInput } from './LabeledInput';
+import { LabeledInput } from '@/components/ui/LabeledInput';
 import { CategorySelect } from './CategorySelect';
 
 const EMPTY_DRAFT: ItemDraft = {

@@ -4,7 +4,9 @@
     "save": "حفظ",
     "cancel": "إلغاء",
     "delete": "حذف",
-    "search": "بحث"
+    "search": "بحث",
+    "back": "رجوع",
+    "currency": "ج.م"
   },
   "home": {
     "title": "إدارة المخزون",
@@ -12,5 +14,112 @@
     "items": "البضائع",
     "newDocument": "مستند جديد",
     "footer": "المرحلة ١ — قاعدة البيانات جاهزة"
+  },
+  "dashboard": {
+    "defaultStore": "المحل الرئيسي",
+    "tagline": "الجرد والمخزون ببساطة",
+    "kpi": {
+      "stockValue": { "label": "قيمة المخزون", "tag": "قيمة البضاعة الكلية" },
+      "profit": { "label": "أرباح الشهر", "tag": "▲ ٪١٢  صافي الربح التقديري" },
+      "receivable": { "label": "ديون لك (زبائن)", "tag": "مستحقة التحصيل" },
+      "payable": { "label": "ديون عليك (موردون)", "tag": "واجبة السداد (اضغط للتفصيل)" }
+    },
+    "actions": {
+      "newOutgoing": "صادر جديد",
+      "newIncoming": "وارد جديد",
+      "barcode": "باركود"
+    },
+    "sections": {
+      "title": "الأقسام",
+      "count": "٦ تخصصات",
+      "documents": "المستندات",
+      "goods": "البضائع",
+      "expenses": "النفقات",
+      "reports": "التقارير",
+      "customers": "الزبائن",
+      "suppliers": "الموردون"
+    },
+    "banner": {
+      "title": "إحصائية التحصيل اليومي",
+      "line": "تم تحصيل ٪٧٤ من الفواتير الآجلة"
+    }
+  },
+  "inventory": {
+    "title": "البضائع",
+    "searchPlaceholder": "ابحث بالاسم أو الباركود",
+    "scan": "مسح الباركود",
+    "filters": {
+      "all": "الكل",
+      "low": "منخفض المخزون",
+      "out": "نفد"
+    },
+    "empty": {
+      "message": "لا توجد بضائع تطابق البحث أو التصنيف المحدد.",
+      "reset": "إعادة ضبط التصفية"
+    },
+    "badge": {
+      "lowSuffix": "منخفض",
+      "outSuffix": "نفد"
+    },
+    "units": {
+      "piece": "قطعة",
+      "pair": "زوج"
+    },
+    "categories": {
+      "tshirts": "تيشيرتات",
+      "jackets": "جواكت",
+      "shoes": "أحذية",
+      "pants": "بناطيل",
+      "shirts": "قمصان",
+      "accessories": "إكسسوارات",
+      "other": "أخرى"
+    },
+    "form": {
+      "addTitle": "إضافة بضاعة جديدة",
+      "editTitle": "تعديل البضاعة",
+      "name": "اسم البضاعة",
+      "namePlaceholder": "مثال: تيشيرت قطن أبيض",
+      "category": "التصنيف",
+      "unit": "الوحدة",
+      "costPrice": "سعر التكلفة",
+      "salePrice": "سعر البيع",
+      "lowStockThreshold": "حد التنبيه للمخزون",
+      "barcode": "الباركود (اختياري)"
+    },
+    "demo": {
+      "item1": "تيشيرت قطن أبيض · L",
+      "item2": "هودي رمادي · M",
+      "item3": "حذاء رياضي أسود · ٤٢",
+      "item4": "بنطلون جينز أزرق · ٣٢",
+      "item5": "قميص كلاسيك أبيض · L",
+      "item6": "كاب أسود"
+    }
+  },
+  "parties": {
+    "noPhone": "بدون رقم",
+    "settled": "لا يوجد دين",
+    "form": {
+      "name": "الاسم",
+      "namePlaceholder": "مثال: أحمد محمد",
+      "phone": "رقم الهاتف"
+    }
+  },
+  "customers": {
+    "title": "الزبائن",
+    "searchPlaceholder": "ابحث بالاسم أو رقم الهاتف",
+    "debtHint": "مستحقة التحصيل",
+    "filters": {
+      "all": "الكل",
+      "withDebt": "عليهم ديون"
+    },
+    "empty": {
+      "message": "لا يوجد زبائن بعد.",
+      "reset": "إعادة ضبط التصفية",
+      "add": "إضافة زبون جديد"
+    },
+    "form": {
+      "addTitle": "إضافة زبون جديد",
+      "editTitle": "تعديل الزبون"
+    }
   }
 }

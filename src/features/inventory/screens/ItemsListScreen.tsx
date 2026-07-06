@@ -11,9 +11,9 @@ import { useItemFilter } from '../hooks/useItemFilter';
 import { presentItem } from '../presenters';
 import { toDraft } from '../drafts';
 import type { InventoryItem, StockFilter } from '../types';
-import { ScreenHeader } from '../components/ScreenHeader';
-import { SearchBar } from '../components/SearchBar';
-import { FilterChips, type FilterOption } from '../components/FilterChips';
+import { ScreenHeader } from '@/components/ui/ScreenHeader';
+import { SearchBar } from '@/components/ui/SearchBar';
+import { FilterChips, type FilterOption } from '@/components/ui/FilterChips';
 import { ItemRow } from '../components/ItemRow';
 import { ItemFormSheet } from '../components/ItemFormSheet';
 
@@ -31,7 +31,7 @@ export function ItemsListScreen() {
   const [formOpen, setFormOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<InventoryItem | null>(null);
 
-  const filterOptions: FilterOption[] = [
+  const filterOptions: FilterOption<StockFilter>[] = [
     { key: 'all', label: t('inventory.filters.all'), activeClass: 'bg-primary' },
     { key: 'low', label: t('inventory.filters.low'), activeClass: 'bg-warning' },
     { key: 'out', label: t('inventory.filters.out'), activeClass: 'bg-danger' },

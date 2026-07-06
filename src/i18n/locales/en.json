@@ -4,7 +4,9 @@
     "save": "Save",
     "cancel": "Cancel",
     "delete": "Delete",
-    "search": "Search"
+    "search": "Search",
+    "back": "Back",
+    "currency": "EGP"
   },
   "home": {
     "title": "ERP Mobile",
@@ -12,5 +14,112 @@
     "items": "Items",
     "newDocument": "New document",
     "footer": "Step 1 shell — DB ready"
+  },
+  "dashboard": {
+    "defaultStore": "Main Store",
+    "tagline": "Inventory & stock, simply",
+    "kpi": {
+      "stockValue": { "label": "Stock value", "tag": "Total goods value" },
+      "profit": { "label": "Monthly profit", "tag": "▲ 12%  Est. net profit" },
+      "receivable": { "label": "Owed to you (customers)", "tag": "Due to collect" },
+      "payable": { "label": "You owe (suppliers)", "tag": "Due to pay (tap for details)" }
+    },
+    "actions": {
+      "newOutgoing": "New outgoing",
+      "newIncoming": "New incoming",
+      "barcode": "Barcode"
+    },
+    "sections": {
+      "title": "Sections",
+      "count": "6 sections",
+      "documents": "Documents",
+      "goods": "Goods",
+      "expenses": "Expenses",
+      "reports": "Reports",
+      "customers": "Customers",
+      "suppliers": "Suppliers"
+    },
+    "banner": {
+      "title": "Daily collection stat",
+      "line": "Collected 74% of credit invoices"
+    }
+  },
+  "inventory": {
+    "title": "Goods",
+    "searchPlaceholder": "Search by name or barcode",
+    "scan": "Scan barcode",
+    "filters": {
+      "all": "All",
+      "low": "Low stock",
+      "out": "Out of stock"
+    },
+    "empty": {
+      "message": "No goods match the search or selected filter.",
+      "reset": "Reset filters"
+    },
+    "badge": {
+      "lowSuffix": "low",
+      "outSuffix": "out"
+    },
+    "units": {
+      "piece": "pc",
+      "pair": "pair"
+    },
+    "categories": {
+      "tshirts": "T-shirts",
+      "jackets": "Jackets",
+      "shoes": "Shoes",
+      "pants": "Pants",
+      "shirts": "Shirts",
+      "accessories": "Accessories",
+      "other": "Other"
+    },
+    "form": {
+      "addTitle": "Add new item",
+      "editTitle": "Edit item",
+      "name": "Item name",
+      "namePlaceholder": "e.g. White cotton T-shirt",
+      "category": "Category",
+      "unit": "Unit",
+      "costPrice": "Cost price",
+      "salePrice": "Sale price",
+      "lowStockThreshold": "Low-stock alert threshold",
+      "barcode": "Barcode (optional)"
+    },
+    "demo": {
+      "item1": "White cotton T-shirt · L",
+      "item2": "Grey hoodie · M",
+      "item3": "Black sneakers · 42",
+      "item4": "Blue jeans · 32",
+      "item5": "Classic white shirt · L",
+      "item6": "Black cap"
+    }
+  },
+  "parties": {
+    "noPhone": "No number",
+    "settled": "No debt",
+    "form": {
+      "name": "Name",
+      "namePlaceholder": "e.g. Ahmed Mohamed",
+      "phone": "Phone number"
+    }
+  },
+  "customers": {
+    "title": "Customers",
+    "searchPlaceholder": "Search by name or phone",
+    "debtHint": "Due to collect",
+    "filters": {
+      "all": "All",
+      "withDebt": "With debt"
+    },
+    "empty": {
+      "message": "No customers yet.",
+      "reset": "Reset filters",
+      "add": "Add a customer"
+    },
+    "form": {
+      "addTitle": "Add new customer",
+      "editTitle": "Edit customer"
+    }
   }
 }
