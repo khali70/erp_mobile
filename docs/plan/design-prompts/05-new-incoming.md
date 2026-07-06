@@ -10,7 +10,7 @@ Design a high-fidelity **RTL Arabic** mobile UI mockup, **390×844px**, for a **
 
 1. **Top bar** (teal) — title "وارد جديد · شراء". Left: white check chip (Lucide `check`). Far right: back arrow (`arrow-right`).
 2. **Form fields** — white rounded inputs, label above (right), leading icon on right, chevron on left:
-   - "المورد" → "شركة النور للتجارة" (Lucide `truck`, teal value)
+   - "المورد" → "شركة النور للتجارة" (Lucide `truck`, teal value) — **tappable → supplier picker sheet (same pattern as `04-new-outgoing.md` §2a: search by name/phone, quick-add new supplier inline, or leave blank for cash purchase)**
    - "التاريخ" → "٦ يوليو ٢٠٢٦" (Lucide `calendar`)
    - "المتجر" → "المتجر الرئيسي" (Lucide `store`)
 3. **Items section** — header "الأصناف" (bold, right) + primary-light "إضافة صنف" chip with `plus`.

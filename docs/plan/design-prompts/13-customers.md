@@ -21,3 +21,5 @@ Design a high-fidelity **RTL Arabic** mobile UI mockup, **390×844px**, for a **
 6. **Bottom nav** — "المزيد" active.
 
 RTL throughout: avatar right, balance left. Warning-orange = owes shop; teal = customer in credit.
+
+> **Note:** This is the browse/list screen only. Selecting a customer *while issuing a receipt* (search by name/phone, quick-add new, or walk-in cash) is specified in `04-new-outgoing.md` §2a (customer picker sheet). Same picker pattern applies to the supplier field in `05-new-incoming.md`.
