@@ -13,3 +13,11 @@ export function toArabicDigits(value: number): string {
     .replace(THOUSANDS, ARABIC_THOUSANDS_SEP)
     .replace(/\d/g, (d) => ARABIC_INDIC[Number(d)]);
 }
+
+/** Locale-aware: Arabic-Indic for `ar`, Western digits + ',' otherwise. */
+export function formatNumber(value: number, lang: string): string {
+  if (lang === 'ar') return toArabicDigits(value);
+  return Math.round(value)
+    .toString()
+    .replace(THOUSANDS, ',');
+}

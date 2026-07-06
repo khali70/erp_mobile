@@ -152,7 +152,7 @@ export function HomeScreen() {
           <Pressable
             className="w-9 h-9 rounded-xl items-center justify-center"
             style={{ backgroundColor: overlaySoft }}
-            onPress={noop}
+            onPress={() => navigation.navigate('Settings')}
           >
             <Feather name="settings" size={20} color={colors.surface} />
           </Pressable>
@@ -194,7 +194,7 @@ export function HomeScreen() {
             tagText={t('dashboard.kpi.receivable.tag')}
             tagTextClass="text-warning"
             tagBgClass="bg-warning-light"
-            onPress={noop}
+            onPress={() => navigation.navigate('DebtsByCustomer')}
           />
           <KpiCard
             dotClass="bg-danger"
@@ -204,7 +204,7 @@ export function HomeScreen() {
             tagText={t('dashboard.kpi.payable.tag')}
             tagTextClass="text-danger"
             tagBgClass="bg-danger-light"
-            onPress={noop}
+            onPress={() => navigation.navigate('DebtsBySupplier')}
           />
         </View>
 
@@ -212,7 +212,7 @@ export function HomeScreen() {
         <View className={`${rowDir} flex-wrap gap-3`}>
           <Pressable
             className="grow basis-[30%] rounded-2xl py-3.5 px-2 items-center justify-center gap-2 bg-primary"
-            onPress={noop}
+            onPress={() => navigation.navigate('NewOutgoing')}
           >
             <View
               className="w-8 h-8 rounded-full items-center justify-center"
@@ -225,7 +225,7 @@ export function HomeScreen() {
 
           <Pressable
             className="grow basis-[30%] rounded-2xl py-3.5 px-2 items-center justify-center gap-2 bg-surface border border-primary"
-            onPress={noop}
+            onPress={() => navigation.navigate('NewIncoming')}
           >
             <View className="w-8 h-8 rounded-full items-center justify-center bg-primary-light">
               <Feather name="arrow-down" size={16} color={colors.primary} />
@@ -235,7 +235,7 @@ export function HomeScreen() {
 
           <Pressable
             className="grow basis-[30%] rounded-2xl py-3.5 px-2 items-center justify-center gap-2 bg-surface border border-border"
-            onPress={noop}
+            onPress={() => navigation.navigate('Scan')}
           >
             <View className="w-8 h-8 rounded-full items-center justify-center bg-background">
               <MaterialCommunityIcons name="barcode-scan" size={16} color={colors.muted} />

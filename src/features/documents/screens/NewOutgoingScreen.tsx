@@ -1,6 +1,7 @@
-import { UnderConstruction } from '@/components/UnderConstruction';
+import { DocumentForm } from '../components/DocumentForm';
 
-/** صادر جديد — new outgoing document / sale (Step 3). Skeleton; replace when built. */
+/** صادر جديد · بيع — new outgoing document / sale. Renders the shared
+ *  DocumentForm in `sale` mode (customer party, sale prices, barcode scan). */
 export function NewOutgoingScreen() {
-  return <UnderConstruction title="صادر جديد" />;
+  return <DocumentForm mode="sale" />;
 }

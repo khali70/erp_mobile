@@ -1,6 +1,7 @@
-import { UnderConstruction } from '@/components/UnderConstruction';
+import { DocumentForm } from '../components/DocumentForm';
 
-/** وارد جديد — new incoming document / purchase (Step 3). Skeleton; replace when built. */
+/** وارد جديد · فاتورة مشتريات — new incoming document / purchase. Renders the
+ *  shared DocumentForm in `purchase` mode (supplier party, unit costs, no scan). */
 export function NewIncomingScreen() {
-  return <UnderConstruction title="وارد جديد" />;
+  return <DocumentForm mode="purchase" />;
 }

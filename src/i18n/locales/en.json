@@ -121,5 +121,76 @@
       "addTitle": "Add new customer",
       "editTitle": "Edit customer"
     }
+  },
+  "documents": {
+    "date": "Date",
+    "scan": "Scan barcode",
+    "addLine": "Add item",
+    "unitPrice": "Unit price",
+    "unitCost": "Unit cost",
+    "lineTotal": "Total",
+    "lineCost": "Line cost",
+    "emptyLines": "No items yet — add one to start",
+    "summary": {
+      "count": "Item count",
+      "countValue": "{{n}} items",
+      "paidCash": "Paid in cash",
+      "remaining": "Remaining (debt)",
+      "total": "Total"
+    },
+    "save": "Save document",
+    "picker": {
+      "searchPlaceholder": "Search by name or phone...",
+      "debtTag": "Owes"
+    },
+    "outgoing": {
+      "title": "New outgoing · Sale",
+      "party": "Customer",
+      "addParty": "New customer",
+      "prevDebt": "Previous debt",
+      "store": "Store & warehouse",
+      "defaultStore": "Main Store",
+      "linesTitle": "Added items",
+      "pickerTitle": "Choose the customer",
+      "walkIn": "Cash sale (no customer)",
+      "quickAdd": "New customer: \"{{q}}\"",
+      "quickAddHint": "Tap to add and auto-save quickly"
+    },
+    "incoming": {
+      "title": "New incoming · Purchase invoice",
+      "party": "Supplier",
+      "addParty": "New supplier",
+      "prevDebt": "Previous debt owed to supplier",
+      "store": "Warehouse & store",
+      "defaultStore": "Main Warehouse",
+      "linesTitle": "Purchased items",
+      "pickerTitle": "Choose the supplier",
+      "walkIn": "Direct cash purchase (no supplier)",
+      "quickAddCta": "Supplier not registered? Add now"
+    }
+  },
+  "expenses": {
+    "title": "Expenses",
+    "currentMonth": "{{month}} expenses so far",
+    "lastMonth": "Last month",
+    "add": "Record new expense",
+    "filters": {
+      "all": "All",
+      "rent": "Rent",
+      "salaries": "Salaries",
+      "utilities": "Utilities",
+      "transport": "Transport",
+      "other": "Other"
+    },
+    "form": {
+      "statement": "Expense description",
+      "statementPlaceholder": "e.g. shelf repair, electricity meter top-up...",
+      "category": "Category",
+      "amount": "Expense amount (EGP)",
+      "attachment": "Attach file (optional)",
+      "attachmentHint": "Invoice or receipt photo",
+      "attach": "Attach",
+      "save": "Save expense"
+    }
   }
 }
