@@ -467,7 +467,7 @@ Header ─► DocumentsListScreen ──► IncomingDocScreen
 **M2 — Documents & posting**
 - [x] `numbering.ts` (per-type sequence) + tests. *(commit `857f471`, pure + tested)*
 - [x] `documentService.ts` (saveDraft/get/list/update/post/unpost/delete, transactional ledger materialization) + tests (happy + negative-stock block). *(as `src/repositories/document-repository.ts`, injectable factory; 10 repo tests vs real SQL, commit `8edd4da`)*
-- [~] `ledgerService.ts` (movement query, on-hand aggregate, negative-stock check). *(on-hand aggregate + negative check live in the repo `8edd4da`; per-item movement query for the movement screen still TODO — M3)*
+- [x] `ledgerService.ts` (movement query, on-hand aggregate, negative-stock check). *(on-hand aggregate + negative check in repo `8edd4da`; per-item movement query `documentRepository.movement(itemId)` added, running balance + source doc, commit pending)*
 - [ ] `useDocumentsQuery`, `useDocumentQuery`, `useDocumentMutations`, `useDocumentForm`.
 - [ ] `DocumentListRow`, `DocumentTypeBadge`, `DocumentLineEditor`, `LineItemPicker`, `QtyPriceInput`.
 - [ ] `DocumentsListScreen`, `IncomingDocScreen`, `OutgoingDocScreen`; register routes + zod route schemas.

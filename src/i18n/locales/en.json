@@ -19,10 +19,22 @@
     "defaultStore": "Main Store",
     "tagline": "Inventory & stock, simply",
     "kpi": {
-      "stockValue": { "label": "Stock value", "tag": "Total goods value" },
-      "profit": { "label": "Monthly profit", "tag": "▲ 12%  Est. net profit" },
-      "receivable": { "label": "Owed to you (customers)", "tag": "Due to collect" },
-      "payable": { "label": "You owe (suppliers)", "tag": "Due to pay (tap for details)" }
+      "stockValue": {
+        "label": "Stock value",
+        "tag": "Total goods value"
+      },
+      "profit": {
+        "label": "Monthly profit",
+        "tag": "▲ 12%  Est. net profit"
+      },
+      "receivable": {
+        "label": "Owed to you (customers)",
+        "tag": "Due to collect"
+      },
+      "payable": {
+        "label": "You owe (suppliers)",
+        "tag": "Due to pay (tap for details)"
+      }
     },
     "actions": {
       "newOutgoing": "New outgoing",
@@ -93,6 +105,15 @@
       "item4": "Blue jeans · 32",
       "item5": "Classic white shirt · L",
       "item6": "Black cap"
+    },
+    "movement": {
+      "title": "Item movement",
+      "onHand": "On hand",
+      "empty": "No movement yet",
+      "in": "In",
+      "out": "Out",
+      "balance": "Balance",
+      "untitled": "No number"
     }
   },
   "parties": {

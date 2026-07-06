@@ -81,7 +81,14 @@ export function ItemsListScreen() {
                 key={item.id}
                 item={presentItem(item, t)}
                 category={item.category}
-                onPress={() => openEdit(item)}
+                onPress={() =>
+                  navigation.navigate('ItemMovement', {
+                    itemId: item.id,
+                    itemName: item.name,
+                    unit: item.unit,
+                  })
+                }
+                onLongPress={() => openEdit(item)}
               />
             ))}
           </ScrollView>

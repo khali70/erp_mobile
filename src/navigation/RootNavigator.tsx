@@ -1,6 +1,7 @@
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { HomeScreen } from '@/features/inventory/screens/HomeScreen';
 import { ItemsListScreen } from '@/features/inventory/screens/ItemsListScreen';
+import { ItemMovementScreen } from '@/features/inventory/screens/ItemMovementScreen';
 import { CustomersListScreen } from '@/features/parties/screens/CustomersListScreen';
 import { SuppliersListScreen } from '@/features/parties/screens/SuppliersListScreen';
 import { NewOutgoingScreen } from '@/features/documents/screens/NewOutgoingScreen';
@@ -18,6 +19,7 @@ import { SettingsScreen } from '@/features/settings/screens/SettingsScreen';
 export type RootStackParamList = {
   Home: undefined;
   Items: undefined;
+  ItemMovement: { itemId: string; itemName: string; unit: string };
   Customers: undefined;
   Suppliers: undefined;
   NewOutgoing: undefined;
@@ -40,6 +42,7 @@ export function RootNavigator() {
     <Stack.Navigator screenOptions={{ headerShown: false }}>
       <Stack.Screen name="Home" component={HomeScreen} />
       <Stack.Screen name="Items" component={ItemsListScreen} />
+      <Stack.Screen name="ItemMovement" component={ItemMovementScreen} />
       <Stack.Screen name="Customers" component={CustomersListScreen} />
       <Stack.Screen name="Suppliers" component={SuppliersListScreen} />
       <Stack.Screen name="NewOutgoing" component={NewOutgoingScreen} />

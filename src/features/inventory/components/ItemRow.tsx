@@ -9,14 +9,16 @@ interface ItemRowProps {
   item: ItemRowViewModel;
   category: ItemCategory;
   onPress: () => void;
+  onLongPress?: () => void;
 }
 
 /** A single item card: category avatar + name/category, price + stock badge. */
-export function ItemRow({ item, category, onPress }: ItemRowProps) {
+export function ItemRow({ item, category, onPress, onLongPress }: ItemRowProps) {
   return (
     <Pressable
       className={`bg-surface rounded-[18px] p-3.5 border border-border ${ROW} items-center justify-between`}
       onPress={onPress}
+      onLongPress={onLongPress}
       accessibilityRole="button"
     >
       <View className={`${ROW} items-center gap-3`}>

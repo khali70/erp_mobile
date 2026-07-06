@@ -6,6 +6,16 @@ const ARABIC_INDIC = ['٠', '١', '٢', '٣', '٤', '٥', '٦', '٧', '٨', '٩'
 const THOUSANDS = /\B(?=(\d{3})+(?!\d))/g;
 const ARABIC_THOUSANDS_SEP = '٬';
 
+/** Format an epoch-ms timestamp as `DD/MM/YYYY`, digits shaped for `lang`. */
+export function formatDay(ms: number, lang: string): string {
+  const d = new Date(ms);
+  const dd = String(d.getDate()).padStart(2, '0');
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  const western = `${dd}/${mm}/${d.getFullYear()}`;
+  if (lang !== 'ar') return western;
+  return western.replace(/\d/g, (n) => ARABIC_INDIC[Number(n)]);
+}
+
 /** Format a number with Arabic-Indic digits and thousands separators. */
 export function toArabicDigits(value: number): string {
   return Math.round(value)
