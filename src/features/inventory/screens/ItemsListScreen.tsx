@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { View, Text, Pressable, ScrollView } from 'react-native';
+import { View, Text, Pressable, ScrollView, Alert } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import Feather from '@expo/vector-icons/Feather';
@@ -9,8 +9,10 @@ import type { RootStackParamList } from '@/navigation/RootNavigator';
 import { useItems } from '../hooks/useItems';
 import { useItemFilter } from '../hooks/useItemFilter';
 import { presentItem } from '../presenters';
-import { toDraft } from '../drafts';
-import type { InventoryItem, StockFilter } from '../types';
+import { toDraft, fromDraft } from '../drafts';
+import { itemRepository } from '@/repositories/item-repository.client';
+import { DuplicateBarcodeError } from '@/repositories/item-repository';
+import type { InventoryItem, ItemDraft, StockFilter } from '../types';
 import { ScreenHeader } from '@/components/ui/ScreenHeader';
 import { SearchBar } from '@/components/ui/SearchBar';
 import { FilterChips, type FilterOption } from '@/components/ui/FilterChips';
@@ -25,7 +27,7 @@ import { ItemFormSheet } from '../components/ItemFormSheet';
 export function ItemsListScreen() {
   const { t } = useTranslation();
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
-  const { items } = useItems();
+  const { items, reload } = useItems();
   const { query, setQuery, filter, setFilter, filtered, reset } = useItemFilter(items);
 
   const [formOpen, setFormOpen] = useState(false);
@@ -44,6 +46,25 @@ export function ItemsListScreen() {
   const openEdit = (item: InventoryItem) => {
     setEditingItem(item);
     setFormOpen(true);
+  };
+
+  const handleSave = (draft: ItemDraft) => {
+    try {
+      const input = fromDraft(draft);
+      if (editingItem) {
+        itemRepository.update(editingItem.id, input);
+      } else {
+        itemRepository.create(input);
+      }
+      setFormOpen(false);
+      reload();
+    } catch (e) {
+      if (e instanceof DuplicateBarcodeError) {
+        Alert.alert(t('inventory.form.duplicateBarcodeTitle'), t('inventory.form.duplicateBarcodeBody'));
+        return; // keep the sheet open so the entered data is not lost
+      }
+      throw e;
+    }
   };
 
   return (
@@ -99,7 +120,7 @@ export function ItemsListScreen() {
         visible={formOpen}
         initial={editingItem ? toDraft(editingItem) : null}
         onClose={() => setFormOpen(false)}
-        onSave={() => setFormOpen(false)}
+        onSave={handleSave}
       />
     </View>
   );

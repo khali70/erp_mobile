@@ -78,12 +78,25 @@ export function DocumentForm({ mode }: DocumentFormProps) {
     setLines((prev) =>
       prev.map((l) => (l.id === id ? { ...l, qty: Math.max(1, l.qty + delta) } : l)),
     );
+  const setQty = (id: string, qty: number) =>
+    setLines((prev) => prev.map((l) => (l.id === id ? { ...l, qty: Math.max(0, qty) } : l)));
+  const setPrice = (id: string, unitPrice: number) =>
+    setLines((prev) => prev.map((l) => (l.id === id ? { ...l, unitPrice: Math.max(0, unitPrice) } : l)));
   const removeLine = (id: string) => setLines((prev) => prev.filter((l) => l.id !== id));
 
   const save = () => {
     if (saving) return;
     if (lines.length === 0) {
       Alert.alert(t('documents.errors.title'), t('documents.errors.noLines'));
+      return;
+    }
+    if (lines.some((l) => l.qty <= 0)) {
+      Alert.alert(t('documents.errors.title'), t('documents.errors.zeroQty'));
+      return;
+    }
+    // Purchase unit cost feeds weighted-average valuation — never post cost 0.
+    if (mode === 'purchase' && lines.some((l) => l.unitPrice <= 0)) {
+      Alert.alert(t('documents.errors.title'), t('documents.errors.zeroCost'));
       return;
     }
     setSaving(true);
@@ -235,8 +248,9 @@ export function DocumentForm({ mode }: DocumentFormProps) {
                 mode={mode}
                 onInc={() => mutateQty(line.id, 1)}
                 onDec={() => mutateQty(line.id, -1)}
+                onQty={(q) => setQty(line.id, q)}
+                onPrice={(p) => setPrice(line.id, p)}
                 onDelete={() => removeLine(line.id)}
-                onEdit={() => {}}
               />
             ))}
           </View>

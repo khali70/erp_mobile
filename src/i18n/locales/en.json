@@ -96,7 +96,9 @@
       "costPrice": "Cost price",
       "salePrice": "Sale price",
       "lowStockThreshold": "Low-stock alert threshold",
-      "barcode": "Barcode (optional)"
+      "barcode": "Barcode (optional)",
+      "duplicateBarcodeTitle": "Duplicate barcode",
+      "duplicateBarcodeBody": "This barcode is already used by another item."
     },
     "demo": {
       "item1": "White cotton T-shirt · L",
@@ -200,7 +202,9 @@
     "errors": {
       "title": "Couldn't save",
       "noLines": "Add at least one item.",
-      "negativeStock": "Requested quantity exceeds available stock."
+      "negativeStock": "Requested quantity exceeds available stock.",
+      "zeroQty": "Enter a quantity greater than zero for every line.",
+      "zeroCost": "Enter a unit cost for every line (cannot be zero)."
     },
     "ok": "OK",
     "title": "Documents",
@@ -214,7 +218,10 @@
       "all": "All",
       "incoming": "Incoming",
       "outgoing": "Outgoing"
-    }
+    },
+    "qty": "Qty",
+    "qtyInc": "Increase quantity",
+    "qtyDec": "Decrease quantity"
   },
   "expenses": {
     "title": "Expenses",

@@ -23,7 +23,9 @@ export interface InventoryItem {
   name: string;
   category: ItemCategory;
   unit: UnitKey;
+  costPriceMinor: number;
   salePriceMinor: number;
+  barcode: string | null;
   qty: number;
   lowStockThreshold: number;
 }

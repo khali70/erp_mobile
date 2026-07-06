@@ -1,4 +1,4 @@
-import { View, Text, Pressable } from 'react-native';
+import { View, Text, Pressable, TextInput } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import Feather from '@expo/vector-icons/Feather';
 import colors from '@/theme/colors';
@@ -11,12 +11,23 @@ interface DocLineRowProps {
   mode: DocMode;
   onInc: () => void;
   onDec: () => void;
+  onQty: (qty: number) => void;
+  onPrice: (price: number) => void;
   onDelete: () => void;
-  onEdit: () => void;
 }
 
-/** One line-item card: name + unit rate, running total, qty stepper, edit/delete. */
-export function DocLineRow({ line, mode, onInc, onDec, onDelete, onEdit }: DocLineRowProps) {
+/** Parse a free-typed numeric field; empty / malformed → 0 (never NaN). */
+const parseNum = (text: string): number => {
+  const n = parseFloat(text.replace(',', '.'));
+  return Number.isFinite(n) ? n : 0;
+};
+
+/**
+ * One line-item card. Both qty and unit rate are directly typable (decimal-pad)
+ * — the hottest fields on the entry path — with +/− steppers for fine-adjust.
+ * Purchase mode REQUIRES a typed unit cost (weighted-average valuation).
+ */
+export function DocLineRow({ line, mode, onInc, onDec, onQty, onPrice, onDelete }: DocLineRowProps) {
   const { t, i18n } = useTranslation();
   const lang = i18n.language;
   const currency = t('common.currency');
@@ -35,49 +46,61 @@ export function DocLineRow({ line, mode, onInc, onDec, onDelete, onEdit }: DocLi
         </View>
         <View className="flex-1 items-end">
           <Text className="text-ink text-sm font-extrabold text-right">{line.name}</Text>
-          <Text className="text-muted text-xs mt-0.5 text-right">
-            {rateLabel}: {formatNumber(line.unitPrice, lang)} {currency}
-          </Text>
+          {/* Typable unit rate (price for sale, cost for purchase). */}
+          <View className={`${ROW} items-center gap-2 mt-1`}>
+            <Text className="text-muted text-xs">{currency}</Text>
+            <TextInput
+              className="min-w-16 bg-background text-ink text-sm font-bold text-center px-2 py-1.5 rounded-lg border border-border"
+              keyboardType="decimal-pad"
+              value={line.unitPrice ? String(line.unitPrice) : ''}
+              onChangeText={(v) => onPrice(parseNum(v))}
+              placeholder="0"
+              placeholderTextColor={colors['slate-400']}
+              accessibilityLabel={`${rateLabel} — ${line.name}`}
+              selectTextOnFocus
+            />
+            <Text className="text-muted text-xs">{rateLabel}</Text>
+          </View>
         </View>
       </View>
 
       <View className={`${ROW} items-center justify-between mt-3 pt-3 border-t border-border`}>
-        {/* qty stepper */}
+        {/* qty stepper with a typable center field */}
         <View className={`${ROW} items-center bg-background rounded-xl border border-border`}>
           <Pressable
-            className="w-9 h-9 items-center justify-center"
+            className="w-11 h-11 items-center justify-center"
             onPress={onInc}
-            accessibilityLabel="+"
+            accessibilityLabel={t('documents.qtyInc')}
           >
             <Feather name="plus" size={16} color={colors.primary} />
           </Pressable>
-          <Text className="w-8 text-center text-ink font-extrabold">{formatNumber(line.qty, lang)}</Text>
+          <TextInput
+            className="w-12 h-11 text-center text-ink font-extrabold"
+            keyboardType="decimal-pad"
+            value={line.qty ? String(line.qty) : ''}
+            onChangeText={(v) => onQty(parseNum(v))}
+            placeholder="0"
+            placeholderTextColor={colors['slate-400']}
+            accessibilityLabel={`${t('documents.qty')} — ${line.name}`}
+            selectTextOnFocus
+          />
           <Pressable
-            className="w-9 h-9 items-center justify-center"
+            className="w-11 h-11 items-center justify-center"
             onPress={onDec}
-            accessibilityLabel="-"
+            accessibilityLabel={t('documents.qtyDec')}
           >
             <Feather name="minus" size={16} color={colors.muted} />
           </Pressable>
         </View>
 
-        {/* edit / delete */}
-        <View className={`${ROW} items-center gap-2`}>
-          <Pressable
-            className="w-9 h-9 rounded-xl bg-primary-light items-center justify-center"
-            onPress={onEdit}
-            accessibilityLabel={t('common.save')}
-          >
-            <Feather name="edit-2" size={15} color={colors.primary} />
-          </Pressable>
-          <Pressable
-            className="w-9 h-9 rounded-xl bg-danger-light items-center justify-center"
-            onPress={onDelete}
-            accessibilityLabel={t('common.delete')}
-          >
-            <Feather name="trash-2" size={15} color={colors.danger} />
-          </Pressable>
-        </View>
+        {/* delete */}
+        <Pressable
+          className="w-11 h-11 rounded-xl bg-danger-light items-center justify-center"
+          onPress={onDelete}
+          accessibilityLabel={`${t('common.delete')} — ${line.name}`}
+        >
+          <Feather name="trash-2" size={15} color={colors.danger} />
+        </Pressable>
       </View>
     </View>
   );

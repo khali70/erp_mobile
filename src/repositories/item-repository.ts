@@ -10,6 +10,7 @@ export interface ItemWithStock {
   name: string;
   category: string | null;
   unit: string;
+  barcode: string | null;
   costPrice: number; // minor units
   salePrice: number; // minor units
   lowStockThreshold: number;
@@ -71,6 +72,7 @@ export function createItemRepository(database: DocDb) {
           name: schema.items.name,
           category: schema.items.category,
           unit: schema.items.unit,
+          barcode: schema.items.barcode,
           costPrice: schema.items.costPrice,
           salePrice: schema.items.salePrice,
           lowStockThreshold: schema.items.lowStockThreshold,
