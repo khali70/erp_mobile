@@ -4,7 +4,6 @@ import { useNavigation } from '@react-navigation/native';
 import { useTranslation } from 'react-i18next';
 import { ScreenHeader } from '@/components/ui/ScreenHeader';
 import { FilterChips, type FilterOption } from '@/components/ui/FilterChips';
-import { ROW } from '@/theme/rtl';
 import { formatNumber } from '@/utils/numerals';
 import { ExpenseRow } from '../components/ExpenseRow';
 import { AddExpenseSheet } from '../components/AddExpenseSheet';

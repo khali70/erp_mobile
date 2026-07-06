@@ -124,7 +124,6 @@ export function HomeScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const { t, i18n } = useTranslation();
   const [, setBranchOpen] = useState(false);
-  const noop = () => {};
 
   const lang = i18n.language;
   const currency = t('common.currency');
