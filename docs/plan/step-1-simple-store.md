@@ -465,9 +465,9 @@ Header ─► DocumentsListScreen ──► IncomingDocScreen
 - [ ] `ItemsListScreen`, `ItemEditScreen`; register routes.
 
 **M2 — Documents & posting**
-- [ ] `numbering.ts` (per-type sequence) + tests.
-- [ ] `documentService.ts` (saveDraft/get/list/update/post/unpost/delete, transactional ledger materialization) + tests (happy + negative-stock block).
-- [ ] `ledgerService.ts` (movement query, on-hand aggregate, negative-stock check).
+- [x] `numbering.ts` (per-type sequence) + tests. *(commit `857f471`, pure + tested)*
+- [~] `documentService.ts` (saveDraft/get/list/update/post/unpost/delete, transactional ledger materialization) + tests (happy + negative-stock block). *(pure engine `posting.ts` done + tested `857f471`; SQLite tx wrapper over expo-sqlite still TODO — needs better-sqlite3 test harness)*
+- [~] `ledgerService.ts` (movement query, on-hand aggregate, negative-stock check). *(pure `computeOnHand`/`itemMovement`/`negativeStockViolations` done + tested `857f471`; SQLite query wrapper TODO)*
 - [ ] `useDocumentsQuery`, `useDocumentQuery`, `useDocumentMutations`, `useDocumentForm`.
 - [ ] `DocumentListRow`, `DocumentTypeBadge`, `DocumentLineEditor`, `LineItemPicker`, `QtyPriceInput`.
 - [ ] `DocumentsListScreen`, `IncomingDocScreen`, `OutgoingDocScreen`; register routes + zod route schemas.
