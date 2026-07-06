@@ -460,9 +460,9 @@ Header ─► DocumentsListScreen ──► IncomingDocScreen
 
 **M1 — Items**
 - [x] `mappers.ts` + `itemService.ts` (create/update/archive/getById/listWithStock) + tests. *(as `src/repositories/item-repository.ts` injectable factory; barcode uniqueness; 6 tests vs real SQL, commit `4991875`. `mappers.ts`/presenters already existed.)*
-- [ ] `inventory-keys.ts`, `useItemsQuery`, `useItemQuery`, `useItemMutations`.
-- [ ] `ItemForm`, `ImagePickerField`, `ItemListRow`, `StockBadge`.
-- [ ] `ItemsListScreen`, `ItemEditScreen`; register routes.
+- [x] `inventory-keys.ts`, `useItemsQuery`, `useItemQuery`, `useItemMutations`. *(no TanStack in project — plain hooks: `useItems` (listWithStock), `useItemFilter`; mutations via `itemRepository` called from `ItemFormSheet`.)*
+- [x] `ItemForm`, `ImagePickerField`, `ItemListRow`, `StockBadge`. *(`ItemFormSheet` (create/edit incl. image via expo-image-picker), `ItemRow`, `StockBadge`, `CategorySelect`/`CategoryAvatar`.)*
+- [x] `ItemsListScreen`, `ItemEditScreen`; register routes. *(`ItemsListScreen` wired to `useItems`; edit is an in-place `ItemFormSheet` (long-press a row) rather than a separate route — fewer taps, aligns with the speed-of-entry hill. Routes registered in `RootNavigator`.)*
 
 **M2 — Documents & posting**
 - [x] `numbering.ts` (per-type sequence) + tests. *(commit `857f471`, pure + tested)*
