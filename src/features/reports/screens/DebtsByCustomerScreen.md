@@ -1,21 +1,14 @@
-# ديون الزبائن — Debts by Customer (Receivables / AR)
+# ديون الزبائن — Debts by Customer (Receivables / AR) — **REMOVED**
 
-> Part of **ERP Mobile**. Project overview + full screen map: [`docs/PROJECT.md`](../../../../docs/PROJECT.md). Step 6.
+> Part of **ERP Mobile**. Project overview + full screen map: [`docs/PROJECT.md`](../../../../docs/PROJECT.md).
 
-## Purpose
-Who owes the shop, and how much. Receivables (AR) rolled up per customer, with aging.
+## Status: DROPPED (2026-07-07 — owner)
+**No customer debt (AR) in this app.** Sales are always paid in full, cash. There are no receivables to report, so this screen is **removed**.
 
-## UX
-- List of customers with a non-zero balance, sorted by amount owed.
-- Each row: name, phone, total owed, oldest-debt age. Tap → their unpaid documents + payment history.
-- Record a payment against a customer → reduces balance, posts cash-in.
+Ripple (apply everywhere):
+- Home: delete the «ديون لك (زبائن)» KPI tile. Keep only «ديون عليك (موردين)» = supplier debt (AP).
+- Reports hub: remove the "ديون حسب الزبون" entry. Keep "الديون حسب المورد" (AP).
+- Customers screen: customers have **no balance field** — contact record only (name/phone). No debt column, no aging.
+- Navigation: drop the `DebtsByCustomer` route from `RootNavigator`.
 
-## Navigation
-- **In**: Reports hub; Home KPI «ديون لك (زبائن)».
-- **Out**: customer detail; record-payment flow.
-
-## Why needed
-Uncollected debt is the small shop's biggest cash-flow blind spot. Aging turns "someone owes me" into "collect from X, they're 45 days late."
-
-## Guard-rails
-Balances derived from unpaid sale documents − payments. Integer minor units. Never hand-edited.
+Debt lives **only** on the supplier side — see [`DebtsBySupplierScreen.md`](./DebtsBySupplierScreen.md) and [`NewIncomingScreen.md`](../../documents/screens/NewIncomingScreen.md).
