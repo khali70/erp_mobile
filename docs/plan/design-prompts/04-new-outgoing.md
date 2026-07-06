@@ -22,10 +22,10 @@ Design a high-fidelity **RTL Arabic** mobile UI mockup, **390×844px**, for a **
 - Selecting a customer with an existing balance shows their current debt under the field as a muted hint.
 3. **Items section** — header row: title "الأصناف" (bold, right) and a small primary-light "إضافة صنف" chip with Lucide `plus` on the left.
 4. **Line item rows** — white cards. Each (RTL): on the right item name (SemiBold) + meta "٢٠ × ١٥ ج.م" (muted); a small teal edit chip (`pencil`); on the left the line total in teal bold. Rows:
-   - "بيبسي ٢ لتر" · "٢٠ × ١٥ ج.م" · "٣٠٠ ج.م"
-   - "أرز مصري ١ك" · "٣٠ × ٢٨ ج.م" · "٨٤٠ ج.م"
-   - "شوكولاتة جالاكسي" · "١٠ × ٢٢ ج.م" · "٢٢٠ ج.م"
-5. **Totals card** — primary-light bg. Rows (label right, value left): "عدد الأصناف: ٣ أصناف"، "المدفوع نقدًا: ١٬٠٠٠ ج.م"، "المتبقّي (دَين): ٣٦٠ ج.م"، and a bold large "الإجمالي: ١٬٣٦٠ ج.م" in teal.
+   - "تيشيرت قطن أبيض · L" · "٢ × ٢٥٠ ج.م" · "٥٠٠ ج.م"
+   - "بنطلون جينز أزرق · ٣٢" · "١ × ٦٥٠ ج.م" · "٦٥٠ ج.م"
+   - "كاب أسود · مقاس واحد" · "٣ × ٢٠٠ ج.م" · "٦٠٠ ج.م"
+5. **Totals card** — primary-light bg. Rows (label right, value left): "عدد الأصناف: ٣ أصناف"، "المدفوع نقدًا: ١٬٤٠٠ ج.م"، "المتبقّي (دَين): ٣٥٠ ج.م"، and a bold large "الإجمالي: ١٬٧٥٠ ج.م" in teal.
 6. **Footer** — full-width primary button "حفظ المستند" (teal, white bold).
 
 Note: outgoing = stock leaves + money in; partial payment creates customer debt. RTL throughout.

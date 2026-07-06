@@ -14,7 +14,7 @@ Design a high-fidelity **RTL Arabic** mobile UI mockup, **390×844px**, for a **
 4. **Supplier debt rows** — white cards. Each (RTL): on the **right** a rounded square avatar (primary-light) with Lucide `truck` icon; supplier name (SemiBold) + "آخر توريد: ٦ يوليو" (muted). On the **left** the owed amount in **danger-red bold** + muted aging "منذ ٣ أيام". Rows:
    - "شركة النور للتجارة" · "٧٦٠ ج.م" · "منذ ٠ يوم"
    - "مخازن الدلتا" · "٢٬٦٠٠ ج.م" · "منذ ٨ أيام"
-   - "موزّع المشروبات" · "١٬٧٦٠ ج.م" · "منذ ٤ أيام"
+   - "موزّع ملابس رجالي" · "١٬٧٦٠ ج.م" · "منذ ٤ أيام"
 5. Each row has a small teal "سداد" (pay) button / Lucide `banknote` icon on the far left.
 6. **Bottom nav** — "التقارير" active.
 

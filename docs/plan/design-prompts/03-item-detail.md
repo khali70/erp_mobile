@@ -9,14 +9,15 @@ Design a high-fidelity **RTL Arabic** mobile UI mockup, **390×844px**, for an *
 **Layout:**
 
 1. **Top bar** (teal) — title "تفاصيل الصنف". Left: white edit chip (Lucide `pencil`). Far right: back arrow (`arrow-right`).
-2. **Hero** — large product image (rounded, primary-light with Lucide `package` placeholder), centered; below it the item name "بيبسي ٢ لتر" (bold) and category "مشروبات" (muted).
+2. **Hero** — large product image (rounded, primary-light with Lucide `package` placeholder), centered; below it the item name "تيشيرت قطن أبيض · L" (bold) and category "تيشيرتات" (muted).
 3. **Stock summary card** — white, border. Big current stock "٤٨ قطعة" with a green "متوفر" pill. Small row: "حد التنبيه: ١٠ قطعة".
 4. **Info rows** (white card, dividers): 
    - "الباركود" → `6223000123456` (Lucide `barcode`)
-   - "سعر البيع" → "١٥ ج.م" 
-   - "سعر التكلفة" → "١١ ج.م" (muted)
+   - "المقاس / اللون" → "L · أبيض" (Lucide `tag`)
+   - "سعر البيع" → "٢٥٠ ج.م" 
+   - "سعر التكلفة" → "١٤٠ ج.م" (muted)
    - "الوحدة" → "قطعة"
-   - "التصنيف" → "مشروبات"
+   - "التصنيف" → "تيشيرتات"
 5. **Movement history** — section title "حركة الصنف". List rows with Lucide icons: `arrow-down` green "وارد +٦٠ · ٣ يوليو"، `arrow-up` teal "صادر −١٢ · ٥ يوليو"، `arrow-up` teal "صادر −٨ · ٦ يوليو". Each row shows resulting balance on the left.
 6. **Footer** — two buttons: primary "تعديل" (teal) and outline "أرشفة" (muted, Lucide `archive` — archive-never-delete).
 

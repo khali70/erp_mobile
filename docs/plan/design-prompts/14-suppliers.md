@@ -15,7 +15,7 @@ Design a high-fidelity **RTL Arabic** mobile UI mockup, **390×844px**, for a **
 5. **Supplier rows** — white cards. Each (RTL): on the **right** a rounded-square primary-light avatar with Lucide `truck` icon; name (SemiBold) + phone with `phone` icon (muted). On the **left** the payable balance bold + colored tag:
    - "شركة النور للتجارة" · "٠١٢٧٧٧٧٧٧٧" · "٧٦٠" · tag "علينا" (red)
    - "مخازن الدلتا" · "٠١٠٨٨٨٨٨٨٨" · "٢٬٦٠٠" · tag "علينا" (red)
-   - "موزّع المشروبات" · "٠١١٤٤٤٤٤٤٤" · "١٬٧٦٠" · tag "علينا" (red)
+   - "موزّع ملابس رجالي" · "٠١١٤٤٤٤٤٤٤" · "١٬٧٦٠" · tag "علينا" (red)
    - "مطبعة الأصناف" · "٠١٢٣٣٣٣٣٣٣" · "خالص" · tag "لا ديون" (green)
 6. **Bottom nav** — "المزيد" active.
 
