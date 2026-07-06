@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { itemRepository } from '@/repositories/item-repository';
+import { itemRepository } from '@/repositories/item-repository.client';
 import type { InventoryItem } from '../types';
 import { toInventoryItem } from '../mappers';
 

@@ -1,7 +1,7 @@
 import { db, schema } from './client';
 import i18n from '@/i18n';
 import { newId, now } from '@/utils/id';
-import { itemRepository } from '@/repositories/item-repository';
+import { itemRepository } from '@/repositories/item-repository.client';
 
 /**
  * Dev seed: inserts a placeholder catalog into SQLite on first run so screens
