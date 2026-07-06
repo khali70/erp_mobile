@@ -1,0 +1,6 @@
+{
+  "name": "Arabic Retail ERP Mobile Design",
+  "description": "High-fidelity RTL Arabic mobile UI design for an inventory and accounting ERP system tailored for small shops.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
