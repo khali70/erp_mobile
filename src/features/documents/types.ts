@@ -4,8 +4,11 @@ export type DocMode = 'sale' | 'purchase';
 
 export interface DocLine {
   id: string;
+  /** Real inventory item id — lines persist to the ledger against this. */
+  itemId: string;
   name: string;
-  /** Whole currency units for now (demo). Sale = unit price, purchase = unit cost. */
+  unit: string;
+  /** Whole currency units (major). Sale = unit price, purchase = unit cost. */
   unitPrice: number;
   qty: number;
 }

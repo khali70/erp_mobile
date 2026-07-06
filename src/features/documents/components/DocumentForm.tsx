@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { View, Text, Pressable, ScrollView, TextInput } from 'react-native';
+import { View, Text, Pressable, ScrollView, Alert } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { useTranslation } from 'react-i18next';
 import Feather from '@expo/vector-icons/Feather';
@@ -8,7 +8,14 @@ import colors from '@/theme/colors';
 import { ROW } from '@/theme/rtl';
 import { ScreenHeader } from '@/components/ui/ScreenHeader';
 import { formatNumber } from '@/utils/numerals';
+import { fromMinor, toMinor } from '@/utils/money';
+import { useItems } from '@/features/inventory/hooks/useItems';
+import { useSettingsStore } from '@/store/settings-store';
+import { documentRepository } from '@/repositories/document-repository.client';
+import { NegativeStockError } from '@/repositories/document-repository';
+import type { InventoryItem } from '@/features/inventory/types';
 import { PartyPicker } from './PartyPicker';
+import { LineItemPicker } from './LineItemPicker';
 import { DocLineRow } from './DocLineRow';
 import type { DocLine, DocMode, Party } from '../types';
 
@@ -25,13 +32,6 @@ const DEMO_SUPPLIERS: Party[] = [
   { id: 's2', name: 'مجموعة الفوزان للمنسوجات والاستيراد', phone: '023456789', debt: 0 },
   { id: 's3', name: 'الشرق للمشغولات الجلدية والشنط', phone: '024567890', debt: 0 },
 ];
-const DEMO_CATALOG: Array<Omit<DocLine, 'id' | 'qty'>> = [
-  { name: 'تيشرت قطني كاجوال - أسود', unitPrice: 350 },
-  { name: 'فستان سهرة ناعم - أحمر', unitPrice: 950 },
-  { name: 'طقم جوارب قطنية (٥ أزواج)', unitPrice: 120 },
-  { name: 'جاكيت جينز - أزرق', unitPrice: 780 },
-];
-
 let seq = 0;
 const nextId = () => `l${seq++}`;
 
@@ -51,28 +51,69 @@ export function DocumentForm({ mode }: DocumentFormProps) {
   const currency = t('common.currency');
   const ns = mode === 'sale' ? 'documents.outgoing' : 'documents.incoming';
 
+  const { items } = useItems();
+  const allowNegativeStock = useSettingsStore((s) => s.allowNegativeStock);
+
   const allParties = mode === 'sale' ? DEMO_CUSTOMERS : DEMO_SUPPLIERS;
   const [parties, setParties] = useState<Party[]>(allParties);
   const [party, setParty] = useState<Party | null>(null);
   const [chosen, setChosen] = useState(false); // true once picker used (party or walk-in)
   const [pickerOpen, setPickerOpen] = useState(false);
+  const [itemPickerOpen, setItemPickerOpen] = useState(false);
   const [lines, setLines] = useState<DocLine[]>([]);
-  const [paidCash, setPaidCash] = useState('');
+  const [saving, setSaving] = useState(false);
 
   const total = useMemo(() => lines.reduce((s, l) => s + l.unitPrice * l.qty, 0), [lines]);
-  const paid = Number.parseInt(paidCash || '0', 10) || 0;
-  const remaining = Math.max(total - paid, 0);
   const isWalkIn = chosen && party === null;
 
-  const addLine = () => {
-    const pick = DEMO_CATALOG[lines.length % DEMO_CATALOG.length];
-    setLines((prev) => [...prev, { ...pick, id: nextId(), qty: 1 }]);
+  const appendItem = (item: InventoryItem) => {
+    // Sale prefills the sale price; purchase starts at 0 (owner types unit cost).
+    const unitPrice = mode === 'sale' ? fromMinor(item.salePriceMinor) : 0;
+    setLines((prev) => [
+      ...prev,
+      { id: nextId(), itemId: item.id, name: item.name, unit: item.unit, unitPrice, qty: 1 },
+    ]);
   };
   const mutateQty = (id: string, delta: number) =>
     setLines((prev) =>
       prev.map((l) => (l.id === id ? { ...l, qty: Math.max(1, l.qty + delta) } : l)),
     );
   const removeLine = (id: string) => setLines((prev) => prev.filter((l) => l.id !== id));
+
+  const save = () => {
+    if (saving) return;
+    if (lines.length === 0) {
+      Alert.alert(t('documents.errors.title'), t('documents.errors.noLines'));
+      return;
+    }
+    setSaving(true);
+    try {
+      documentRepository.create(
+        {
+          kind: mode === 'sale' ? 'outgoing' : 'incoming',
+          status: 'posted',
+          note: party?.name ?? undefined,
+          lines: lines.map((l) => ({
+            itemId: l.itemId,
+            qty: l.qty,
+            unitPrice: toMinor(l.unitPrice),
+          })),
+        },
+        { allowNegative: allowNegativeStock },
+      );
+      Alert.alert(t('documents.saved'), t('documents.savedBody'), [
+        { text: t('documents.ok'), onPress: () => navigation.goBack() },
+      ]);
+    } catch (err) {
+      const msg =
+        err instanceof NegativeStockError
+          ? t('documents.errors.negativeStock')
+          : String((err as Error)?.message ?? err);
+      Alert.alert(t('documents.errors.title'), msg);
+    } finally {
+      setSaving(false);
+    }
+  };
 
   const handleQuickAdd = (query: string) => {
     const isPhone = /^[0-9]+$/.test(query);
@@ -97,7 +138,7 @@ export function DocumentForm({ mode }: DocumentFormProps) {
         backLabel={t('common.back')}
         action={{
           icon: 'check',
-          onPress: () => navigation.goBack(),
+          onPress: save,
           accessibilityLabel: t('documents.save'),
         }}
       />
@@ -129,7 +170,9 @@ export function DocumentForm({ mode }: DocumentFormProps) {
             </View>
           </Pressable>
 
-          {party && party.debt > 0 && (
+          {/* Supplier debt (AP) is informational only; customers carry no balance
+              (sales are cash, paid in full — no AR by design). */}
+          {mode === 'purchase' && party && party.debt > 0 && (
             <Text className="text-warning-dark text-xs font-bold text-right">
               {t(`${ns}.prevDebt`)}: {formatNumber(party.debt, lang)} {currency}
             </Text>
@@ -160,7 +203,7 @@ export function DocumentForm({ mode }: DocumentFormProps) {
             {mode === 'sale' && (
               <Pressable
                 className={`${ROW} items-center gap-1.5 bg-primary px-3.5 py-2.5 rounded-xl`}
-                onPress={addLine}
+                onPress={() => setItemPickerOpen(true)}
               >
                 <MaterialCommunityIcons name="barcode-scan" size={16} color={colors.surface} />
                 <Text className="text-white text-xs font-bold">{t('documents.scan')}</Text>
@@ -168,7 +211,7 @@ export function DocumentForm({ mode }: DocumentFormProps) {
             )}
             <Pressable
               className={`${ROW} items-center gap-1.5 bg-primary-light px-3.5 py-2.5 rounded-xl`}
-              onPress={addLine}
+              onPress={() => setItemPickerOpen(true)}
             >
               <Feather name="plus" size={16} color={colors.primary} />
               <Text className="text-primary text-xs font-bold">{t('documents.addLine')}</Text>
@@ -210,30 +253,6 @@ export function DocumentForm({ mode }: DocumentFormProps) {
             <Text className="text-ink text-sm font-semibold">{t('documents.summary.count')}</Text>
           </View>
 
-          <View className={`${ROW} items-center justify-between`}>
-            <View className={`${ROW} items-center bg-surface rounded-xl border border-border px-3 w-36`}>
-              <TextInput
-                className="flex-1 text-ink text-sm font-bold text-right py-2.5"
-                value={paidCash}
-                onChangeText={(v) => setPaidCash(v.replace(/[^0-9]/g, ''))}
-                placeholder={formatNumber(0, lang)}
-                placeholderTextColor={colors['slate-400']}
-                keyboardType="number-pad"
-              />
-              <Text className="text-muted text-xs ml-1">{currency}</Text>
-            </View>
-            <Text className="text-ink text-sm font-semibold">{t('documents.summary.paidCash')}</Text>
-          </View>
-
-          <View className={`${ROW} items-center justify-between`}>
-            <View className="bg-warning-light px-2.5 py-1 rounded-md border border-warning/30">
-              <Text className="text-warning-dark text-sm font-extrabold">
-                {formatNumber(remaining, lang)} {currency}
-              </Text>
-            </View>
-            <Text className="text-ink text-sm font-semibold">{t('documents.summary.remaining')}</Text>
-          </View>
-
           <View className={`${ROW} items-center justify-between pt-3 border-t border-primary/20`}>
             <Text className="text-primary text-lg font-extrabold">
               {formatNumber(total, lang)} <Text className="text-xs font-normal">{currency}</Text>
@@ -244,13 +263,22 @@ export function DocumentForm({ mode }: DocumentFormProps) {
 
         {/* Save */}
         <Pressable
-          className={`${ROW} items-center justify-center gap-2 bg-primary rounded-2xl py-4`}
-          onPress={() => navigation.goBack()}
+          className={`${ROW} items-center justify-center gap-2 bg-primary rounded-2xl py-4 ${saving ? 'opacity-60' : ''}`}
+          onPress={save}
+          disabled={saving}
+          accessibilityRole="button"
         >
           <Feather name="check" size={18} color={colors.surface} />
           <Text className="text-white text-base font-extrabold">{t('documents.save')}</Text>
         </Pressable>
       </ScrollView>
+
+      <LineItemPicker
+        visible={itemPickerOpen}
+        items={items}
+        onClose={() => setItemPickerOpen(false)}
+        onSelect={appendItem}
+      />
 
       <PartyPicker
         visible={pickerOpen}

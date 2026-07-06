@@ -188,7 +188,21 @@
       "pickerTitle": "Choose the supplier",
       "walkIn": "Direct cash purchase (no supplier)",
       "quickAddCta": "Supplier not registered? Add now"
-    }
+    },
+    "itemPicker": {
+      "title": "Choose an item",
+      "searchPlaceholder": "Search items...",
+      "empty": "No items. Add items first.",
+      "onHand": "On hand"
+    },
+    "saved": "Document saved",
+    "savedBody": "Movement recorded and stock updated.",
+    "errors": {
+      "title": "Couldn't save",
+      "noLines": "Add at least one item.",
+      "negativeStock": "Requested quantity exceeds available stock."
+    },
+    "ok": "OK"
   },
   "expenses": {
     "title": "Expenses",
