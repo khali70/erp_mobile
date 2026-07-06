@@ -1,0 +1,16 @@
+{
+  "common": {
+    "appName": "ERP Mobile",
+    "save": "Save",
+    "cancel": "Cancel",
+    "delete": "Delete",
+    "search": "Search"
+  },
+  "home": {
+    "title": "ERP Mobile",
+    "subtitle": "Local single-user inventory + accounting",
+    "items": "Items",
+    "newDocument": "New document",
+    "footer": "Step 1 shell — DB ready"
+  }
+}
