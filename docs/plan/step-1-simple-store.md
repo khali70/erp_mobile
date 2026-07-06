@@ -468,9 +468,9 @@ Header ─► DocumentsListScreen ──► IncomingDocScreen
 - [x] `numbering.ts` (per-type sequence) + tests. *(commit `857f471`, pure + tested)*
 - [x] `documentService.ts` (saveDraft/get/list/update/post/unpost/delete, transactional ledger materialization) + tests (happy + negative-stock block). *(as `src/repositories/document-repository.ts`, injectable factory; 10 repo tests vs real SQL, commit `8edd4da`)*
 - [x] `ledgerService.ts` (movement query, on-hand aggregate, negative-stock check). *(on-hand aggregate + negative check in repo `8edd4da`; per-item movement query `documentRepository.movement(itemId)` added, running balance + source doc, commit pending)*
-- [ ] `useDocumentsQuery`, `useDocumentQuery`, `useDocumentMutations`, `useDocumentForm`.
-- [ ] `DocumentListRow`, `DocumentTypeBadge`, `DocumentLineEditor`, `LineItemPicker`, `QtyPriceInput`.
-- [ ] `DocumentsListScreen`, `IncomingDocScreen`, `OutgoingDocScreen`; register routes + zod route schemas.
+- [x] `useDocumentsQuery`, `useDocumentQuery`, `useDocumentMutations`, `useDocumentForm`. *(as `useDocuments` plain hook — no TanStack; list posted docs newest-first, reload on focus. Form state lives in `DocumentForm`.)*
+- [x] `DocumentListRow`, `DocumentTypeBadge`, `DocumentLineEditor`, `LineItemPicker`, `QtyPriceInput`. *(`DocumentListRow` direction-tinted + `document-presenters`; `LineItemPicker` real-item chooser; line editing inline in `DocumentForm`/`DocLineRow`.)*
+- [x] `DocumentsListScreen`, `IncomingDocScreen`, `OutgoingDocScreen`; register routes + zod route schemas. *(`DocumentsListScreen` wired to `useDocuments` w/ in/out filter; New{Incoming,Outgoing} screens + routes registered. Route params are static (`undefined`), no zod needed.)*
 
 **M3 — Movement & stock**
 - [x] `useItemMovementQuery`; `MovementRow` with running balance. *(as `useItemMovement` plain hook — no TanStack in project; `MovementRow` + `presentMovement`, commit pending)*

@@ -202,7 +202,19 @@
       "noLines": "Add at least one item.",
       "negativeStock": "Requested quantity exceeds available stock."
     },
-    "ok": "OK"
+    "ok": "OK",
+    "title": "Documents",
+    "empty": "No documents yet",
+    "untitled": "No number",
+    "kind": {
+      "incoming": "Incoming",
+      "outgoing": "Outgoing"
+    },
+    "filters": {
+      "all": "All",
+      "incoming": "Incoming",
+      "outgoing": "Outgoing"
+    }
   },
   "expenses": {
     "title": "Expenses",
