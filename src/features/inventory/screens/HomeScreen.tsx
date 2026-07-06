@@ -259,7 +259,7 @@ export function HomeScreen() {
             iconBgClass="bg-primary-light"
             label={t('dashboard.sections.documents')}
             badgeText={num(DEMO.docCount)}
-            onPress={noop}
+            onPress={() => navigation.navigate('Documents')}
           />
           <Tile
             icon={<Feather name="package" size={22} color={colors.primary} />}
@@ -272,13 +272,13 @@ export function HomeScreen() {
             icon={<MaterialCommunityIcons name="cash" size={22} color={colors.expense} />}
             iconBgClass="bg-expense-light"
             label={t('dashboard.sections.expenses')}
-            onPress={noop}
+            onPress={() => navigation.navigate('Expenses')}
           />
           <Tile
             icon={<Feather name="bar-chart-2" size={22} color={colors.info} />}
             iconBgClass="bg-info-light"
             label={t('dashboard.sections.reports')}
-            onPress={noop}
+            onPress={() => navigation.navigate('Reports')}
           />
           <Tile
             icon={<Feather name="users" size={22} color={colors.accent} />}
@@ -290,7 +290,7 @@ export function HomeScreen() {
             icon={<Feather name="truck" size={22} color={colors['warning-dark']} />}
             iconBgClass="bg-warning-light"
             label={t('dashboard.sections.suppliers')}
-            onPress={noop}
+            onPress={() => navigation.navigate('Suppliers')}
           />
         </View>
 

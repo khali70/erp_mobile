@@ -7,5 +7,5 @@
     }
   },
   "include": ["**/*.ts", "**/*.tsx", "nativewind-env.d.ts"],
-  "exclude": ["node_modules", "arabic-retail-erp-mobile-desig"]
+  "exclude": ["node_modules", "arabic-retail-erp-mobile-desig", "**/*.test.ts", "**/*.test.tsx"]
 }
