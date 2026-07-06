@@ -459,7 +459,7 @@ Header ─► DocumentsListScreen ──► IncomingDocScreen
 - [x] Ensure RTL: `I18nManager.forceRTL(true)` + `ar` default in `src/app/`; add `inventory.*` keys to `ar.json`/`en.json`. *(i18n + theme/rtl.ts in place)*
 
 **M1 — Items**
-- [ ] `mappers.ts` + `itemService.ts` (create/update/archive/getById/listWithStock) + tests.
+- [x] `mappers.ts` + `itemService.ts` (create/update/archive/getById/listWithStock) + tests. *(as `src/repositories/item-repository.ts` injectable factory; barcode uniqueness; 6 tests vs real SQL, commit `4991875`. `mappers.ts`/presenters already existed.)*
 - [ ] `inventory-keys.ts`, `useItemsQuery`, `useItemQuery`, `useItemMutations`.
 - [ ] `ItemForm`, `ImagePickerField`, `ItemListRow`, `StockBadge`.
 - [ ] `ItemsListScreen`, `ItemEditScreen`; register routes.
