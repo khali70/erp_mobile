@@ -35,6 +35,11 @@ export function runMigrations(): void {
       deleted_at INTEGER,
       kind TEXT NOT NULL,
       direction INTEGER NOT NULL,
+      status TEXT NOT NULL DEFAULT 'posted',
+      doc_no TEXT,
+      doc_date INTEGER,
+      total_amount INTEGER NOT NULL DEFAULT 0,
+      posted_at INTEGER,
       note TEXT
     );
 
@@ -83,6 +88,12 @@ export function runMigrations(): void {
   // SQLite has no "ADD COLUMN IF NOT EXISTS"; a duplicate add throws — ignore it.
   addColumnIfMissing(sqlite, 'items', 'category', 'TEXT');
   addColumnIfMissing(sqlite, 'items', 'low_stock_threshold', 'INTEGER NOT NULL DEFAULT 0');
+  // documents draft/posted lifecycle + numbering (additive on upgraded installs).
+  addColumnIfMissing(sqlite, 'documents', 'status', "TEXT NOT NULL DEFAULT 'posted'");
+  addColumnIfMissing(sqlite, 'documents', 'doc_no', 'TEXT');
+  addColumnIfMissing(sqlite, 'documents', 'doc_date', 'INTEGER');
+  addColumnIfMissing(sqlite, 'documents', 'total_amount', 'INTEGER NOT NULL DEFAULT 0');
+  addColumnIfMissing(sqlite, 'documents', 'posted_at', 'INTEGER');
 }
 
 function addColumnIfMissing(

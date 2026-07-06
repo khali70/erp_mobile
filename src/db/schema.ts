@@ -27,10 +27,17 @@ export const items = sqliteTable('items', {
 
 // Immutable movement ledger. On-hand is derived, never hand-edited.
 // direction: +1 incoming, -1 outgoing.
+// A document is a 'draft' (no stock effect) until 'posted' (materialized into
+// stock_levels). doc_no is the human sequence (IN-000001 / OUT-000001).
 export const documents = sqliteTable('documents', {
   ...standard,
   kind: text('kind').notNull(), // 'in' | 'out'
   direction: integer('direction').notNull(), // +1 | -1
+  status: text('status').notNull().default('posted'), // 'draft' | 'posted'
+  docNo: text('doc_no'), // human sequence, unique per kind
+  docDate: integer('doc_date'), // epoch ms the doc represents
+  totalAmount: integer('total_amount').notNull().default(0), // cached Σ line totals, minor units
+  postedAt: integer('posted_at'), // epoch ms when posted
   note: text('note'),
 });
 
