@@ -143,7 +143,16 @@
     },
     "form": {
       "addTitle": "Add new customer",
-      "editTitle": "Edit customer"
+      "editTitle": "Edit customer",
+      "delete": "Delete customer",
+      "deleteTitle": "Delete customer?",
+      "deleteBody": "\"{{name}}\" will be removed from your customers. This can't be undone."
+    }
+  },
+  "suppliers": {
+    "form": {
+      "addTitle": "Add new supplier",
+      "editTitle": "Edit supplier"
     }
   },
   "documents": {

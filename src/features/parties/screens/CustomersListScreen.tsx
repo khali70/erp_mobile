@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { View, Text, Pressable, ScrollView } from 'react-native';
+import { View, Text, Pressable, ScrollView, Alert } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import Feather from '@expo/vector-icons/Feather';
@@ -15,7 +15,7 @@ import { presentParty } from '../presenters';
 import { PartyRow } from '../components/PartyRow';
 import { PartyFormSheet } from '../components/PartyFormSheet';
 import { customerRepository } from '@/repositories/customer-repository';
-import type { PartyDraft } from '../types';
+import type { Party, PartyDraft } from '../types';
 
 /**
  * الزبائن — Customers list (Step 2). Composition-only screen: data from the
@@ -28,16 +28,59 @@ export function CustomersListScreen() {
   const { customers, reload } = useCustomers();
   const { query, setQuery, filter, setFilter, filtered, reset } = usePartyFilter(customers);
   const [formOpen, setFormOpen] = useState(false);
+  // Non-null while editing an existing customer; null = add mode.
+  const [editing, setEditing] = useState<Party | null>(null);
 
   const filterOptions: FilterOption<PartyFilter>[] = [
     { key: 'all', label: t('customers.filters.all'), activeClass: 'bg-primary' },
     { key: 'withDebt', label: t('customers.filters.withDebt'), activeClass: 'bg-warning' },
   ];
 
-  const handleSave = (draft: PartyDraft) => {
-    customerRepository.create({ name: draft.name.trim(), phone: draft.phone.trim() || null });
-    reload();
+  const openAdd = () => {
+    setEditing(null);
+    setFormOpen(true);
+  };
+
+  const openEdit = (party: Party) => {
+    setEditing(party);
+    setFormOpen(true);
+  };
+
+  const closeForm = () => {
     setFormOpen(false);
+    setEditing(null);
+  };
+
+  const handleSave = (draft: PartyDraft) => {
+    const name = draft.name.trim();
+    const phone = draft.phone.trim() || null;
+    if (editing) {
+      customerRepository.update({ id: editing.id, name, phone });
+    } else {
+      customerRepository.create({ name, phone });
+    }
+    reload();
+    closeForm();
+  };
+
+  const handleDelete = () => {
+    if (!editing) return;
+    Alert.alert(
+      t('customers.form.deleteTitle'),
+      t('customers.form.deleteBody', { name: editing.name }),
+      [
+        { text: t('common.cancel'), style: 'cancel' },
+        {
+          text: t('common.delete'),
+          style: 'destructive',
+          onPress: () => {
+            customerRepository.archive(editing.id);
+            reload();
+            closeForm();
+          },
+        },
+      ],
+    );
   };
 
   return (
@@ -46,7 +89,7 @@ export function CustomersListScreen() {
         title={t('customers.title')}
         onBack={() => navigation.goBack()}
         backLabel={t('common.back')}
-        action={{ icon: 'plus', onPress: () => setFormOpen(true), accessibilityLabel: t('customers.form.addTitle') }}
+        action={{ icon: 'plus', onPress: openAdd, accessibilityLabel: t('customers.form.addTitle') }}
       />
 
       <View className="flex-1 px-4 pt-3.5 gap-4">
@@ -67,7 +110,7 @@ export function CustomersListScreen() {
                 <Text className="text-xs text-primary font-bold underline">{t('customers.empty.reset')}</Text>
               </Pressable>
             ) : (
-              <Pressable onPress={() => setFormOpen(true)} accessibilityRole="button">
+              <Pressable onPress={openAdd} accessibilityRole="button">
                 <Text className="text-xs text-primary font-bold underline">{t('customers.empty.add')}</Text>
               </Pressable>
             )}
@@ -79,7 +122,7 @@ export function CustomersListScreen() {
                 key={party.id}
                 party={presentParty(party, t)}
                 debtHint={t('customers.debtHint')}
-                onPress={() => {}}
+                onPress={() => openEdit(party)}
               />
             ))}
           </ScrollView>
@@ -88,11 +131,13 @@ export function CustomersListScreen() {
 
       <PartyFormSheet
         visible={formOpen}
-        initial={null}
+        initial={editing ? { name: editing.name, phone: editing.phone ?? '' } : null}
         titleAdd={t('customers.form.addTitle')}
         titleEdit={t('customers.form.editTitle')}
-        onClose={() => setFormOpen(false)}
+        onClose={closeForm}
         onSave={handleSave}
+        onDelete={handleDelete}
+        deleteLabel={t('customers.form.delete')}
       />
     </View>
   );

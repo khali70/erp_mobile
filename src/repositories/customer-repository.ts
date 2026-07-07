@@ -8,10 +8,24 @@ export interface CreateCustomerInput {
   phone?: string | null;
 }
 
+export interface UpdateCustomerInput {
+  id: string;
+  name: string;
+  phone?: string | null;
+}
+
 // Repositories are the only db consumers. Return typed domain objects.
 export const customerRepository = {
   list(): Customer[] {
     return db.select().from(schema.customers).where(isNull(schema.customers.deletedAt)).all();
+  },
+
+  // Edit identity fields only; `balance` is ledger-derived and never set here.
+  update(input: UpdateCustomerInput): void {
+    db.update(schema.customers)
+      .set({ name: input.name, phone: input.phone ?? null, updatedAt: now() })
+      .where(eq(schema.customers.id, input.id))
+      .run();
   },
 
   create(input: CreateCustomerInput): Customer {

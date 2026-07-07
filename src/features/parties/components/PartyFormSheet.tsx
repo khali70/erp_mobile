@@ -16,6 +16,9 @@ interface PartyFormSheetProps {
   titleEdit: string;
   onClose: () => void;
   onSave: (draft: PartyDraft) => void;
+  /** When editing, an optional delete action (caller owns the confirm). */
+  onDelete?: () => void;
+  deleteLabel?: string;
 }
 
 /** Add / edit party sheet. Presentational + local form state. */
@@ -26,6 +29,8 @@ export function PartyFormSheet({
   titleEdit,
   onClose,
   onSave,
+  onDelete,
+  deleteLabel,
 }: PartyFormSheetProps) {
   const { t } = useTranslation();
   const [draft, setDraft] = useState<PartyDraft>(EMPTY_DRAFT);
@@ -85,6 +90,18 @@ export function PartyFormSheet({
                 {t('common.save')}
               </Text>
             </Pressable>
+
+            {/* Delete only when editing an existing party. */}
+            {initial && onDelete && (
+              <Pressable
+                className={`${ROW} items-center justify-center gap-2 py-3 rounded-2xl border border-danger/30`}
+                onPress={onDelete}
+                accessibilityRole="button"
+              >
+                <Feather name="trash-2" size={16} color={colors.danger} />
+                <Text className="text-danger font-bold text-sm">{deleteLabel ?? t('common.delete')}</Text>
+              </Pressable>
+            )}
           </View>
         </View>
       </View>

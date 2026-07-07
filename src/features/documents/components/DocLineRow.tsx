@@ -38,12 +38,7 @@ export function DocLineRow({ line, mode, onInc, onDec, onQty, onPrice, onDelete 
   return (
     <View className="bg-surface rounded-2xl p-3.5 border border-border">
       <View className={`${ROW} items-start justify-between`}>
-        <View className="items-start">
-          <Text className="text-[11px] text-muted font-medium">{totalLabel}</Text>
-          <Text className="text-ink text-base font-extrabold mt-0.5">
-            {formatNumber(total, lang)} <Text className="text-[11px] font-normal text-muted">{currency}</Text>
-          </Text>
-        </View>
+
         <View className="flex-1 items-end">
           <Text className="text-ink text-sm font-extrabold text-right">{line.name}</Text>
           {/* Typable unit rate (price for sale, cost for purchase). */}
@@ -61,6 +56,12 @@ export function DocLineRow({ line, mode, onInc, onDec, onQty, onPrice, onDelete 
             />
             <Text className="text-muted text-xs">{rateLabel}</Text>
           </View>
+        </View>
+        <View className="items-start">
+          <Text className="text-[11px] text-muted font-medium">{totalLabel}</Text>
+          <Text className="text-ink text-base font-extrabold mt-0.5">
+            {formatNumber(total, lang)} <Text className="text-[11px] font-normal text-muted">{currency}</Text>
+          </Text>
         </View>
       </View>
 

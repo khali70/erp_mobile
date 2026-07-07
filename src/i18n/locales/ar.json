@@ -143,7 +143,16 @@
     },
     "form": {
       "addTitle": "إضافة زبون جديد",
-      "editTitle": "تعديل الزبون"
+      "editTitle": "تعديل الزبون",
+      "delete": "حذف الزبون",
+      "deleteTitle": "حذف الزبون؟",
+      "deleteBody": "سيُزال «{{name}}» من قائمة زبائنك. لا يمكن التراجع عن هذا."
+    }
+  },
+  "suppliers": {
+    "form": {
+      "addTitle": "إضافة مورّد جديد",
+      "editTitle": "تعديل المورّد"
     }
   },
   "documents": {
