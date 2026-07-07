@@ -270,6 +270,16 @@
       "discardTitle": "تجاهل المسودة",
       "discardBody": "سيتم حذف الأصناف المُدخلة في هذه المسودة.",
       "discardConfirm": "تجاهل"
+    },
+    "detail": {
+      "title": "مستند",
+      "linesTitle": "الأصناف",
+      "note": "ملاحظة",
+      "reportTitle": "ملخص",
+      "itemCount": "الأصناف",
+      "totalQty": "إجمالي الكمية",
+      "total": "الإجمالي",
+      "untitledItem": "صنف"
     }
   },
   "expenses": {

@@ -7,6 +7,7 @@ import { SuppliersListScreen } from '@/features/parties/screens/SuppliersListScr
 import { NewOutgoingScreen } from '@/features/documents/screens/NewOutgoingScreen';
 import { NewIncomingScreen } from '@/features/documents/screens/NewIncomingScreen';
 import { DocumentsListScreen } from '@/features/documents/screens/DocumentsListScreen';
+import { DocumentDetailScreen } from '@/features/documents/screens/DocumentDetailScreen';
 import { ExpensesScreen } from '@/features/expenses/screens/ExpensesScreen';
 import { CashBookScreen } from '@/features/cashbook/screens/CashBookScreen';
 import { ReportsScreen } from '@/features/reports/screens/ReportsScreen';
@@ -25,6 +26,7 @@ export type RootStackParamList = {
   NewOutgoing: undefined;
   NewIncoming: undefined;
   Documents: undefined;
+  DocumentDetail: { documentId: string };
   Expenses: undefined;
   CashBook: undefined;
   Reports: undefined;
@@ -48,6 +50,7 @@ export function RootNavigator() {
       <Stack.Screen name="NewOutgoing" component={NewOutgoingScreen} />
       <Stack.Screen name="NewIncoming" component={NewIncomingScreen} />
       <Stack.Screen name="Documents" component={DocumentsListScreen} />
+      <Stack.Screen name="DocumentDetail" component={DocumentDetailScreen} />
       <Stack.Screen name="Expenses" component={ExpensesScreen} />
       <Stack.Screen name="CashBook" component={CashBookScreen} />
       <Stack.Screen name="Reports" component={ReportsScreen} />

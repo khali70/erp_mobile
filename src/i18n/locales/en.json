@@ -270,6 +270,16 @@
       "discardTitle": "Discard draft",
       "discardBody": "The items entered in this draft will be removed.",
       "discardConfirm": "Discard"
+    },
+    "detail": {
+      "title": "Document",
+      "linesTitle": "Items",
+      "note": "Note",
+      "reportTitle": "Summary",
+      "itemCount": "Items",
+      "totalQty": "Total quantity",
+      "total": "Total",
+      "untitledItem": "Item"
     }
   },
   "expenses": {

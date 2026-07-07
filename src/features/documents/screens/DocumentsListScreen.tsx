@@ -57,7 +57,11 @@ export function DocumentsListScreen() {
         ) : (
           <ScrollView className="flex-1" contentContainerClassName="gap-3 pb-24" showsVerticalScrollIndicator={false}>
             {rows.map((doc) => (
-              <DocumentListRow key={doc.id} doc={doc} />
+              <DocumentListRow
+                key={doc.id}
+                doc={doc}
+                onPress={() => navigation.navigate('DocumentDetail', { documentId: doc.id })}
+              />
             ))}
           </ScrollView>
         )}
