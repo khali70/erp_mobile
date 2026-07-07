@@ -187,6 +187,25 @@ export function DocumentForm({ mode }: DocumentFormProps) {
       />
 
       <ScrollView contentContainerClassName="px-4 py-4 pb-10 gap-4" showsVerticalScrollIndicator={false}>
+
+
+        {/* Store + date */}
+        <View className={`${ROW} gap-3`}>
+          <View className="flex-1 bg-surface rounded-2xl p-3.5 border border-border gap-2">
+            <Text className="text-muted text-xs font-semibold text-center">{t(`${ns}.store`)}</Text>
+            <View className={`${ROW} items-center justify-center gap-2 bg-background rounded-xl py-2.5`}>
+              <Text className="text-ink text-sm font-bold" numberOfLines={1}>{t(`${ns}.defaultStore`)}</Text>
+              <MaterialCommunityIcons name="store-outline" size={16} color={colors.muted} />
+            </View>
+          </View>
+          <View className="flex-1 bg-surface rounded-2xl p-3.5 border border-border gap-2">
+            <Text className="text-muted text-xs font-semibold text-center">{t('documents.date')}</Text>
+            <View className={`${ROW} items-center justify-center gap-2 bg-background rounded-xl py-2.5`}>
+              <Text className="text-ink text-sm font-bold">{formatNumber(6, lang)}/{formatNumber(7, lang)}/{formatNumber(2026, lang)}</Text>
+              <Feather name="calendar" size={15} color={colors.muted} />
+            </View>
+          </View>
+        </View>
         {/* Party card */}
         <View className="bg-surface rounded-2xl p-4 border border-border gap-3">
           <View className={`${ROW} items-center justify-between`}>
@@ -221,25 +240,6 @@ export function DocumentForm({ mode }: DocumentFormProps) {
             </Text>
           )}
         </View>
-
-        {/* Store + date */}
-        <View className={`${ROW} gap-3`}>
-          <View className="flex-1 bg-surface rounded-2xl p-3.5 border border-border gap-2">
-            <Text className="text-muted text-xs font-semibold text-center">{t(`${ns}.store`)}</Text>
-            <View className={`${ROW} items-center justify-center gap-2 bg-background rounded-xl py-2.5`}>
-              <Text className="text-ink text-sm font-bold" numberOfLines={1}>{t(`${ns}.defaultStore`)}</Text>
-              <MaterialCommunityIcons name="store-outline" size={16} color={colors.muted} />
-            </View>
-          </View>
-          <View className="flex-1 bg-surface rounded-2xl p-3.5 border border-border gap-2">
-            <Text className="text-muted text-xs font-semibold text-center">{t('documents.date')}</Text>
-            <View className={`${ROW} items-center justify-center gap-2 bg-background rounded-xl py-2.5`}>
-              <Text className="text-ink text-sm font-bold">{formatNumber(6, lang)}/{formatNumber(7, lang)}/{formatNumber(2026, lang)}</Text>
-              <Feather name="calendar" size={15} color={colors.muted} />
-            </View>
-          </View>
-        </View>
-
         {/* Restored-draft notice (never-lose-data): input survived a relaunch. */}
         {wasRestored && lines.length > 0 && (
           <View className={`${ROW} items-center justify-between bg-primary-light rounded-2xl px-3.5 py-2.5 border border-primary/20`}>
