@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { View, Text, Pressable, TextInput } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import Feather from '@expo/vector-icons/Feather';
@@ -31,49 +32,60 @@ export function DocLineRow({ line, mode, onInc, onDec, onQty, onPrice, onDelete 
   const { t, i18n } = useTranslation();
   const lang = i18n.language;
   const currency = t('common.currency');
-  const rateLabel = mode === 'sale' ? t('documents.unitPrice') : t('documents.unitCost');
-  const totalLabel = mode === 'sale' ? t('documents.lineTotal') : t('documents.lineCost');
+  const isSale = mode === 'purchase';
+  const rateLabel = isSale ? t('documents.unitPrice') : t('documents.unitCost');
+  const totalLabel = isSale ? t('documents.lineTotal') : t('documents.lineCost');
   const total = line.unitPrice * line.qty;
+  // Rate reads as a label by default; the pencil reveals the inline editor.
+  // Purchase cost is required, so a fresh zero-cost line opens editing straight away.
 
   return (
-    <View className="bg-surface rounded-2xl p-3.5 border border-border">
-      <View className={`${ROW} items-start justify-between`}>
-
-        <View className="flex-1 items-end">
-          <Text className="text-ink text-sm font-extrabold text-right">{line.name}</Text>
-          {/* Typable unit rate (price for sale, cost for purchase). */}
-          <View className={`${ROW} items-center gap-2 mt-1`}>
-            <Text className="text-muted text-xs">{currency}</Text>
-            <TextInput
-              className="min-w-16 bg-background text-ink text-sm font-bold text-center px-2 py-1.5 rounded-lg border border-border"
-              keyboardType="decimal-pad"
-              value={line.unitPrice ? String(line.unitPrice) : ''}
-              onChangeText={(v) => onPrice(parseNum(v))}
-              placeholder="0"
-              placeholderTextColor={colors['slate-400']}
-              accessibilityLabel={`${rateLabel} — ${line.name}`}
-              selectTextOnFocus
-            />
-            <Text className="text-muted text-xs">{rateLabel}</Text>
-          </View>
-        </View>
+    <View key={`doc-row`} className="bg-surface rounded-2xl p-3.5 border border-border">
+      <View className={`${ROW} w-full justify-between`}>
         <View className="items-start">
           <Text className="text-[11px] text-muted font-medium">{totalLabel}</Text>
-          <Text className="text-ink text-base font-extrabold mt-0.5">
+          <Text className="text-primary text-base font-extrabold mt-0.5">
             {formatNumber(total, lang)} <Text className="text-[11px] font-normal text-muted">{currency}</Text>
           </Text>
+        </View>
+        <View className="flex-1 items-end">
+          <Text className="text-ink text-sm font-extrabold text-right">{line.name}</Text>
+          {/* TODO: make the total editable and the unite price fixed for !isSale mode  */}
+          {/* Unit rate (price for sale, cost for purchase): read-only label until
+              the pencil toggles the inline editor. */}
+          {isSale ? (
+            <View className={`${ROW} items-center gap-2 mt-1`}>
+              <Text className="text-muted text-xs">{currency}</Text>
+              <TextInput
+                className="min-w-16 bg-background text-ink text-sm font-bold text-center px-2 py-1.5 rounded-lg border border-primary/40"
+                keyboardType="decimal-pad"
+                value={line.unitPrice ? String(line.unitPrice) : ''}
+                onChangeText={(v) => onPrice(parseNum(v))}
+                placeholder="0"
+                placeholderTextColor={colors['slate-400']}
+                accessibilityLabel={`${rateLabel} — ${line.name}`}
+                autoFocus
+                selectTextOnFocus
+              />
+              <Text className="text-muted text-xs">{rateLabel}</Text>
+            </View>
+          ) : (
+            <Text className="text-muted text-xs mt-1 text-right">
+              {rateLabel}: {formatNumber(line.unitPrice, lang)} {currency}
+            </Text>
+          )}
         </View>
       </View>
 
       <View className={`${ROW} items-center justify-between mt-3 pt-3 border-t border-border`}>
-        {/* qty stepper with a typable center field */}
+        {/* qty stepper with a typable center field — plus on the leading (left) edge */}
         <View className={`${ROW} items-center bg-background rounded-xl border border-border`}>
           <Pressable
             className="w-11 h-11 items-center justify-center"
-            onPress={onInc}
-            accessibilityLabel={t('documents.qtyInc')}
+            onPress={onDec}
+            accessibilityLabel={t('documents.qtyDec')}
           >
-            <Feather name="plus" size={16} color={colors.primary} />
+            <Feather name="minus" size={16} color={colors.muted} />
           </Pressable>
           <TextInput
             className="w-12 h-11 text-center text-ink font-extrabold"
@@ -87,21 +99,24 @@ export function DocLineRow({ line, mode, onInc, onDec, onQty, onPrice, onDelete 
           />
           <Pressable
             className="w-11 h-11 items-center justify-center"
-            onPress={onDec}
-            accessibilityLabel={t('documents.qtyDec')}
+            onPress={onInc}
+            accessibilityLabel={t('documents.qtyInc')}
           >
-            <Feather name="minus" size={16} color={colors.muted} />
+            <Feather name="plus" size={16} color={colors.primary} />
           </Pressable>
         </View>
 
-        {/* delete */}
-        <Pressable
-          className="w-11 h-11 rounded-xl bg-danger-light items-center justify-center"
-          onPress={onDelete}
-          accessibilityLabel={`${t('common.delete')} — ${line.name}`}
-        >
-          <Feather name="trash-2" size={15} color={colors.danger} />
-        </Pressable>
+        {/* delete + edit-rate actions */}
+        <View className={`${ROW} items-center gap-2`}>
+          <Pressable
+            className="w-11 h-11 rounded-xl bg-danger-light items-center justify-center"
+            onPress={onDelete}
+            accessibilityLabel={`${t('common.delete')} — ${line.name}`}
+          >
+            <Feather name="trash-2" size={15} color={colors.danger} />
+          </Pressable>
+
+        </View>
       </View>
     </View>
   );
