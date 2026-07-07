@@ -1,16 +1,12 @@
-import { openDatabaseSync } from 'expo-sqlite';
+import type { openDatabaseSync } from 'expo-sqlite';
+import { sqlite } from './client';
 
 // Forward-only bootstrap migration, run once at app boot.
 // Additive only. Never destructive without an explicit backup step.
+// Reuses the single shared connection from ./client (a second
+// openDatabaseSync handle raced the change-listener handle and could NPE in
+// prepareSync on a cold first boot). WAL is expo-sqlite's default — no PRAGMA.
 export function runMigrations(): void {
-  const sqlite = openDatabaseSync('erp.db');
-
-  // PRAGMA journal_mode returns a row ("wal"). execSync is result-less and
-  // rejects any row-returning statement with a native NPE — use a result-aware
-  // call so the row is consumed. (WAL is already expo-sqlite's default; this
-  // just makes it explicit.)
-  sqlite.getFirstSync('PRAGMA journal_mode = WAL;');
-
   sqlite.execSync(`
     CREATE TABLE IF NOT EXISTS items (
       id TEXT PRIMARY KEY,

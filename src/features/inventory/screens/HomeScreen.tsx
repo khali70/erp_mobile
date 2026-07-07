@@ -44,7 +44,6 @@ function formatNum(n: number, lang: string): string {
 const DEMO = {
   inventoryValue: 51330,
   monthlyProfit: 24500,
-  customerDebt: 3750,
   supplierDebt: 20900,
   docCount: 5,
   lowStockCount: 3,
@@ -185,16 +184,9 @@ export function HomeScreen() {
             tagTextClass="text-positive"
             tagBgClass="bg-positive-light"
           />
-          <KpiCard
-            dotClass="bg-warning"
-            label={t('dashboard.kpi.receivable.label')}
-            valueText={num(DEMO.customerDebt)}
-            currency={currency}
-            tagText={t('dashboard.kpi.receivable.tag')}
-            tagTextClass="text-warning"
-            tagBgClass="bg-warning-light"
-            onPress={() => navigation.navigate('DebtsByCustomer')}
-          />
+          {/* No customer receivable (AR) KPI by design: sales are cash, paid in
+              full — the shop carries debt only WITH suppliers (AP), never for
+              customers. See docs/plan screens rule. */}
           <KpiCard
             dotClass="bg-danger"
             label={t('dashboard.kpi.payable.label')}
@@ -292,29 +284,8 @@ export function HomeScreen() {
             onPress={() => navigation.navigate('Suppliers')}
           />
         </View>
-
-        {/* Stats banner */}
-        <View
-          className={`bg-ink rounded-2xl p-4 border border-slate-800 ${rowDir} items-center justify-between overflow-hidden`}
-        >
-          <View className="gap-1 flex-1">
-            <Text className="text-xs font-semibold text-slate-400 text-right">
-              {t('dashboard.banner.title')}
-            </Text>
-            <Text className="text-[15px] font-bold text-primary-300 text-right">
-              {t('dashboard.banner.line')}
-            </Text>
-            <View className="w-36 h-1.5 bg-slate-800 rounded-full mt-1.5 overflow-hidden self-end">
-              <View className="w-[74%] h-full bg-primary-400 rounded-full" />
-            </View>
-          </View>
-          <MaterialCommunityIcons
-            name="cash-multiple"
-            size={56}
-            color={colors['slate-800']}
-            style={{ opacity: 0.6, transform: [{ rotate: '12deg' }] }}
-          />
-        </View>
+        {/* Removed the "credit invoices collected" banner: it implied customer
+            credit/receivables, which don't exist here (sales are always cash). */}
       </ScrollView>
     </View>
   );

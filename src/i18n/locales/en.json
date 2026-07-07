@@ -106,7 +106,8 @@
       "item3": "Black sneakers · 42",
       "item4": "Blue jeans · 32",
       "item5": "Classic white shirt · L",
-      "item6": "Black cap"
+      "item6": "Black cap",
+      "openingBalance": "Opening balance"
     },
     "movement": {
       "title": "Item movement",

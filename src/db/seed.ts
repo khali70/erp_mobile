@@ -2,6 +2,7 @@ import { db, schema } from './client';
 import i18n from '@/i18n';
 import { newId, now } from '@/utils/id';
 import { itemRepository } from '@/repositories/item-repository.client';
+import { documentRepository } from '@/repositories/document-repository.client';
 
 /**
  * Dev seed: inserts a placeholder catalog into SQLite on first run so screens
@@ -9,8 +10,9 @@ import { itemRepository } from '@/repositories/item-repository.client';
  * (`inventory.demo.*`) so no Arabic copy lives in source. Prices are stored as
  * INTEGER minor units. Remove once real onboarding/import exists.
  *
- * Note: for the demo we set `stock_levels` directly; the real flow derives
- * on-hand by posting incoming/outgoing documents to the ledger.
+ * Opening stock is seeded as POSTED incoming documents (ledger-backed), NOT by
+ * writing `stock_levels` directly — otherwise the first real posting's
+ * recompute (on-hand = Σ ledger) would wipe the seeded quantity.
  */
 interface SeedSpec {
   nameKey: string;
@@ -39,6 +41,7 @@ export function seedDemoDataIfEmpty(): void {
   const ts = now();
   for (const spec of SPECS) {
     const id = newId();
+    const costMinor = Math.round(spec.priceMajor * COST_RATIO) * MINOR_PER_MAJOR;
     db.insert(schema.items)
       .values({
         id,
@@ -48,12 +51,21 @@ export function seedDemoDataIfEmpty(): void {
         name: i18n.t(`inventory.demo.${spec.nameKey}`),
         category: spec.category,
         unit: spec.unit,
-        costPrice: Math.round(spec.priceMajor * COST_RATIO) * MINOR_PER_MAJOR,
+        costPrice: costMinor,
         salePrice: spec.priceMajor * MINOR_PER_MAJOR,
         currency: 'EGP',
         lowStockThreshold: spec.lowStockThreshold,
       })
       .run();
-    db.insert(schema.stockLevels).values({ itemId: id, qtyOnHand: spec.qty, updatedAt: ts }).run();
+
+    // Ledger-backed opening balance so on-hand survives future recomputes.
+    if (spec.qty > 0) {
+      documentRepository.create({
+        kind: 'incoming',
+        status: 'posted',
+        note: i18n.t('inventory.demo.openingBalance'),
+        lines: [{ itemId: id, qty: spec.qty, unitPrice: costMinor }],
+      });
+    }
   }
 }
