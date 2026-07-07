@@ -161,9 +161,24 @@
     }
   },
   "suppliers": {
+    "title": "Suppliers",
+    "searchPlaceholder": "Search by name or phone",
+    "debtHint": "Due to pay",
+    "filters": {
+      "all": "All",
+      "withDebt": "With debt"
+    },
+    "empty": {
+      "message": "No suppliers yet.",
+      "reset": "Reset filters",
+      "add": "Add a supplier"
+    },
     "form": {
       "addTitle": "Add new supplier",
-      "editTitle": "Edit supplier"
+      "editTitle": "Edit supplier",
+      "delete": "Delete supplier",
+      "deleteTitle": "Delete supplier?",
+      "deleteBody": "\"{{name}}\" will be removed from your suppliers. This can't be undone."
     }
   },
   "documents": {
