@@ -318,6 +318,16 @@
     "negativeStock": {
       "label": "Allow negative stock",
       "hint": "When on, you can issue more than on-hand and the balance may go negative. Default: over-issue is blocked."
+    },
+    "data": {
+      "section": "Data & backup"
+    },
+    "backup": {
+      "label": "Back up database",
+      "hint": "Save a copy of all your data to a file, then share it to Downloads, Drive, or Files. Keep it safe — local data is erased if the app is uninstalled.",
+      "button": "Back up now",
+      "working": "Preparing backup…",
+      "errorTitle": "Backup failed"
     }
   }
 }

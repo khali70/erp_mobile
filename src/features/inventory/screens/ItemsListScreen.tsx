@@ -20,6 +20,9 @@ import { SearchBar } from '@/components/ui/SearchBar';
 import { FilterChips, type FilterOption } from '@/components/ui/FilterChips';
 import { ItemRow } from '../components/ItemRow';
 import { ItemFormSheet } from '../components/ItemFormSheet';
+import { BarcodeScanModal } from '../components/BarcodeScanModal';
+import { ROW } from '@/theme/rtl';
+import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 
 /**
  * البضائع — Items list (Step 1). Composition-only screen: data from the
@@ -35,7 +38,7 @@ export function ItemsListScreen() {
 
   const [formOpen, setFormOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<InventoryItem | null>(null);
-
+  const [scanOpen, setScanOpen] = useState(false);
   const filterOptions: FilterOption<StockFilter>[] = [
     { key: 'all', label: t('inventory.filters.all'), activeClass: 'bg-primary' },
     { key: 'low', label: t('inventory.filters.low'), activeClass: 'bg-warning' },
@@ -83,13 +86,23 @@ export function ItemsListScreen() {
       />
 
       <View className="flex-1 px-4 pt-3.5 gap-4">
-        <SearchBar
-          value={query}
-          onChangeText={setQuery}
-          placeholder={t('inventory.searchPlaceholder')}
-          onScanPress={() => {}}
-          scanLabel={t('inventory.scan')}
-        />
+        <View className={`${ROW} items-center gap-2.5`}>
+          <View className="flex-1">
+            <SearchBar
+              value={query}
+              onChangeText={setQuery}
+              placeholder={t('inventory.searchPlaceholder')}
+            />
+          </View>
+          <Pressable
+            className="w-12 h-12 rounded-2xl items-center justify-center bg-primary"
+            onPress={() => setScanOpen(true)}
+            accessibilityRole="button"
+            accessibilityLabel={t('inventory.scan')}
+          >
+            <MaterialCommunityIcons name="barcode-scan" size={20} color={colors.surface} />
+          </Pressable>
+        </View>
 
         <FilterChips options={filterOptions} value={filter} onChange={(k: StockFilter) => setFilter(k)} />
 
@@ -126,6 +139,11 @@ export function ItemsListScreen() {
         initial={editingItem ? toDraft(editingItem) : null}
         onClose={() => setFormOpen(false)}
         onSave={handleSave}
+      />
+      <BarcodeScanModal
+        visible={scanOpen}
+        onClose={() => setScanOpen(false)}
+        onScanned={(code) => setQuery(code)}
       />
     </View>
   );

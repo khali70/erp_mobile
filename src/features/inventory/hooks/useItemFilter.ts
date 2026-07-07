@@ -13,7 +13,7 @@ export function useItemFilter(items: InventoryItem[]) {
   const filtered = useMemo(() => {
     const q = query.trim();
     return items.filter((item) => {
-      const matchesSearch = q === '' || item.name.includes(q);
+      const matchesSearch = q === '' || item.name.includes(q) || item.barcode?.includes(q);
       if (!matchesSearch) return false;
 
       const status = getStockStatus(item.qty, item.lowStockThreshold);
