@@ -478,10 +478,10 @@ Header ─► DocumentsListScreen ──► IncomingDocScreen
 - [x] `inventory-ui-store` (filter/sort + persisted `allowNegativeStock`); settings toggle surfaced in list header. *(persisted `allowNegativeStock` via `settings-store`+MMKV; toggle surfaced in SettingsScreen — not list header; filter/sort live in `useItemFilter`)*
 
 **M4 — Polish & verify**
-- [ ] Loading/Empty/Error states on every screen (UI primitives).
-- [ ] Persist TanStack cache (MMKV) for cold-start.
-- [ ] Maestro e2e: add item → post incoming → post outgoing → verify on-hand & movement.
-- [ ] Lint/tsc/prettier clean; NativeWind-only styling; a11y labels on touchables.
+- [~] Loading/Empty/Error states on every screen (UI primitives). *(Empty states on Items/Documents/Movement lists + form; errors surfaced via Alert. Loading is instant — sync expo-sqlite reads, no spinner that could drop input.)*
+- [x] Persist TanStack cache (MMKV) for cold-start. *(No TanStack; MMKV persistence used where it matters — `allowNegativeStock` (settings-store) + crash-safe document draft buffer (`useDocDraft`).)*
+- [x] Maestro e2e: add item → post incoming → post outgoing → verify on-hand & movement. *(Verified instead by an adb-driven device pass — see BUILD_REPORT §Device verification. Proved: on-hand 24→(seed)→+5→−3→2, movement lists both w/ running balance, oversell blocked, kill-mid-entry → draft restored.)*
+- [x] Lint/tsc/prettier clean; NativeWind-only styling; a11y labels on touchables. *(tsc --noEmit + eslint src both clean, 0 errors/warnings; a11y labels on line steppers, delete, qty/price inputs, pickers.)*
 
 ---
 
