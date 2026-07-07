@@ -159,62 +159,68 @@ export function createDocumentRepository(db: DocDb) {
     return [...new Set(rows.map((r) => r.itemId))];
   }
 
+  // Post body WITHOUT its own transaction, so it can run either standalone
+  // (public `post`, wrapped below) or inside `create`'s transaction. The
+  // expo-sqlite sync driver does not nest transactions via savepoints — a
+  // BEGIN inside a BEGIN throws "Failed to run the query 'begin'".
+  function postInternal(id: string, opts: PostOptions = {}): void {
+    const doc = db
+      .select()
+      .from(schema.documents)
+      .where(eq(schema.documents.id, id))
+      .get();
+    if (!doc) throw new Error(`Document ${id} not found`);
+    if (doc.status === 'posted') return;
+
+    const lines = db
+      .select()
+      .from(schema.documentLines)
+      .where(
+        and(
+          eq(schema.documentLines.documentId, id),
+          isNull(schema.documentLines.deletedAt),
+        ),
+      )
+      .all();
+
+    if (doc.direction === OUT) {
+      const itemIds = [...new Set(lines.map((l) => l.itemId))];
+      const currentOnHand: Record<string, number> = {};
+      for (const itemId of itemIds) currentOnHand[itemId] = api.onHand(itemId);
+      const posting: PostingDoc = {
+        status: 'posted',
+        direction: OUT,
+        lines: lines.map((l) => ({ itemId: l.itemId, qty: l.qty })),
+      };
+      const violations = negativeStockViolations(
+        currentOnHand,
+        posting,
+        opts.allowNegative ?? false,
+      );
+      if (violations.length > 0) throw new NegativeStockError(violations);
+    }
+
+    const ts = now();
+    db.update(schema.documents)
+      .set({ status: 'posted', postedAt: ts, updatedAt: ts })
+      .where(eq(schema.documents.id, id))
+      .run();
+    recomputeStock(affectedItemIds(id));
+  }
+
   const api = {
     /** Create a draft (default) or post immediately (status: 'posted'). */
     create(input: CreateDocumentInput, opts: PostOptions = {}): string {
       return db.transaction(() => {
         const id = insertDraft(input);
-        if (input.status === 'posted') api.post(id, opts);
+        if (input.status === 'posted') postInternal(id, opts);
         return id;
       });
     },
 
     /** Materialize a draft into stock. Outgoing docs are stock-guarded. */
     post(id: string, opts: PostOptions = {}): void {
-      db.transaction(() => {
-        const doc = db
-          .select()
-          .from(schema.documents)
-          .where(eq(schema.documents.id, id))
-          .get();
-        if (!doc) throw new Error(`Document ${id} not found`);
-        if (doc.status === 'posted') return;
-
-        const lines = db
-          .select()
-          .from(schema.documentLines)
-          .where(
-            and(
-              eq(schema.documentLines.documentId, id),
-              isNull(schema.documentLines.deletedAt),
-            ),
-          )
-          .all();
-
-        if (doc.direction === OUT) {
-          const itemIds = [...new Set(lines.map((l) => l.itemId))];
-          const currentOnHand: Record<string, number> = {};
-          for (const itemId of itemIds) currentOnHand[itemId] = api.onHand(itemId);
-          const posting: PostingDoc = {
-            status: 'posted',
-            direction: OUT,
-            lines: lines.map((l) => ({ itemId: l.itemId, qty: l.qty })),
-          };
-          const violations = negativeStockViolations(
-            currentOnHand,
-            posting,
-            opts.allowNegative ?? false,
-          );
-          if (violations.length > 0) throw new NegativeStockError(violations);
-        }
-
-        const ts = now();
-        db.update(schema.documents)
-          .set({ status: 'posted', postedAt: ts, updatedAt: ts })
-          .where(eq(schema.documents.id, id))
-          .run();
-        recomputeStock(affectedItemIds(id));
-      });
+      db.transaction(() => postInternal(id, opts));
     },
 
     /** Revert a posted doc to draft; stock re-derives without it. */
