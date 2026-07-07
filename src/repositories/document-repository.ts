@@ -22,6 +22,9 @@ export interface DocumentLineInput {
   itemId: string;
   qty: number; // > 0 magnitude
   unitPrice?: number; // minor units; default 0
+  title?: string | null; // fast-entry: typed product title for this line
+  note?: string | null;
+  imageUri?: string | null;
 }
 
 export interface CreateDocumentInput {
@@ -144,6 +147,9 @@ export function createDocumentRepository(db: DocDb) {
           itemId: l.itemId,
           qty: l.qty,
           unitPrice: l.unitPrice ?? 0,
+          title: l.title ?? null,
+          note: l.note ?? null,
+          imageUri: l.imageUri ?? null,
         })
         .run();
     }

@@ -1,4 +1,4 @@
-import { and, eq, isNull, ne } from 'drizzle-orm';
+import { and, eq, isNull, ne, sql } from 'drizzle-orm';
 import * as schema from '@/db/schema';
 import { newId, now } from '@/utils/id';
 import type { Item } from '@/db/schema';
@@ -15,6 +15,8 @@ export interface ItemWithStock {
   salePrice: number; // minor units
   lowStockThreshold: number;
   qtyOnHand: number;
+  tags: string[];
+  notes: string | null;
 }
 
 export interface CreateItemInput {
@@ -25,9 +27,26 @@ export interface CreateItemInput {
   costPrice?: number; // minor units
   salePrice?: number; // minor units
   lowStockThreshold?: number;
+  tags?: string[];
+  notes?: string | null;
+  photoUri?: string | null;
 }
 
 export type UpdateItemInput = Partial<CreateItemInput>;
+
+/** Denormalized tag array is stored as a JSON string; tolerate legacy null. */
+const parseTags = (raw: string | null): string[] => {
+  if (!raw) return [];
+  try {
+    const val = JSON.parse(raw);
+    return Array.isArray(val) ? val.filter((t): t is string => typeof t === 'string') : [];
+  } catch {
+    return [];
+  }
+};
+
+/** Case/space-insensitive match key for find-or-create dedupe. */
+export const nameKey = (name: string): string => name.trim().toLowerCase();
 
 /** Thrown when a barcode collides with another live item. */
 export class DuplicateBarcodeError extends Error {
@@ -76,13 +95,28 @@ export function createItemRepository(database: DocDb) {
           costPrice: schema.items.costPrice,
           salePrice: schema.items.salePrice,
           lowStockThreshold: schema.items.lowStockThreshold,
+          tags: schema.items.tags,
+          notes: schema.items.notes,
           qtyOnHand: schema.stockLevels.qtyOnHand,
         })
         .from(schema.items)
         .leftJoin(schema.stockLevels, eq(schema.stockLevels.itemId, schema.items.id))
         .where(isNull(schema.items.deletedAt))
         .all()
-        .map((row) => ({ ...row, qtyOnHand: row.qtyOnHand ?? 0 }));
+        .map((row) => ({ ...row, qtyOnHand: row.qtyOnHand ?? 0, tags: parseTags(row.tags) }));
+    },
+
+    /**
+     * Find a live item by case-insensitive name within a category (null = any),
+     * for fast-entry find-or-create dedupe. Returns the first match or null.
+     */
+    findByNameAndCategory(name: string, category: string | null): Item | null {
+      const conds = [
+        isNull(schema.items.deletedAt),
+        eq(sql`lower(trim(${schema.items.name}))`, nameKey(name)),
+      ];
+      if (category !== null) conds.push(eq(schema.items.category, category));
+      return database.select().from(schema.items).where(and(...conds)).get() ?? null;
     },
 
     create(input: CreateItemInput): Item {
@@ -103,7 +137,9 @@ export function createItemRepository(database: DocDb) {
         salePrice: input.salePrice ?? 0,
         currency: 'EGP',
         lowStockThreshold: input.lowStockThreshold ?? 0,
-        photoUri: null,
+        photoUri: input.photoUri ?? null,
+        tags: input.tags && input.tags.length ? JSON.stringify(input.tags) : null,
+        notes: input.notes ?? null,
       };
       database.insert(schema.items).values(row).run();
       return row as Item;
@@ -113,11 +149,11 @@ export function createItemRepository(database: DocDb) {
       if (patch.barcode && barcodeTaken(patch.barcode, id)) {
         throw new DuplicateBarcodeError(patch.barcode);
       }
-      database
-        .update(schema.items)
-        .set({ ...patch, updatedAt: now() })
-        .where(eq(schema.items.id, id))
-        .run();
+      // `tags` is a string[] in the input but a JSON TEXT column — serialize it.
+      const { tags, ...rest } = patch;
+      const set: Record<string, unknown> = { ...rest, updatedAt: now() };
+      if (tags !== undefined) set.tags = tags.length ? JSON.stringify(tags) : null;
+      database.update(schema.items).set(set).where(eq(schema.items.id, id)).run();
     },
 
     /** Archive (soft-delete). Never hard-delete an item with history. */

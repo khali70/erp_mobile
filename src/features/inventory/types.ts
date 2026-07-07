@@ -1,14 +1,10 @@
 // Inventory domain view-types. Real items will come from the repository/ledger;
 // these describe the shape screens/components consume.
 
-export type ItemCategory =
-  | 'tshirts'
-  | 'jackets'
-  | 'shoes'
-  | 'pants'
-  | 'shirts'
-  | 'accessories'
-  | 'other';
+// Categories are now user-extensible data (see `categories` table), so the type
+// is an open string (the category name/key), not a fixed union. The seven
+// defaults still ship via the seed.
+export type ItemCategory = string;
 
 export type UnitKey = 'piece' | 'pair';
 
@@ -28,6 +24,8 @@ export interface InventoryItem {
   barcode: string | null;
   qty: number;
   lowStockThreshold: number;
+  tags: string[];
+  notes: string | null;
 }
 
 /** Editable fields captured by the item form (add / edit). */
@@ -39,4 +37,6 @@ export interface ItemDraft {
   salePrice: string;
   lowStockThreshold: string;
   barcode: string;
+  tags: string[];
+  notes: string;
 }

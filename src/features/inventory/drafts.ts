@@ -12,6 +12,8 @@ export function toDraft(item: InventoryItem): ItemDraft {
     salePrice: item.salePriceMinor ? toMajor(item.salePriceMinor) : '',
     lowStockThreshold: String(item.lowStockThreshold),
     barcode: item.barcode ?? '',
+    tags: item.tags,
+    notes: item.notes ?? '',
   };
 }
 
@@ -19,6 +21,7 @@ export function toDraft(item: InventoryItem): ItemDraft {
 export function fromDraft(draft: ItemDraft): CreateItemInput {
   const barcode = draft.barcode.trim();
   const threshold = parseInt(draft.lowStockThreshold, 10);
+  const notes = draft.notes.trim();
   return {
     name: draft.name.trim(),
     category: draft.category,
@@ -27,5 +30,7 @@ export function fromDraft(draft: ItemDraft): CreateItemInput {
     costPrice: draft.costPrice.trim() === '' ? 0 : toMinor(draft.costPrice),
     salePrice: draft.salePrice.trim() === '' ? 0 : toMinor(draft.salePrice),
     lowStockThreshold: Number.isFinite(threshold) ? threshold : 0,
+    tags: draft.tags.map((tg) => tg.trim()).filter(Boolean),
+    notes: notes === '' ? null : notes,
   };
 }

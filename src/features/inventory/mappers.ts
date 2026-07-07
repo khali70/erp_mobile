@@ -1,19 +1,7 @@
 import type { ItemWithStock } from '@/repositories/item-repository';
-import type { InventoryItem, ItemCategory, UnitKey } from './types';
+import type { InventoryItem, UnitKey } from './types';
 
-const CATEGORIES: ItemCategory[] = [
-  'tshirts',
-  'jackets',
-  'shoes',
-  'pants',
-  'shirts',
-  'accessories',
-  'other',
-];
 const UNITS: UnitKey[] = ['piece', 'pair'];
-
-const toCategory = (value: string | null): ItemCategory =>
-  CATEGORIES.includes(value as ItemCategory) ? (value as ItemCategory) : 'other';
 
 const toUnit = (value: string): UnitKey =>
   UNITS.includes(value as UnitKey) ? (value as UnitKey) : 'piece';
@@ -23,12 +11,15 @@ export function toInventoryItem(row: ItemWithStock): InventoryItem {
   return {
     id: row.id,
     name: row.name,
-    category: toCategory(row.category),
+    // Category is a free string now (empty when uncategorized).
+    category: row.category ?? '',
     unit: toUnit(row.unit),
     costPriceMinor: row.costPrice,
     salePriceMinor: row.salePrice,
     barcode: row.barcode,
     qty: row.qtyOnHand,
     lowStockThreshold: row.lowStockThreshold,
+    tags: row.tags,
+    notes: row.notes,
   };
 }

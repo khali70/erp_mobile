@@ -5,7 +5,8 @@ import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import colors from '@/theme/colors';
 import { ROW } from '@/theme/rtl';
 import { DocLineRow } from './DocLineRow';
-import type { DocLine, DocMode } from '../types';
+import { QuickEntryRow } from './QuickEntryRow';
+import type { DocLine, DocMode, QuickEntryValues, QuickEntryLocks } from '../types';
 
 interface DocLinesSectionProps {
   /** i18n namespace of the owning mode (documents.outgoing | documents.incoming). */
@@ -20,9 +21,18 @@ interface DocLinesSectionProps {
   /** Sale-only: when provided, renders the barcode scan toggle. */
   scanning?: boolean;
   onToggleScan?: () => void;
+  // Fast-entry
+  entryMode: 'list' | 'quick';
+  onSetEntryMode: (m: 'list' | 'quick') => void;
+  quick: QuickEntryValues;
+  locks: QuickEntryLocks;
+  onQuickChange: <K extends keyof QuickEntryValues>(field: K, value: QuickEntryValues[K]) => void;
+  onToggleLock: (field: keyof QuickEntryValues) => void;
+  onAddQuick: () => void;
+  titleSuggestions: string[];
 }
 
-/** Lines header (add / optional scan) plus the line list or empty state. */
+/** Lines header (entry-mode segment, add / optional scan) + line list / empty. */
 export function DocLinesSection({
   ns,
   mode,
@@ -34,12 +44,53 @@ export function DocLinesSection({
   onAddLine,
   scanning,
   onToggleScan,
+  entryMode,
+  onSetEntryMode,
+  quick,
+  locks,
+  onQuickChange,
+  onToggleLock,
+  onAddQuick,
+  titleSuggestions,
 }: DocLinesSectionProps) {
   const { t } = useTranslation();
+  const isQuick = entryMode === 'quick';
   return (
     <>
-      {/* Lines header */}
+      {/* Section title + entry-mode segment */}
       <View className={`${ROW} items-center justify-between`}>
+        <View className={`${ROW} items-center bg-surface rounded-xl p-0.5 border border-border`}>
+          {(['list', 'quick'] as const).map((m) => {
+            const active = entryMode === m;
+            return (
+              <Pressable
+                key={m}
+                className={`px-3 py-1.5 rounded-lg ${active ? 'bg-primary' : ''}`}
+                onPress={() => onSetEntryMode(m)}
+                accessibilityRole="button"
+                accessibilityState={{ selected: active }}
+              >
+                <Text className={`text-xs font-bold ${active ? 'text-white' : 'text-muted'}`}>
+                  {t(m === 'list' ? 'documents.entryMode.list' : 'documents.entryMode.quick')}
+                </Text>
+              </Pressable>
+            );
+          })}
+        </View>
+        <Text className="text-ink text-sm font-extrabold flex-1 text-right">{t(`${ns}.linesTitle`)}</Text>
+      </View>
+
+      {/* Actions: quick row, or from-list add + scan */}
+      {isQuick ? (
+        <QuickEntryRow
+          values={quick}
+          locks={locks}
+          onChange={onQuickChange}
+          onToggleLock={onToggleLock}
+          onAdd={onAddQuick}
+          suggestions={titleSuggestions}
+        />
+      ) : (
         <View className={`${ROW} items-center gap-2`}>
           {onToggleScan && (
             <Pressable
@@ -64,8 +115,7 @@ export function DocLinesSection({
             <Text className="text-primary text-xs font-bold">{t('documents.addLine')}</Text>
           </Pressable>
         </View>
-        <Text className="text-ink text-sm font-extrabold flex-1 text-right">{t(`${ns}.linesTitle`)}</Text>
-      </View>
+      )}
 
       {/* Lines */}
       {lines.length === 0 ? (

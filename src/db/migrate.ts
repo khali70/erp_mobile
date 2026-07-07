@@ -76,6 +76,26 @@ export function runMigrations(): void {
       balance INTEGER NOT NULL DEFAULT 0
     );
 
+    CREATE TABLE IF NOT EXISTS categories (
+      id TEXT PRIMARY KEY,
+      created_at INTEGER NOT NULL,
+      updated_at INTEGER NOT NULL,
+      deleted_at INTEGER,
+      name TEXT NOT NULL UNIQUE,
+      color TEXT,
+      icon TEXT,
+      i18n_key TEXT,
+      sort_order INTEGER NOT NULL DEFAULT 0
+    );
+
+    CREATE TABLE IF NOT EXISTS tags (
+      id TEXT PRIMARY KEY,
+      created_at INTEGER NOT NULL,
+      updated_at INTEGER NOT NULL,
+      deleted_at INTEGER,
+      name TEXT NOT NULL UNIQUE
+    );
+
     CREATE INDEX IF NOT EXISTS idx_lines_document ON document_lines(document_id);
     CREATE INDEX IF NOT EXISTS idx_lines_item ON document_lines(item_id);
   `);
@@ -90,6 +110,13 @@ export function runMigrations(): void {
   addColumnIfMissing(sqlite, 'documents', 'doc_date', 'INTEGER');
   addColumnIfMissing(sqlite, 'documents', 'total_amount', 'INTEGER NOT NULL DEFAULT 0');
   addColumnIfMissing(sqlite, 'documents', 'posted_at', 'INTEGER');
+  // Rich items: denormalized tag-name array (JSON) + free notes.
+  addColumnIfMissing(sqlite, 'items', 'tags', 'TEXT');
+  addColumnIfMissing(sqlite, 'items', 'notes', 'TEXT');
+  // Fast-entry line provenance (typed title/note/photo; item_id stays identity).
+  addColumnIfMissing(sqlite, 'document_lines', 'title', 'TEXT');
+  addColumnIfMissing(sqlite, 'document_lines', 'note', 'TEXT');
+  addColumnIfMissing(sqlite, 'document_lines', 'image_uri', 'TEXT');
 }
 
 function addColumnIfMissing(

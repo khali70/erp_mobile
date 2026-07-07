@@ -72,6 +72,14 @@ export function NewOutgoingScreen() {
           onAddLine={() => f.setItemPickerOpen(true)}
           scanning={f.scanning}
           onToggleScan={() => f.setScanning((v) => !v)}
+          entryMode={f.entryMode}
+          onSetEntryMode={f.setEntryMode}
+          quick={f.quick}
+          locks={f.locks}
+          onQuickChange={f.setQuickField}
+          onToggleLock={f.toggleLock}
+          onAddQuick={f.addQuickLine}
+          titleSuggestions={f.titleSuggestions}
         />
 
         <DocSummaryCard count={f.lines.length} total={f.total} />

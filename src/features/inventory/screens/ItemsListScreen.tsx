@@ -7,10 +7,12 @@ import { useTranslation } from 'react-i18next';
 import colors from '@/theme/colors';
 import type { RootStackParamList } from '@/navigation/RootNavigator';
 import { useItems } from '../hooks/useItems';
+import { useCategories } from '../hooks/useCategories';
 import { useItemFilter } from '../hooks/useItemFilter';
 import { presentItem } from '../presenters';
 import { toDraft, fromDraft } from '../drafts';
 import { itemRepository } from '@/repositories/item-repository.client';
+import { tagRepository } from '@/repositories/tag-repository.client';
 import { DuplicateBarcodeError } from '@/repositories/item-repository';
 import type { InventoryItem, ItemDraft, StockFilter } from '../types';
 import { ScreenHeader } from '@/components/ui/ScreenHeader';
@@ -28,6 +30,7 @@ export function ItemsListScreen() {
   const { t } = useTranslation();
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const { items, reload } = useItems();
+  const { byName: categoryIndex, reload: reloadCategories } = useCategories();
   const { query, setQuery, filter, setFilter, filtered, reset } = useItemFilter(items);
 
   const [formOpen, setFormOpen] = useState(false);
@@ -56,8 +59,11 @@ export function ItemsListScreen() {
       } else {
         itemRepository.create(input);
       }
+      // Keep the tag registry current with whatever names this item used.
+      if (input.tags?.length) tagRepository.upsertMany(input.tags);
       setFormOpen(false);
       reload();
+      reloadCategories(); // an inline-added category should appear immediately
     } catch (e) {
       if (e instanceof DuplicateBarcodeError) {
         Alert.alert(t('inventory.form.duplicateBarcodeTitle'), t('inventory.form.duplicateBarcodeBody'));
@@ -100,8 +106,7 @@ export function ItemsListScreen() {
             {filtered.map((item) => (
               <ItemRow
                 key={item.id}
-                item={presentItem(item, t)}
-                category={item.category}
+                item={presentItem(item, t, categoryIndex)}
                 onPress={() =>
                   navigation.navigate('ItemMovement', {
                     itemId: item.id,

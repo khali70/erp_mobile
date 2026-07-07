@@ -15,7 +15,7 @@ const standard = {
 export const items = sqliteTable('items', {
   ...standard,
   name: text('name').notNull(),
-  category: text('category'), // domain category key (e.g. 'tshirts'); null = uncategorized
+  category: text('category'), // category name/key (matches categories.name); null = uncategorized
   barcode: text('barcode'),
   unit: text('unit').notNull().default('pcs'),
   costPrice: integer('cost_price').notNull().default(0), // minor units
@@ -23,6 +23,29 @@ export const items = sqliteTable('items', {
   currency: text('currency').notNull().default('EGP'),
   lowStockThreshold: integer('low_stock_threshold').notNull().default(0),
   photoUri: text('photo_uri'),
+  // Denormalized JSON array of tag names (registry lives in `tags`). Stored on
+  // the row so reads need zero joins; null = no tags.
+  tags: text('tags'),
+  notes: text('notes'),
+});
+
+// User-extensible category registry. `name` is the key stored on items.category;
+// `i18nKey` is set for the seeded defaults (translated) and null for user-added
+// ones (whose `name` is shown verbatim).
+export const categories = sqliteTable('categories', {
+  ...standard,
+  name: text('name').notNull().unique(),
+  color: text('color'), // theme color token (e.g. 'emerald')
+  icon: text('icon'), // MaterialCommunityIcons glyph name
+  i18nKey: text('i18n_key'), // e.g. 'tshirts' → inventory.categories.tshirts; null = use name
+  sortOrder: integer('sort_order').notNull().default(0),
+});
+
+// Tag registry — autocomplete + known-tag list only. Items do NOT join here;
+// each item carries its own `tags` array. Names are unique.
+export const tags = sqliteTable('tags', {
+  ...standard,
+  name: text('name').notNull().unique(),
 });
 
 // Immutable movement ledger. On-hand is derived, never hand-edited.
@@ -47,6 +70,11 @@ export const documentLines = sqliteTable('document_lines', {
   itemId: text('item_id').notNull(),
   qty: integer('qty').notNull(), // positive; sign comes from document.direction
   unitPrice: integer('unit_price').notNull().default(0), // minor units
+  // Fast-entry provenance: the typed title/note/photo for this line. itemId
+  // stays the ledger identity; these describe the individual entry.
+  title: text('title'),
+  note: text('note'),
+  imageUri: text('image_uri'),
 });
 
 // Cached derived on-hand per item (rebuildable from the ledger).
@@ -75,6 +103,8 @@ export const suppliers = sqliteTable('suppliers', {
 
 export type Item = typeof items.$inferSelect;
 export type NewItem = typeof items.$inferInsert;
+export type Category = typeof categories.$inferSelect;
+export type Tag = typeof tags.$inferSelect;
 export type Document = typeof documents.$inferSelect;
 export type Customer = typeof customers.$inferSelect;
 export type Supplier = typeof suppliers.$inferSelect;

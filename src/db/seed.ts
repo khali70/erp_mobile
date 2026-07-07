@@ -2,7 +2,29 @@ import { db, schema } from './client';
 import i18n from '@/i18n';
 import { newId, now } from '@/utils/id';
 import { itemRepository } from '@/repositories/item-repository.client';
+import { categoryRepository } from '@/repositories/category-repository.client';
 import { documentRepository } from '@/repositories/document-repository.client';
+
+// The seven default categories. `color` is a theme color token resolved by
+// CategoryAvatar; `i18nKey` maps to inventory.categories.<key> for the label.
+// Users can add more at runtime — these are just the starting registry.
+const DEFAULT_CATEGORIES: readonly { name: string; color: string; i18nKey: string }[] = [
+  { name: 'tshirts', color: 'emerald', i18nKey: 'tshirts' },
+  { name: 'jackets', color: 'cyan', i18nKey: 'jackets' },
+  { name: 'shoes', color: 'amber', i18nKey: 'shoes' },
+  { name: 'pants', color: 'violet', i18nKey: 'pants' },
+  { name: 'shirts', color: 'sky', i18nKey: 'shirts' },
+  { name: 'accessories', color: 'pink', i18nKey: 'accessories' },
+  { name: 'other', color: 'slate', i18nKey: 'other' },
+];
+
+/** Seed the default category registry once. Idempotent (create is insert-or-return). */
+export function seedCategoriesIfEmpty(): void {
+  if (categoryRepository.count() > 0) return;
+  DEFAULT_CATEGORIES.forEach((c, i) =>
+    categoryRepository.create({ name: c.name, color: c.color, i18nKey: c.i18nKey, sortOrder: i }),
+  );
+}
 
 /**
  * Dev seed: inserts a placeholder catalog into SQLite on first run so screens

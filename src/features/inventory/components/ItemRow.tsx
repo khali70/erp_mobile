@@ -1,19 +1,17 @@
 import { View, Text, Pressable } from 'react-native';
 import { ROW } from '@/theme/rtl';
-import type { ItemCategory } from '../types';
 import type { ItemRowViewModel } from '../presenters';
 import { CategoryAvatar } from './CategoryAvatar';
 import { StockBadge } from './StockBadge';
 
 interface ItemRowProps {
   item: ItemRowViewModel;
-  category: ItemCategory;
   onPress: () => void;
   onLongPress?: () => void;
 }
 
 /** A single item card: category avatar + name/category, price + stock badge. */
-export function ItemRow({ item, category, onPress, onLongPress }: ItemRowProps) {
+export function ItemRow({ item, onPress, onLongPress }: ItemRowProps) {
   return (
     <Pressable
       className={`bg-surface rounded-[18px] p-3.5 border border-border ${ROW} items-center justify-between`}
@@ -22,7 +20,7 @@ export function ItemRow({ item, category, onPress, onLongPress }: ItemRowProps) 
       accessibilityRole="button"
     >
       <View className={`${ROW} items-center gap-3`}>
-        <CategoryAvatar category={category} />
+        <CategoryAvatar color={item.categoryColor} />
         <View className="gap-0.5">
           <Text className="text-sm font-semibold text-ink text-right">{item.name}</Text>
           <Text className="text-[11px] text-muted font-medium text-right">{item.categoryLabel}</Text>

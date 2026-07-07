@@ -15,7 +15,7 @@ export const RTL_LANGS = ['ar'];
 
 // Device language, fallback to Arabic (Arabic-first product).
 const deviceLang = getLocales()[0]?.languageCode ?? 'ar';
-const lng = deviceLang in resources ? deviceLang : 'ar';
+const lng = "ar";
 
 // Force RTL layout when active language is RTL.
 const isRTL = RTL_LANGS.includes(lng);

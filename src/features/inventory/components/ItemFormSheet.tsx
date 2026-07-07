@@ -7,6 +7,7 @@ import { ROW, HEADER_OVERLAY } from '@/theme/rtl';
 import type { ItemDraft } from '../types';
 import { LabeledInput } from '@/components/ui/LabeledInput';
 import { CategorySelect } from './CategorySelect';
+import { TagInput } from './TagInput';
 
 const EMPTY_DRAFT: ItemDraft = {
   name: '',
@@ -16,6 +17,8 @@ const EMPTY_DRAFT: ItemDraft = {
   salePrice: '',
   lowStockThreshold: '10',
   barcode: '',
+  tags: [],
+  notes: '',
 };
 
 interface ItemFormSheetProps {
@@ -77,6 +80,11 @@ export function ItemFormSheet({ visible, initial, onClose, onSave }: ItemFormShe
               value={draft.category}
               onChange={(v) => update('category', v)}
             />
+            <TagInput
+              label={t('inventory.form.tags')}
+              value={draft.tags}
+              onChange={(v) => update('tags', v)}
+            />
             <View className={`${ROW} gap-3`}>
               <View className="flex-1">
                 <LabeledInput
@@ -106,6 +114,13 @@ export function ItemFormSheet({ visible, initial, onClose, onSave }: ItemFormShe
               value={draft.barcode}
               onChangeText={(v) => update('barcode', v)}
               keyboardType="numeric"
+            />
+            <LabeledInput
+              label={t('inventory.form.notes')}
+              value={draft.notes}
+              onChangeText={(v) => update('notes', v)}
+              placeholder={t('inventory.form.notesPlaceholder')}
+              multiline
             />
 
             <Pressable

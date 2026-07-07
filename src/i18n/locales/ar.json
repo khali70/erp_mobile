@@ -92,6 +92,12 @@
       "name": "اسم البضاعة",
       "namePlaceholder": "مثال: تيشيرت قطن أبيض",
       "category": "التصنيف",
+      "addCategory": "تصنيف جديد",
+      "newCategoryPlaceholder": "اسم التصنيف",
+      "tags": "الوسوم",
+      "tagsPlaceholder": "أضف وسمًا…",
+      "notes": "ملاحظات",
+      "notesPlaceholder": "أي تفاصيل تخصّك…",
       "unit": "الوحدة",
       "costPrice": "سعر التكلفة",
       "salePrice": "سعر البيع",
@@ -157,6 +163,17 @@
   },
   "documents": {
     "date": "التاريخ",
+    "entryMode": {
+      "list": "من القائمة",
+      "quick": "إدخال سريع"
+    },
+    "quick": {
+      "title": "اسم المنتج",
+      "titlePlaceholder": "مثال: قميص قطن أبيض",
+      "price": "السعر",
+      "qty": "الكمية",
+      "add": "إضافة سطر"
+    },
     "scan": "مسح باركود",
     "scanner": {
       "title": "وجّه الكاميرا نحو الباركود",

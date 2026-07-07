@@ -53,6 +53,14 @@ export function NewIncomingScreen() {
           onSetPrice={f.setPrice}
           onRemove={f.removeLine}
           onAddLine={() => f.setItemPickerOpen(true)}
+          entryMode={f.entryMode}
+          onSetEntryMode={f.setEntryMode}
+          quick={f.quick}
+          locks={f.locks}
+          onQuickChange={f.setQuickField}
+          onToggleLock={f.toggleLock}
+          onAddQuick={f.addQuickLine}
+          titleSuggestions={f.titleSuggestions}
         />
 
         <DocSummaryCard count={f.lines.length} total={f.total} />

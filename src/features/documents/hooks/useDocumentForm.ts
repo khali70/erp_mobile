@@ -6,15 +6,35 @@ import { fromMinor, toMinor } from '@/utils/money';
 import { useItems } from '@/features/inventory/hooks/useItems';
 import { useSettingsStore } from '@/store/settings-store';
 import { documentRepository } from '@/repositories/document-repository.client';
-import { NegativeStockError } from '@/repositories/document-repository';
+import { NegativeStockError, type DocumentLineInput } from '@/repositories/document-repository';
+import { itemRepository } from '@/repositories/item-repository.client';
+import { tagRepository } from '@/repositories/tag-repository.client';
 import type { InventoryItem } from '@/features/inventory/types';
 import { useDocDraft } from './useDocDraft';
 import { useParties } from './useParties';
-import type { DocLine, DocMode, Party } from '../types';
+import type { DocLine, DocMode, Party, QuickEntryValues, QuickEntryLocks } from '../types';
 import type { PartyDraft } from '@/features/parties/types';
 
 let seq = 0;
 const nextId = () => `l${seq++}`;
+
+const EMPTY_QUICK: QuickEntryValues = {
+  category: '',
+  title: '',
+  price: '',
+  qty: '',
+  tags: [],
+  note: '',
+};
+const NO_LOCKS: QuickEntryLocks = {
+  category: false,
+  title: false,
+  price: false,
+  qty: false,
+  tags: false,
+  note: false,
+};
+const normKey = (s: string) => s.trim().toLowerCase();
 
 /**
  * All state, persistence and posting logic for a sale/purchase document, shared
@@ -45,6 +65,11 @@ export function useDocumentForm(mode: DocMode) {
   const [lines, setLines] = useState<DocLine[]>(draft.lines);
   const [saving, setSaving] = useState(false);
   const [wasRestored] = useState(draft.lines.length > 0);
+  // Fast-entry: 'list' picks from the catalog; 'quick' types title/price/qty
+  // with per-field locks. Values + locks restore from the draft buffer.
+  const [entryMode, setEntryMode] = useState<'list' | 'quick'>('list');
+  const [quick, setQuick] = useState<QuickEntryValues>(draft.quick?.values ?? EMPTY_QUICK);
+  const [locks, setLocks] = useState<QuickEntryLocks>(draft.quick?.locks ?? NO_LOCKS);
   // Document date — stamped once at mount (today), not recomputed per render.
   const [docDate] = useState(() => Date.now());
 
@@ -59,8 +84,8 @@ export function useDocumentForm(mode: DocMode) {
   // Mirror the working buffer to MMKV on every change so an OS kill or mistap
   // mid-entry never loses input; it re-hydrates on the next mount.
   useEffect(() => {
-    persistDraft({ lines, partyName: party?.name ?? null });
-  }, [lines, party, persistDraft]);
+    persistDraft({ lines, partyName: party?.name ?? null, quick: { values: quick, locks } });
+  }, [lines, party, quick, locks, persistDraft]);
 
   const discardDraft = () => {
     Alert.alert(t('documents.draft.discardTitle'), t('documents.draft.discardBody'), [
@@ -72,6 +97,8 @@ export function useDocumentForm(mode: DocMode) {
           setLines([]);
           setParty(null);
           setChosen(false);
+          setQuick(EMPTY_QUICK);
+          setLocks(NO_LOCKS);
           clearDraft();
         },
       },
@@ -122,6 +149,62 @@ export function useDocumentForm(mode: DocMode) {
     setLines((prev) => prev.map((l) => (l.id === id ? { ...l, unitPrice: Math.max(0, unitPrice) } : l)));
   const removeLine = (id: string) => setLines((prev) => prev.filter((l) => l.id !== id));
 
+  const setQuickField = useCallback(
+    <K extends keyof QuickEntryValues>(field: K, value: QuickEntryValues[K]) =>
+      setQuick((prev) => ({ ...prev, [field]: value })),
+    [],
+  );
+  const toggleLock = useCallback(
+    (field: keyof QuickEntryValues) => setLocks((prev) => ({ ...prev, [field]: !prev[field] })),
+    [],
+  );
+
+  // Existing catalog names matching the typed title (find-or-create hint).
+  const titleSuggestions = useMemo(() => {
+    const q = normKey(quick.title);
+    if (!q) return [];
+    return items
+      .filter((i) => i.name.toLowerCase().includes(q))
+      .slice(0, 6)
+      .map((i) => i.name);
+  }, [items, quick.title]);
+
+  // Fast-entry add: an ad-hoc line (itemId resolved at save via find-or-create).
+  // A repeat title+category bumps qty; then unlocked fields clear for the next.
+  const addQuickLine = useCallback(() => {
+    const title = quick.title.trim();
+    if (!title) return;
+    const price = Math.max(0, parseFloat(quick.price) || 0);
+    const qty = Math.max(1, parseInt(quick.qty, 10) || 1);
+    const category = quick.category || undefined;
+    const tags = quick.tags.length ? quick.tags : undefined;
+    const note = quick.note.trim() || undefined;
+
+    setLines((prev) => {
+      const idx = prev.findIndex(
+        (l) =>
+          l.itemId === null &&
+          normKey(l.name) === normKey(title) &&
+          (l.category ?? '') === (category ?? ''),
+      );
+      if (idx >= 0) return prev.map((l, i) => (i === idx ? { ...l, qty: l.qty + qty } : l));
+      return [
+        ...prev,
+        { id: nextId(), itemId: null, name: title, unit: 'piece', unitPrice: price, qty, category, tags, note },
+      ];
+    });
+
+    // Reset unlocked fields; title always clears so entry keeps flowing.
+    setQuick((prev) => ({
+      category: locks.category ? prev.category : '',
+      title: '',
+      price: locks.price ? prev.price : '',
+      qty: locks.qty ? prev.qty : '',
+      tags: locks.tags ? prev.tags : [],
+      note: locks.note ? prev.note : '',
+    }));
+  }, [quick, locks]);
+
   const save = () => {
     if (saving) return;
     if (lines.length === 0) {
@@ -139,16 +222,37 @@ export function useDocumentForm(mode: DocMode) {
     }
     setSaving(true);
     try {
+      // Resolve every line to a real item id. Ad-hoc fast-entry lines (itemId
+      // null) find-or-create an item by name+category, seeding its price from
+      // the line, and register any tags. The typed title rides on the line.
+      const resolvedLines: DocumentLineInput[] = lines.map((l) => {
+        const priceMinor = toMinor(l.unitPrice);
+        let itemId = l.itemId;
+        let title: string | null = null;
+        if (itemId === null) {
+          title = l.name;
+          const existing = itemRepository.findByNameAndCategory(l.name, l.category ?? null);
+          itemId =
+            existing?.id ??
+            itemRepository.create({
+              name: l.name,
+              category: l.category ?? null,
+              unit: l.unit,
+              salePrice: mode === 'sale' ? priceMinor : 0,
+              costPrice: mode === 'purchase' ? priceMinor : 0,
+              tags: l.tags,
+              notes: l.note ?? null,
+            }).id;
+          if (l.tags?.length) tagRepository.upsertMany(l.tags);
+        }
+        return { itemId, qty: l.qty, unitPrice: priceMinor, title, note: l.note ?? null, imageUri: l.imageUri ?? null };
+      });
       documentRepository.create(
         {
           kind: mode === 'sale' ? 'outgoing' : 'incoming',
           status: 'posted',
           note: party?.name ?? undefined,
-          lines: lines.map((l) => ({
-            itemId: l.itemId,
-            qty: l.qty,
-            unitPrice: toMinor(l.unitPrice),
-          })),
+          lines: resolvedLines,
         },
         { allowNegative: allowNegativeStock },
       );
@@ -216,6 +320,15 @@ export function useDocumentForm(mode: DocMode) {
     partyFormOpen,
     setPartyFormOpen,
     partyFormInitial,
+    // fast-entry
+    entryMode,
+    setEntryMode,
+    quick,
+    locks,
+    setQuickField,
+    toggleLock,
+    addQuickLine,
+    titleSuggestions,
     // actions
     appendItem,
     scanAppend,

@@ -92,6 +92,12 @@
       "name": "Item name",
       "namePlaceholder": "e.g. White cotton T-shirt",
       "category": "Category",
+      "addCategory": "New category",
+      "newCategoryPlaceholder": "Category name",
+      "tags": "Tags",
+      "tagsPlaceholder": "Add a tag…",
+      "notes": "Notes",
+      "notesPlaceholder": "Any details for yourself…",
       "unit": "Unit",
       "costPrice": "Cost price",
       "salePrice": "Sale price",
@@ -157,6 +163,17 @@
   },
   "documents": {
     "date": "Date",
+    "entryMode": {
+      "list": "From list",
+      "quick": "Fast entry"
+    },
+    "quick": {
+      "title": "Product title",
+      "titlePlaceholder": "e.g. White cotton shirt",
+      "price": "Price",
+      "qty": "Qty",
+      "add": "Add line"
+    },
     "scan": "Scan barcode",
     "scanner": {
       "title": "Point at a barcode",

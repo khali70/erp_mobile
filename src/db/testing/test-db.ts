@@ -22,7 +22,27 @@ CREATE TABLE items (
   sale_price INTEGER NOT NULL DEFAULT 0,
   currency TEXT NOT NULL DEFAULT 'EGP',
   low_stock_threshold INTEGER NOT NULL DEFAULT 0,
-  photo_uri TEXT
+  photo_uri TEXT,
+  tags TEXT,
+  notes TEXT
+);
+CREATE TABLE categories (
+  id TEXT PRIMARY KEY,
+  created_at INTEGER NOT NULL,
+  updated_at INTEGER NOT NULL,
+  deleted_at INTEGER,
+  name TEXT NOT NULL UNIQUE,
+  color TEXT,
+  icon TEXT,
+  i18n_key TEXT,
+  sort_order INTEGER NOT NULL DEFAULT 0
+);
+CREATE TABLE tags (
+  id TEXT PRIMARY KEY,
+  created_at INTEGER NOT NULL,
+  updated_at INTEGER NOT NULL,
+  deleted_at INTEGER,
+  name TEXT NOT NULL UNIQUE
 );
 CREATE TABLE documents (
   id TEXT PRIMARY KEY,
@@ -46,7 +66,10 @@ CREATE TABLE document_lines (
   document_id TEXT NOT NULL,
   item_id TEXT NOT NULL,
   qty INTEGER NOT NULL,
-  unit_price INTEGER NOT NULL DEFAULT 0
+  unit_price INTEGER NOT NULL DEFAULT 0,
+  title TEXT,
+  note TEXT,
+  image_uri TEXT
 );
 CREATE TABLE stock_levels (
   item_id TEXT PRIMARY KEY,
