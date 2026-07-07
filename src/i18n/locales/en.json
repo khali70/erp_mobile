@@ -73,6 +73,10 @@
       "lowSuffix": "low",
       "outSuffix": "out"
     },
+    "chip": {
+      "noBarcode": "No barcode",
+      "noPrice": "No price"
+    },
     "units": {
       "piece": "pc",
       "pair": "pair"

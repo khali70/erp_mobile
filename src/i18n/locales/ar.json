@@ -73,6 +73,10 @@
       "lowSuffix": "منخفض",
       "outSuffix": "نفد"
     },
+    "chip": {
+      "noBarcode": "بدون باركود",
+      "noPrice": "بدون سعر"
+    },
     "units": {
       "piece": "قطعة",
       "pair": "زوج"

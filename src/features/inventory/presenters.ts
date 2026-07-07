@@ -14,6 +14,8 @@ export interface ItemRowViewModel {
   currency: string;
   status: StockStatus;
   badgeLabel: string;
+  barcodeLabel: string | null;
+  salePriceLabel: string | null;
 }
 
 const STATUS_SUFFIX_KEY: Record<StockStatus, string | null> = {
@@ -60,5 +62,7 @@ export function presentItem(
     currency: t('common.currency'),
     status,
     badgeLabel,
+    barcodeLabel: item.barcode?.trim() || null,
+    salePriceLabel: item.salePriceMinor > 0 ? toArabicDigits(Math.round(item.salePriceMinor / 100)) : null,
   };
 }
