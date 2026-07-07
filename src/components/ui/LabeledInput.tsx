@@ -8,10 +8,11 @@ interface LabeledInputProps {
   placeholder?: string;
   keyboardType?: KeyboardTypeOptions;
   multiline?: boolean;
+  editable?: boolean;
 }
 
 /** A labeled text field for forms — label above a bordered input. */
-export function LabeledInput({ label, value, onChangeText, placeholder, keyboardType, multiline }: LabeledInputProps) {
+export function LabeledInput({ label, value, onChangeText, placeholder, keyboardType, multiline, editable = true }: LabeledInputProps) {
   return (
     <View className="gap-1.5">
       <Text className="text-xs font-semibold text-muted text-right">{label}</Text>
@@ -24,6 +25,7 @@ export function LabeledInput({ label, value, onChangeText, placeholder, keyboard
         keyboardType={keyboardType}
         multiline={multiline}
         textAlignVertical={multiline ? 'top' : 'center'}
+        editable={editable !== false}
       />
     </View>
   );

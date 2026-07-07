@@ -8,6 +8,8 @@ import type { ItemDraft } from '../types';
 import { LabeledInput } from '@/components/ui/LabeledInput';
 import { CategorySelect } from './CategorySelect';
 import { TagInput } from './TagInput';
+import { BarcodeScanModal } from './BarcodeScanModal';
+import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 
 const EMPTY_DRAFT: ItemDraft = {
   name: '',
@@ -34,6 +36,7 @@ interface ItemFormSheetProps {
 export function ItemFormSheet({ visible, initial, onClose, onSave }: ItemFormSheetProps) {
   const { t } = useTranslation();
   const [draft, setDraft] = useState<ItemDraft>(EMPTY_DRAFT);
+  const [scanOpen, setScanOpen] = useState(false);
 
   useEffect(() => {
     if (visible) setDraft(initial ?? EMPTY_DRAFT);
@@ -46,6 +49,7 @@ export function ItemFormSheet({ visible, initial, onClose, onSave }: ItemFormShe
   const canSave = draft.name.trim() !== '' && draft.salePrice.trim() !== '';
 
   return (
+    <>
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
       <View className="flex-1 bg-black/60 justify-center px-4">
         <View className="bg-surface rounded-3xl overflow-hidden max-h-[88%]">
@@ -92,6 +96,8 @@ export function ItemFormSheet({ visible, initial, onClose, onSave }: ItemFormShe
                   value={draft.costPrice}
                   onChangeText={(v) => update('costPrice', v)}
                   keyboardType="numeric"
+                    editable={false}
+
                 />
               </View>
               <View className="flex-1">
@@ -109,12 +115,28 @@ export function ItemFormSheet({ visible, initial, onClose, onSave }: ItemFormShe
               onChangeText={(v) => update('lowStockThreshold', v)}
               keyboardType="numeric"
             />
-            <LabeledInput
-              label={t('inventory.form.barcode')}
-              value={draft.barcode}
-              onChangeText={(v) => update('barcode', v)}
-              keyboardType="numeric"
-            />
+              <View className={`${ROW} gap-2 items-end`}>
+                <View className="flex-1">
+                  <LabeledInput
+                    label={t('inventory.form.barcode')}
+                    value={draft.barcode}
+                    onChangeText={(v) => update('barcode', v)}
+                    keyboardType="numeric"
+                  />
+                </View>
+                <Pressable
+                  className={`${ROW} items-center gap-1.5 h-[40px] px-3 rounded-xl bg-primary border border-primary/30`}
+                  onPress={() => setScanOpen(true)}
+                  accessibilityRole="button"
+                  accessibilityLabel={t('inventory.form.scan')}
+                >
+                  <MaterialCommunityIcons
+                    name={'barcode-scan'}
+                    size={16}
+                    color={colors.surface}
+                  />
+                </Pressable>
+              </View>
             <LabeledInput
               label={t('inventory.form.notes')}
               value={draft.notes}
@@ -137,5 +159,11 @@ export function ItemFormSheet({ visible, initial, onClose, onSave }: ItemFormShe
         </View>
       </View>
     </Modal>
+      <BarcodeScanModal
+        visible={scanOpen}
+        onClose={() => setScanOpen(false)}
+        onScanned={(code) => update('barcode', code)}
+      />
+    </>
   );
 }

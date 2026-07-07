@@ -103,6 +103,7 @@
       "salePrice": "Sale price",
       "lowStockThreshold": "Low-stock alert threshold",
       "barcode": "Barcode (optional)",
+      "scan": "Scan",
       "duplicateBarcodeTitle": "Duplicate barcode",
       "duplicateBarcodeBody": "This barcode is already used by another item."
     },

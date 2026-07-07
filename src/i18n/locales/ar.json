@@ -103,6 +103,7 @@
       "salePrice": "سعر البيع",
       "lowStockThreshold": "حد التنبيه للمخزون",
       "barcode": "الباركود (اختياري)",
+      "scan": "مسح",
       "duplicateBarcodeTitle": "باركود مكرر",
       "duplicateBarcodeBody": "هذا الباركود مستخدم بالفعل لصنف آخر."
     },
