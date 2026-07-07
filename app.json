@@ -38,7 +38,13 @@
       "expo-sharing",
       "expo-secure-store",
       "expo-local-authentication",
-      "expo-localization"
+      "expo-localization",
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Allow $(PRODUCT_NAME) to use the camera to scan item barcodes."
+        }
+      ]
     ]
   }
 }

@@ -149,6 +149,20 @@
   "documents": {
     "date": "Date",
     "scan": "Scan barcode",
+    "scanner": {
+      "title": "Point at a barcode",
+      "hint": "Hold steady — items add automatically",
+      "close": "Close scanner",
+      "torch": "Torch",
+      "added": "Added: {{name}}",
+      "qtyBumped": "{{name}} ×{{qty}}",
+      "noMatch": "No item for {{code}}",
+      "noMatchAction": "Add manually",
+      "permTitle": "Camera needed",
+      "permBody": "Allow camera access to scan barcodes.",
+      "permGrant": "Allow camera",
+      "permDenied": "Camera blocked — enable it in Settings to scan."
+    },
     "addLine": "Add item",
     "unitPrice": "Unit price",
     "unitCost": "Unit cost",

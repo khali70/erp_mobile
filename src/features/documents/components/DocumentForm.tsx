@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { View, Text, Pressable, ScrollView, Alert } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { useTranslation } from 'react-i18next';
@@ -8,6 +8,7 @@ import colors from '@/theme/colors';
 import { ROW } from '@/theme/rtl';
 import { ScreenHeader } from '@/components/ui/ScreenHeader';
 import { formatNumber } from '@/utils/numerals';
+import { formatDate } from '@/utils/dates';
 import { fromMinor, toMinor } from '@/utils/money';
 import { useItems } from '@/features/inventory/hooks/useItems';
 import { useSettingsStore } from '@/store/settings-store';
@@ -17,6 +18,7 @@ import type { InventoryItem } from '@/features/inventory/types';
 import { PartyPicker } from './PartyPicker';
 import { LineItemPicker } from './LineItemPicker';
 import { DocLineRow } from './DocLineRow';
+import { ScanPane } from './ScanPane';
 import { useDocDraft } from '../hooks/useDocDraft';
 import type { DocLine, DocMode, Party } from '../types';
 
@@ -66,9 +68,12 @@ export function DocumentForm({ mode }: DocumentFormProps) {
   const [chosen, setChosen] = useState(Boolean(draft.partyName));
   const [pickerOpen, setPickerOpen] = useState(false);
   const [itemPickerOpen, setItemPickerOpen] = useState(false);
+  const [scanning, setScanning] = useState(false);
   const [lines, setLines] = useState<DocLine[]>(draft.lines);
   const [saving, setSaving] = useState(false);
   const [wasRestored] = useState(draft.lines.length > 0);
+  // Document date — stamped once at mount (today), not recomputed per render.
+  const [docDate] = useState(() => Date.now());
 
   // Mirror the working buffer to MMKV on every change so an OS kill or mistap
   // mid-entry never loses input; it re-hydrates on the next mount.
@@ -103,6 +108,27 @@ export function DocumentForm({ mode }: DocumentFormProps) {
       { id: nextId(), itemId: item.id, name: item.name, unit: item.unit, unitPrice, qty: 1 },
     ]);
   };
+  // Scan path: a repeat barcode bumps the existing line instead of stacking a
+  // duplicate row. Returns the resulting qty so the scanner can echo it.
+  const scanAppend = useCallback(
+    (item: InventoryItem) => {
+      const existing = lines.find((l) => l.itemId === item.id);
+      const resultQty = (existing?.qty ?? 0) + 1;
+      setLines((prev) => {
+        const idx = prev.findIndex((l) => l.itemId === item.id);
+        if (idx >= 0) {
+          return prev.map((l, i) => (i === idx ? { ...l, qty: l.qty + 1 } : l));
+        }
+        const unitPrice = mode === 'sale' ? fromMinor(item.salePriceMinor) : 0;
+        return [
+          ...prev,
+          { id: nextId(), itemId: item.id, name: item.name, unit: item.unit, unitPrice, qty: 1 },
+        ];
+      });
+      return resultQty;
+    },
+    [lines, mode],
+  );
   const mutateQty = (id: string, delta: number) =>
     setLines((prev) =>
       prev.map((l) => (l.id === id ? { ...l, qty: Math.max(1, l.qty + delta) } : l)),
@@ -189,57 +215,74 @@ export function DocumentForm({ mode }: DocumentFormProps) {
       <ScrollView contentContainerClassName="px-4 py-4 pb-10 gap-4" showsVerticalScrollIndicator={false}>
 
 
-        {/* Store + date */}
-        <View className={`${ROW} gap-3`}>
-          <View className="flex-1 bg-surface rounded-2xl p-3.5 border border-border gap-2">
-            <Text className="text-muted text-xs font-semibold text-center">{t(`${ns}.store`)}</Text>
-            <View className={`${ROW} items-center justify-center gap-2 bg-background rounded-xl py-2.5`}>
-              <Text className="text-ink text-sm font-bold" numberOfLines={1}>{t(`${ns}.defaultStore`)}</Text>
-              <MaterialCommunityIcons name="store-outline" size={16} color={colors.muted} />
+        {/* Toggling the scanner swaps the store/date + party block for a live
+            camera in place — the camera only mounts while scanning, so there is
+            no idle battery or permission cost. */}
+        {scanning ? (
+          <ScanPane
+            items={items}
+            onScanItem={scanAppend}
+            onClose={() => setScanning(false)}
+            onManualAdd={() => {
+              setScanning(false);
+              setItemPickerOpen(true);
+            }}
+          />
+        ) : (
+          <>
+            {/* Store + date */}
+            <View className={`${ROW} gap-3`}>
+              <View className="flex-1 bg-surface rounded-2xl p-3.5 border border-border gap-2">
+                <Text className="text-muted text-xs font-semibold text-center">{t(`${ns}.store`)}</Text>
+                <View className={`${ROW} items-center justify-center gap-2 bg-background rounded-xl py-2.5`}>
+                  <Text className="text-ink text-sm font-bold" numberOfLines={1}>{t(`${ns}.defaultStore`)}</Text>
+                  <MaterialCommunityIcons name="store-outline" size={16} color={colors.muted} />
+                </View>
+              </View>
+              <View className="flex-1 bg-surface rounded-2xl p-3.5 border border-border gap-2">
+                <Text className="text-muted text-xs font-semibold text-center">{t('documents.date')}</Text>
+                <View className={`${ROW} items-center justify-center gap-2 bg-background rounded-xl py-2.5`}>
+                  <Text className="text-ink text-sm font-bold">{formatDate(docDate, lang)}</Text>
+                  <Feather name="calendar" size={15} color={colors.muted} />
+                </View>
+              </View>
             </View>
-          </View>
-          <View className="flex-1 bg-surface rounded-2xl p-3.5 border border-border gap-2">
-            <Text className="text-muted text-xs font-semibold text-center">{t('documents.date')}</Text>
-            <View className={`${ROW} items-center justify-center gap-2 bg-background rounded-xl py-2.5`}>
-              <Text className="text-ink text-sm font-bold">{formatNumber(6, lang)}/{formatNumber(7, lang)}/{formatNumber(2026, lang)}</Text>
-              <Feather name="calendar" size={15} color={colors.muted} />
-            </View>
-          </View>
-        </View>
-        {/* Party card */}
-        <View className="bg-surface rounded-2xl p-4 border border-border gap-3">
-          <View className={`${ROW} items-center justify-between`}>
-            <Pressable
-              className={`${ROW} items-center gap-1.5`}
-              onPress={() => setPickerOpen(true)}
-            >
-              <Feather name="user-plus" size={16} color={colors.primary} />
-              <Text className="text-primary text-sm font-extrabold">{t(`${ns}.addParty`)}</Text>
-            </Pressable>
-            <Text className="text-muted text-sm font-semibold">{t(`${ns}.party`)}</Text>
-          </View>
+            {/* Party card */}
+            <View className="bg-surface rounded-2xl p-4 border border-border gap-3">
+              <View className={`${ROW} items-center justify-between`}>
+                <Pressable
+                  className={`${ROW} items-center gap-1.5`}
+                  onPress={() => setPickerOpen(true)}
+                >
+                  <Feather name="user-plus" size={16} color={colors.primary} />
+                  <Text className="text-primary text-sm font-extrabold">{t(`${ns}.addParty`)}</Text>
+                </Pressable>
+                <Text className="text-muted text-sm font-semibold">{t(`${ns}.party`)}</Text>
+              </View>
 
-          <Pressable
-            className={`${ROW} items-center justify-between bg-background rounded-xl px-3.5 py-3 border border-border`}
-            onPress={() => setPickerOpen(true)}
-          >
-            <Feather name="chevron-down" size={18} color={colors.muted} />
-            <View className={`${ROW} items-center gap-2`}>
-              <Text className={`text-sm font-extrabold ${party || isWalkIn ? 'text-primary' : 'text-muted'}`}>
-                {partyLabel}
-              </Text>
-              <Feather name="user" size={18} color={colors.muted} />
-            </View>
-          </Pressable>
+              <Pressable
+                className={`${ROW} items-center justify-between bg-background rounded-xl px-3.5 py-3 border border-border`}
+                onPress={() => setPickerOpen(true)}
+              >
+                <Feather name="chevron-down" size={18} color={colors.muted} />
+                <View className={`${ROW} items-center gap-2`}>
+                  <Text className={`text-sm font-extrabold ${party || isWalkIn ? 'text-primary' : 'text-muted'}`}>
+                    {partyLabel}
+                  </Text>
+                  <Feather name="user" size={18} color={colors.muted} />
+                </View>
+              </Pressable>
 
-          {/* Supplier debt (AP) is informational only; customers carry no balance
-              (sales are cash, paid in full — no AR by design). */}
-          {mode === 'purchase' && party && party.debt > 0 && (
-            <Text className="text-warning-dark text-xs font-bold text-right">
-              {t(`${ns}.prevDebt`)}: {formatNumber(party.debt, lang)} {currency}
-            </Text>
-          )}
-        </View>
+              {/* Supplier debt (AP) is informational only; customers carry no balance
+                  (sales are cash, paid in full — no AR by design). */}
+              {mode === 'purchase' && party && party.debt > 0 && (
+                <Text className="text-warning-dark text-xs font-bold text-right">
+                  {t(`${ns}.prevDebt`)}: {formatNumber(party.debt, lang)} {currency}
+                </Text>
+              )}
+            </View>
+          </>
+        )}
         {/* Restored-draft notice (never-lose-data): input survived a relaunch. */}
         {wasRestored && lines.length > 0 && (
           <View className={`${ROW} items-center justify-between bg-primary-light rounded-2xl px-3.5 py-2.5 border border-primary/20`}>
@@ -256,15 +299,19 @@ export function DocumentForm({ mode }: DocumentFormProps) {
         {/* Lines header */}
         <View className={`${ROW} items-center justify-between`}>
           <View className={`${ROW} items-center gap-2`}>
-            {mode === 'sale' && (
-              <Pressable
-                className={`${ROW} items-center gap-1.5 bg-primary px-3.5 py-2.5 rounded-xl`}
-                onPress={() => setItemPickerOpen(true)}
-              >
-                <MaterialCommunityIcons name="barcode-scan" size={16} color={colors.surface} />
-                <Text className="text-white text-xs font-bold">{t('documents.scan')}</Text>
-              </Pressable>
-            )}
+            <Pressable
+              className={`${ROW} items-center gap-1.5 px-3.5 py-2.5 rounded-xl ${scanning ? 'bg-primary-dark' : 'bg-primary'}`}
+              onPress={() => setScanning((v) => !v)}
+              accessibilityRole="button"
+              accessibilityState={{ selected: scanning }}
+            >
+              <MaterialCommunityIcons
+                name={scanning ? 'close' : 'barcode-scan'}
+                size={16}
+                color={colors.surface}
+              />
+              <Text className="text-white text-xs font-bold">{t('documents.scan')}</Text>
+            </Pressable>
             <Pressable
               className={`${ROW} items-center gap-1.5 bg-primary-light px-3.5 py-2.5 rounded-xl`}
               onPress={() => setItemPickerOpen(true)}
