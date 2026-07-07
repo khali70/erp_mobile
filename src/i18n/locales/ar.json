@@ -18,6 +18,7 @@
   "dashboard": {
     "defaultStore": "المحل الرئيسي",
     "tagline": "الجرد والمخزون ببساطة",
+    "reload": "تحديث الأرقام",
     "kpi": {
       "stockValue": {
         "label": "قيمة المخزون",

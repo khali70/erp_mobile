@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { View, Text, Pressable, ScrollView, I18nManager } from 'react-native';
+import { View, Text, Pressable, ScrollView, I18nManager, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -9,19 +9,19 @@ import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import colors from '@/theme/colors';
 import type { RootStackParamList } from '@/navigation/RootNavigator';
 import { ROW } from '@/theme/rtl';
+import { useDashboardStats } from '../hooks/useDashboardStats';
 
 /**
  * Home / Dashboard — native port of the web design
  * (arabic-retail-erp-mobile-desig · DashboardScreen.tsx).
- * Arabic-first, RTL. Copy comes from i18n (dashboard namespace); values are
- * static demo figures until the DB is wired.
+ * Arabic-first, RTL. Copy comes from i18n (dashboard namespace); KPI figures
+ * come from useDashboardStats (cached, background-computed, manual refresh).
  * Styling: NativeWind `className` only. Colors resolve from src/theme/colors.js
  * (mirrored into tailwind.config.js). Icon `color` props read the same tokens
  * in JS, the one allowed exception for props that can't take a className.
  */
 
 // RTL row helper: force writing direction; row stays reversed for Arabic.
-const rowDir = I18nManager.isRTL ? 'flex-row' : 'flex-row-reverse';
 
 // One-off translucent overlays NativeWind can only express via banned arbitrary
 // classes, so they stay inline per the styling law's rgba exception.
@@ -40,15 +40,6 @@ function formatNum(n: number, lang: string): string {
   const map = ['٠', '١', '٢', '٣', '٤', '٥', '٦', '٧', '٨', '٩'];
   return western.replace(/\d/g, (d) => map[Number(d)]);
 }
-
-// Static demo figures — swap for live repo queries in Step 1.
-const DEMO = {
-  inventoryValue: 51330,
-  monthlyProfit: 24500,
-  supplierDebt: 20900,
-  docCount: 5,
-  lowStockCount: 3,
-};
 
 type KpiProps = {
   dotClass: string;
@@ -77,7 +68,7 @@ function KpiCard({
       onPress={onPress}
       disabled={!onPress}
     >
-      <View className={`${rowDir} items-center gap-1.5 mb-2.5`}>
+      <View className={`${ROW} items-center gap-1.5 mb-2.5`}>
         <View className={`w-2.5 h-2.5 rounded-full ${dotClass}`} />
         <Text className="text-xs text-muted font-medium">{label}</Text>
       </View>
@@ -124,6 +115,7 @@ export function HomeScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const { t, i18n } = useTranslation();
   const [, setBranchOpen] = useState(false);
+  const { stats, computing, reload } = useDashboardStats();
 
   const lang = i18n.language;
   const currency = t('common.currency');
@@ -133,9 +125,9 @@ export function HomeScreen() {
     <View className="flex-1 bg-background">
       {/* Teal header bar */}
       <SafeAreaView edges={['top']} className="bg-primary px-4 pb-5">
-        <View className={`${rowDir} items-center justify-between mt-2`}>
+        <View className={`${ROW} items-center justify-between mt-2`}>
           <Pressable
-            className={`${rowDir} items-center gap-2 px-3 py-1.5 rounded-xl`}
+            className={`${ROW} items-center gap-2 px-3 py-1.5 rounded-xl`}
             style={{ backgroundColor: overlayStrong }}
             onPress={() => setBranchOpen((v) => !v)}
           >
@@ -148,13 +140,30 @@ export function HomeScreen() {
             <Feather name="chevron-down" size={16} color={colors['primary-200']} />
           </Pressable>
 
-          <Pressable
-            className="w-9 h-9 rounded-xl items-center justify-center"
-            style={{ backgroundColor: overlaySoft }}
-            onPress={() => navigation.navigate('Settings')}
-          >
-            <Feather name="settings" size={20} color={colors.surface} />
-          </Pressable>
+          <View className={`${ROW} items-center gap-2`}>
+            <Pressable
+              className="w-9 h-9 rounded-xl items-center justify-center"
+              style={{ backgroundColor: overlaySoft }}
+              onPress={reload}
+              disabled={computing}
+              accessibilityRole="button"
+              accessibilityLabel={t('dashboard.reload')}
+            >
+              {computing ? (
+                <ActivityIndicator size="small" color={colors.surface} />
+              ) : (
+                <Feather name="refresh-cw" size={18} color={colors.surface} />
+              )}
+            </Pressable>
+
+            <Pressable
+              className="w-9 h-9 rounded-xl items-center justify-center"
+              style={{ backgroundColor: overlaySoft }}
+              onPress={() => navigation.navigate('Settings')}
+            >
+              <Feather name="settings" size={20} color={colors.surface} />
+            </Pressable>
+          </View>
         </View>
         <Text className="mt-2.5 text-primary-100 text-xs text-right opacity-90">
           {t('dashboard.tagline')}
@@ -170,7 +179,7 @@ export function HomeScreen() {
           <KpiCard
             dotClass="bg-ink"
             label={t('dashboard.kpi.stockValue.label')}
-            valueText={num(DEMO.inventoryValue)}
+            valueText={num(stats?.inventoryValue ?? 0)}
             currency={currency}
             tagText={t('dashboard.kpi.stockValue.tag')}
             tagTextClass="text-muted"
@@ -179,7 +188,7 @@ export function HomeScreen() {
           <KpiCard
             dotClass="bg-positive"
             label={t('dashboard.kpi.profit.label')}
-            valueText={num(DEMO.monthlyProfit)}
+            valueText={num(stats?.monthlyProfit ?? 0)}
             currency={currency}
             tagText={t('dashboard.kpi.profit.tag')}
             tagTextClass="text-positive"
@@ -191,7 +200,7 @@ export function HomeScreen() {
           <KpiCard
             dotClass="bg-danger"
             label={t('dashboard.kpi.payable.label')}
-            valueText={num(DEMO.supplierDebt)}
+            valueText={num(stats?.supplierDebt ?? 0)}
             currency={currency}
             tagText={t('dashboard.kpi.payable.tag')}
             tagTextClass="text-danger"
@@ -201,7 +210,7 @@ export function HomeScreen() {
         </View>
 
         {/* Quick actions */}
-        <View className={`${rowDir} flex-wrap gap-3`}>
+        <View className={`${ROW} flex-wrap gap-3`}>
           <Pressable
             className="grow basis-[30%] rounded-2xl py-3.5 px-2 items-center justify-center gap-2 bg-primary"
             onPress={() => navigation.navigate('NewOutgoing')}
@@ -224,20 +233,10 @@ export function HomeScreen() {
             </View>
             <Text className="text-xs font-bold text-primary">{t('dashboard.actions.newIncoming')}</Text>
           </Pressable>
-
-          <Pressable
-            className="grow basis-[30%] rounded-2xl py-3.5 px-2 items-center justify-center gap-2 bg-surface border border-border"
-            onPress={() => navigation.navigate('Scan')}
-          >
-            <View className="w-8 h-8 rounded-full items-center justify-center bg-background">
-              <MaterialCommunityIcons name="barcode-scan" size={16} color={colors.muted} />
-            </View>
-            <Text className="text-xs font-bold text-ink">{t('dashboard.actions.barcode')}</Text>
-          </Pressable>
         </View>
 
         {/* Sections header */}
-        <View className={`${rowDir} items-center justify-between`}>
+        <View className={`${ROW} items-center justify-between`}>
           <Text className="text-base font-extrabold text-ink">{t('dashboard.sections.title')}</Text>
           <View className="bg-background px-2.5 py-1 rounded-full">
             <Text className="text-[11px] text-muted font-medium">{t('dashboard.sections.count')}</Text>
@@ -245,19 +244,19 @@ export function HomeScreen() {
         </View>
 
         {/* Sections grid 3x2 */}
-        <View className={`${rowDir} flex-wrap gap-3`}>
+        <View className={`${ROW} flex-wrap gap-3`}>
           <Tile
             icon={<Feather name="file-text" size={22} color={colors.primary} />}
             iconBgClass="bg-primary-light"
             label={t('dashboard.sections.documents')}
-            badgeText={num(DEMO.docCount)}
+            badgeText={stats?.docCount ? num(stats.docCount) : undefined}
             onPress={() => navigation.navigate('Documents')}
           />
           <Tile
             icon={<Feather name="package" size={22} color={colors.primary} />}
             iconBgClass="bg-primary-light"
             label={t('dashboard.sections.goods')}
-            badgeText={num(DEMO.lowStockCount)}
+            badgeText={stats?.lowStockCount ? num(stats.lowStockCount) : undefined}
             onPress={() => navigation.navigate('Items')}
           />
           <Tile

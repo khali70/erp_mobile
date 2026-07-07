@@ -18,6 +18,7 @@
   "dashboard": {
     "defaultStore": "Main Store",
     "tagline": "Inventory & stock, simply",
+    "reload": "Refresh figures",
     "kpi": {
       "stockValue": {
         "label": "Stock value",
