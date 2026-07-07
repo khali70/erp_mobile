@@ -22,7 +22,10 @@ export async function backupDatabase(): Promise<BackupResult> {
   // 2. Copy the on-disk db to a dated file in the cache dir.
   const stamp = new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-');
   const fileName = `erp-backup-${stamp}.db`;
-  const source = new File(sqlite.databasePath);
+  // `databasePath` is a bare filesystem path (e.g. /data/.../erp.db); the File
+  // API needs a file:// URI, otherwise Android throws "URI is not absolute".
+  const dbPath = sqlite.databasePath;
+  const source = new File(dbPath.startsWith('file://') ? dbPath : `file://${dbPath}`);
   const dest = new File(Paths.cache, fileName);
   if (dest.exists) dest.delete(); // copy() throws if the target exists
   source.copy(dest);
