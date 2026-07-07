@@ -1,9 +1,10 @@
 import { useState } from 'react';
-import { Modal, View, Text, Pressable, TextInput, ScrollView } from 'react-native';
+import { View, Text, Pressable, TextInput, ScrollView } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import Feather from '@expo/vector-icons/Feather';
 import colors from '@/theme/colors';
 import { ROW } from '@/theme/rtl';
+import { BottomSheet } from '@/components/ui/BottomSheet';
 import { CATEGORY_META, type Expense, type ExpenseCategory } from '../data';
 
 const CATEGORIES: ExpenseCategory[] = ['rent', 'salaries', 'utilities', 'transport', 'other'];
@@ -44,12 +45,7 @@ export function AddExpenseSheet({ visible, onClose, onSave }: AddExpenseSheetPro
   };
 
   return (
-    <Modal visible={visible} transparent animationType="slide" onRequestClose={close}>
-      <Pressable className="flex-1 bg-black/40 justify-end" onPress={close}>
-        <Pressable
-          className="bg-surface rounded-t-3xl overflow-hidden max-h-[88%]"
-          onPress={(e) => e.stopPropagation()}
-        >
+    <BottomSheet visible={visible} onClose={close} className="overflow-hidden">
           {/* teal header */}
           <View className={`${ROW} items-center justify-between bg-primary px-4 py-4`}>
             <Pressable
@@ -150,8 +146,6 @@ export function AddExpenseSheet({ visible, onClose, onSave }: AddExpenseSheetPro
               </Pressable>
             </View>
           </ScrollView>
-        </Pressable>
-      </Pressable>
-    </Modal>
+    </BottomSheet>
   );
 }

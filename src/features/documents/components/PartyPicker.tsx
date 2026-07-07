@@ -1,9 +1,10 @@
 import { useMemo, useState } from 'react';
-import { Modal, View, Text, Pressable, TextInput, ScrollView } from 'react-native';
+import { View, Text, Pressable, TextInput, ScrollView } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import Feather from '@expo/vector-icons/Feather';
 import colors from '@/theme/colors';
 import { ROW } from '@/theme/rtl';
+import { BottomSheet } from '@/components/ui/BottomSheet';
 import { formatNumber } from '@/utils/numerals';
 import type { DocMode, Party } from '../types';
 
@@ -42,12 +43,7 @@ export function PartyPicker({ visible, mode, parties, onClose, onSelect, onQuick
   };
 
   return (
-    <Modal visible={visible} transparent animationType="slide" onRequestClose={close}>
-      <Pressable className="flex-1 bg-black/40 justify-end" onPress={close}>
-        <Pressable
-          className="bg-surface rounded-t-3xl px-4 pt-4 pb-8 max-h-[80%]"
-          onPress={(e) => e.stopPropagation()}
-        >
+    <BottomSheet visible={visible} onClose={close} className="px-4 pt-4 pb-8">
           {/* grab handle */}
           <View className="self-center w-10 h-1.5 rounded-full bg-border mb-3" />
 
@@ -164,8 +160,6 @@ export function PartyPicker({ visible, mode, parties, onClose, onSelect, onQuick
               <Text className="text-primary text-sm font-bold">{t('documents.incoming.quickAddCta')}</Text>
             </Pressable>
           )}
-        </Pressable>
-      </Pressable>
-    </Modal>
+    </BottomSheet>
   );
 }
