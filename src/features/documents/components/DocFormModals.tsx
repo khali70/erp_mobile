@@ -3,6 +3,7 @@ import type { DocMode } from '../types';
 import type { useDocumentForm } from '../hooks/useDocumentForm';
 import { LineItemPicker } from './LineItemPicker';
 import { PartyPicker } from './PartyPicker';
+import { CsvImportReviewSheet } from './CsvImportReviewSheet';
 
 interface DocFormModalsProps {
   f: ReturnType<typeof useDocumentForm>;
@@ -41,6 +42,13 @@ export function DocFormModals({ f, mode, addTitle }: DocFormModalsProps) {
         titleEdit={addTitle}
         onClose={() => f.setPartyFormOpen(false)}
         onSave={f.saveQuickAdd}
+      />
+
+      <CsvImportReviewSheet
+        visible={f.csvImportOpen}
+        rows={f.importRows}
+        onClose={() => f.setCsvImportOpen(false)}
+        onConfirm={f.importLines}
       />
     </>
   );

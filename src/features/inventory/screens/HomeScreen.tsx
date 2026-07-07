@@ -8,6 +8,7 @@ import Feather from '@expo/vector-icons/Feather';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import colors from '@/theme/colors';
 import type { RootStackParamList } from '@/navigation/RootNavigator';
+import { ROW } from '@/theme/rtl';
 
 /**
  * Home / Dashboard — native port of the web design
@@ -165,7 +166,7 @@ export function HomeScreen() {
         showsVerticalScrollIndicator={false}
       >
         {/* KPI grid 2x2 */}
-        <View className={`${rowDir} flex-wrap gap-3.5`}>
+        <View className={`${ROW} flex-wrap gap-3.5`}>
           <KpiCard
             dotClass="bg-ink"
             label={t('dashboard.kpi.stockValue.label')}

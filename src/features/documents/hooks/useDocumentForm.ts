@@ -2,7 +2,10 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Alert } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { useTranslation } from 'react-i18next';
+import { getDocumentAsync } from 'expo-document-picker';
+import { File } from 'expo-file-system';
 import { fromMinor, toMinor } from '@/utils/money';
+import { parseStockCsv, parseAmount, type ImportRow } from '../utils/importStock';
 import { useItems } from '@/features/inventory/hooks/useItems';
 import { useSettingsStore } from '@/store/settings-store';
 import { documentRepository } from '@/repositories/document-repository.client';
@@ -62,6 +65,8 @@ export function useDocumentForm(mode: DocMode) {
   const [partyFormInitial, setPartyFormInitial] = useState<PartyDraft | null>(null);
   const [partyFormOpen, setPartyFormOpen] = useState(false);
   const [scanning, setScanning] = useState(false);
+  const [csvImportOpen, setCsvImportOpen] = useState(false);
+  const [importRows, setImportRows] = useState<ImportRow[]>([]);
   const [lines, setLines] = useState<DocLine[]>(draft.lines);
   const [saving, setSaving] = useState(false);
   const [wasRestored] = useState(draft.lines.length > 0);
@@ -205,6 +210,71 @@ export function useDocumentForm(mode: DocMode) {
     }));
   }, [quick, locks]);
 
+  // CSV import: pick a file, read + parse it, and open the review sheet. Parse
+  // problems (empty / missing required columns) surface as a friendly Alert; a
+  // cancelled picker is a no-op.
+  const pickAndParseCsv = useCallback(async () => {
+    try {
+      const res = await getDocumentAsync({
+        type: ['text/csv', 'text/comma-separated-values', 'application/vnd.ms-excel', 'text/plain', '*/*'],
+        copyToCacheDirectory: true,
+      });
+      if (res.canceled || !res.assets?.length) return;
+      const text = await new File(res.assets[0].uri).text();
+      const { rows, errorKey } = parseStockCsv(text);
+      if (errorKey) {
+        Alert.alert(t('documents.import.errors.title'), t(errorKey));
+        return;
+      }
+      setImportRows(rows);
+      setCsvImportOpen(true);
+    } catch (err) {
+      Alert.alert(t('documents.import.errors.title'), String((err as Error)?.message ?? err));
+    }
+  }, [t]);
+
+  // Confirm from the review sheet: map edited rows → ad-hoc doc lines (itemId
+  // null → find-or-create at save). A repeat name+category bumps qty, mirroring
+  // the fast-entry path.
+  const importLines = useCallback((rows: ImportRow[]) => {
+    setLines((prev) => {
+      const next = [...prev];
+      for (const r of rows) {
+        const name = r.name.trim();
+        const category = r.category.trim() || undefined;
+        const qty = Math.max(1, Math.round(parseAmount(r.qty) || 0));
+        const cost = Math.max(0, parseAmount(r.cost) || 0);
+        const salePrice = r.salePrice.trim() ? Math.max(0, parseAmount(r.salePrice) || 0) : undefined;
+        const barcode = r.barcode.trim() || undefined;
+        const tags = r.tags.length ? r.tags : undefined;
+        const note = r.note.trim() || undefined;
+        const idx = next.findIndex(
+          (l) => l.itemId === null && normKey(l.name) === normKey(name) && (l.category ?? '') === (category ?? ''),
+        );
+        if (idx >= 0) {
+          next[idx] = { ...next[idx], qty: next[idx].qty + qty };
+        } else {
+          next.push({
+            id: nextId(),
+            itemId: null,
+            name,
+            unit: r.unit.trim() || 'piece',
+            unitPrice: cost,
+            qty,
+            category,
+            tags,
+            note,
+            salePrice,
+            barcode,
+          });
+        }
+      }
+      return next;
+    });
+    setCsvImportOpen(false);
+    setImportRows([]);
+  }, []);
+
   const save = () => {
     if (saving) return;
     if (lines.length === 0) {
@@ -232,14 +302,19 @@ export function useDocumentForm(mode: DocMode) {
         if (itemId === null) {
           title = l.name;
           const existing = itemRepository.findByNameAndCategory(l.name, l.category ?? null);
+          // CSV-imported lines may carry a sale price / barcode / low-stock
+          // threshold to seed the new catalog item; fall back to the line price.
+          const importedSale = l.salePrice !== undefined ? toMinor(l.salePrice) : undefined;
           itemId =
             existing?.id ??
             itemRepository.create({
               name: l.name,
               category: l.category ?? null,
               unit: l.unit,
-              salePrice: mode === 'sale' ? priceMinor : 0,
+              barcode: l.barcode ?? null,
+              salePrice: mode === 'sale' ? priceMinor : (importedSale ?? 0),
               costPrice: mode === 'purchase' ? priceMinor : 0,
+              lowStockThreshold: l.lowStockThreshold,
               tags: l.tags,
               notes: l.note ?? null,
             }).id;
@@ -317,6 +392,9 @@ export function useDocumentForm(mode: DocMode) {
     setItemPickerOpen,
     scanning,
     setScanning,
+    csvImportOpen,
+    setCsvImportOpen,
+    importRows,
     partyFormOpen,
     setPartyFormOpen,
     partyFormInitial,
@@ -329,6 +407,9 @@ export function useDocumentForm(mode: DocMode) {
     toggleLock,
     addQuickLine,
     titleSuggestions,
+    // csv import
+    pickAndParseCsv,
+    importLines,
     // actions
     appendItem,
     scanAppend,

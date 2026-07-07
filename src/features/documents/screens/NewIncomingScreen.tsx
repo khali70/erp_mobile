@@ -1,5 +1,8 @@
-import { View, ScrollView } from 'react-native';
+import { View, ScrollView, Pressable, Text } from 'react-native';
 import { useTranslation } from 'react-i18next';
+import Feather from '@expo/vector-icons/Feather';
+import colors from '@/theme/colors';
+import { ROW } from '@/theme/rtl';
 import { ScreenHeader } from '@/components/ui/ScreenHeader';
 import { useDocumentForm } from '../hooks/useDocumentForm';
 import { StoreDateCard } from '../components/StoreDateCard';
@@ -41,6 +44,16 @@ export function NewIncomingScreen() {
         />
 
         {f.wasRestored && f.lines.length > 0 && <RestoredDraftBanner onDiscard={f.discardDraft} />}
+
+        <Pressable
+          className={`${ROW} items-center justify-center gap-2 rounded-2xl border border-dashed border-primary bg-primary-light py-3`}
+          onPress={f.pickAndParseCsv}
+          accessibilityRole="button"
+          accessibilityLabel={t('documents.import.button')}
+        >
+          <Feather name="upload" size={16} color={colors.primary} />
+          <Text className="text-primary text-sm font-bold">{t('documents.import.button')}</Text>
+        </Pressable>
 
         <DocLinesSection
           ns={f.ns}

@@ -183,6 +183,25 @@
   },
   "documents": {
     "date": "Date",
+    "import": {
+      "button": "Import from CSV",
+      "reviewTitle": "Review imported stock",
+      "template": "Download template",
+      "validCount": "{{valid}} / {{total}} ready",
+      "rowLabel": "Row {{n}}",
+      "addCount": "Add {{n}} items",
+      "empty": "No rows to import.",
+      "errors": {
+        "title": "Import failed",
+        "empty": "The file has no data rows.",
+        "missingColumns": "The file must have name, quantity, and cost columns."
+      },
+      "rowErrors": {
+        "name": "Name required",
+        "qty": "Quantity must be greater than 0",
+        "cost": "Cost must be greater than 0"
+      }
+    },
     "entryMode": {
       "list": "From list",
       "quick": "Fast entry"

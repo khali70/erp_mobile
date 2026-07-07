@@ -19,6 +19,11 @@ export interface DocLine {
   tags?: string[];
   note?: string;
   imageUri?: string;
+  // CSV-import provenance: extra catalog fields to seed a find-or-created item.
+  // Major units for price fields; undefined on non-import lines.
+  salePrice?: number;
+  barcode?: string;
+  lowStockThreshold?: number;
 }
 
 export interface Party {
