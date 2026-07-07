@@ -1,7 +1,6 @@
 import { View, ScrollView } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { ScreenHeader } from '@/components/ui/ScreenHeader';
-import { PartyFormSheet } from '@/features/parties/components/PartyFormSheet';
 import { useDocumentForm } from '../hooks/useDocumentForm';
 import { StoreDateCard } from '../components/StoreDateCard';
 import { PartyCard } from '../components/PartyCard';
@@ -10,8 +9,7 @@ import { DocLinesSection } from '../components/DocLinesSection';
 import { DocSummaryCard } from '../components/DocSummaryCard';
 import { SaveDocButton } from '../components/SaveDocButton';
 import { ScanPane } from '../components/ScanPane';
-import { LineItemPicker } from '../components/LineItemPicker';
-import { PartyPicker } from '../components/PartyPicker';
+import { DocFormModals } from '../components/DocFormModals';
 
 /** صادر جديد · بيع — new outgoing document / sale. Customer party, sale prices
  *  and barcode scanning. Owns its layout; shared behaviour lives in the hook. */
@@ -86,30 +84,7 @@ export function NewOutgoingScreen() {
         <SaveDocButton onPress={f.save} saving={f.saving} />
       </ScrollView>
 
-      <LineItemPicker
-        visible={f.itemPickerOpen}
-        items={f.items}
-        onClose={() => f.setItemPickerOpen(false)}
-        onSelect={f.appendItem}
-      />
-
-      <PartyPicker
-        visible={f.pickerOpen}
-        mode="sale"
-        parties={f.parties}
-        onClose={() => f.setPickerOpen(false)}
-        onSelect={f.selectParty}
-        onQuickAdd={f.openQuickAdd}
-      />
-
-      <PartyFormSheet
-        visible={f.partyFormOpen}
-        initial={f.partyFormInitial}
-        titleAdd={addTitle}
-        titleEdit={addTitle}
-        onClose={() => f.setPartyFormOpen(false)}
-        onSave={f.saveQuickAdd}
-      />
+      <DocFormModals f={f} mode="sale" addTitle={addTitle} />
     </View>
   );
 }

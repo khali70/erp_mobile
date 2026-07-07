@@ -1,7 +1,6 @@
 import { View, ScrollView } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { ScreenHeader } from '@/components/ui/ScreenHeader';
-import { PartyFormSheet } from '@/features/parties/components/PartyFormSheet';
 import { useDocumentForm } from '../hooks/useDocumentForm';
 import { StoreDateCard } from '../components/StoreDateCard';
 import { PartyCard } from '../components/PartyCard';
@@ -9,8 +8,7 @@ import { RestoredDraftBanner } from '../components/RestoredDraftBanner';
 import { DocLinesSection } from '../components/DocLinesSection';
 import { DocSummaryCard } from '../components/DocSummaryCard';
 import { SaveDocButton } from '../components/SaveDocButton';
-import { LineItemPicker } from '../components/LineItemPicker';
-import { PartyPicker } from '../components/PartyPicker';
+import { DocFormModals } from '../components/DocFormModals';
 
 /** وارد جديد · فاتورة مشتريات — new incoming document / purchase. Supplier party,
  *  unit costs, supplier debt note, and no barcode scan. Owns its own layout. */
@@ -67,30 +65,7 @@ export function NewIncomingScreen() {
         <SaveDocButton onPress={f.save} saving={f.saving} />
       </ScrollView>
 
-      <LineItemPicker
-        visible={f.itemPickerOpen}
-        items={f.items}
-        onClose={() => f.setItemPickerOpen(false)}
-        onSelect={f.appendItem}
-      />
-
-      <PartyPicker
-        visible={f.pickerOpen}
-        mode="purchase"
-        parties={f.parties}
-        onClose={() => f.setPickerOpen(false)}
-        onSelect={f.selectParty}
-        onQuickAdd={f.openQuickAdd}
-      />
-
-      <PartyFormSheet
-        visible={f.partyFormOpen}
-        initial={f.partyFormInitial}
-        titleAdd={addTitle}
-        titleEdit={addTitle}
-        onClose={() => f.setPartyFormOpen(false)}
-        onSave={f.saveQuickAdd}
-      />
+      <DocFormModals f={f} mode="purchase" addTitle={addTitle} />
     </View>
   );
 }

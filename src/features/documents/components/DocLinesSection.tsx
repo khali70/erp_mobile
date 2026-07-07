@@ -1,10 +1,9 @@
-import { View, Text, Pressable } from 'react-native';
+import { View, Text } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import Feather from '@expo/vector-icons/Feather';
-import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import colors from '@/theme/colors';
-import { ROW } from '@/theme/rtl';
 import { DocLineRow } from './DocLineRow';
+import { DocLinesHeader } from './DocLinesHeader';
 import { QuickEntryRow } from './QuickEntryRow';
 import type { DocLine, DocMode, QuickEntryValues, QuickEntryLocks } from '../types';
 
@@ -32,7 +31,7 @@ interface DocLinesSectionProps {
   titleSuggestions: string[];
 }
 
-/** Lines header (entry-mode segment, add / optional scan) + line list / empty. */
+/** Lines block: header controls + optional quick-entry row + line list / empty. */
 export function DocLinesSection({
   ns,
   mode,
@@ -54,34 +53,22 @@ export function DocLinesSection({
   titleSuggestions,
 }: DocLinesSectionProps) {
   const { t } = useTranslation();
-  const isQuick = entryMode === 'quick';
+  // Quick entry is a purchase-mode affordance; sale mode always uses the list.
+  const showQuick = mode !== 'sale' && entryMode === 'quick';
+
   return (
     <>
-      {/* Section title + entry-mode segment */}
-      <View className={`${ROW} items-center justify-between`}>
-        <View className={`${ROW} items-center bg-surface rounded-xl p-0.5 border border-border`}>
-          {(['list', 'quick'] as const).map((m) => {
-            const active = entryMode === m;
-            return (
-              <Pressable
-                key={m}
-                className={`px-3 py-1.5 rounded-lg ${active ? 'bg-primary' : ''}`}
-                onPress={() => onSetEntryMode(m)}
-                accessibilityRole="button"
-                accessibilityState={{ selected: active }}
-              >
-                <Text className={`text-xs font-bold ${active ? 'text-white' : 'text-muted'}`}>
-                  {t(m === 'list' ? 'documents.entryMode.list' : 'documents.entryMode.quick')}
-                </Text>
-              </Pressable>
-            );
-          })}
-        </View>
-        <Text className="text-ink text-sm font-extrabold flex-1 text-right">{t(`${ns}.linesTitle`)}</Text>
-      </View>
+      <DocLinesHeader
+        ns={ns}
+        mode={mode}
+        onAddLine={onAddLine}
+        entryMode={entryMode}
+        onSetEntryMode={onSetEntryMode}
+        scanning={scanning}
+        onToggleScan={onToggleScan}
+      />
 
-      {/* Actions: quick row, or from-list add + scan */}
-      {isQuick ? (
+      {showQuick && (
         <QuickEntryRow
           values={quick}
           locks={locks}
@@ -90,31 +77,6 @@ export function DocLinesSection({
           onAdd={onAddQuick}
           suggestions={titleSuggestions}
         />
-      ) : (
-        <View className={`${ROW} items-center gap-2`}>
-          {onToggleScan && (
-            <Pressable
-              className={`${ROW} items-center gap-1.5 px-3.5 py-2.5 rounded-xl ${scanning ? 'bg-primary-dark' : 'bg-primary'}`}
-              onPress={onToggleScan}
-              accessibilityRole="button"
-              accessibilityState={{ selected: scanning }}
-            >
-              <MaterialCommunityIcons
-                name={scanning ? 'close' : 'barcode-scan'}
-                size={16}
-                color={colors.surface}
-              />
-              <Text className="text-white text-xs font-bold">{t('documents.scan')}</Text>
-            </Pressable>
-          )}
-          <Pressable
-            className={`${ROW} items-center gap-1.5 bg-primary-light px-3.5 py-2.5 rounded-xl`}
-            onPress={onAddLine}
-          >
-            <Feather name="plus" size={16} color={colors.primary} />
-            <Text className="text-primary text-xs font-bold">{t('documents.addLine')}</Text>
-          </Pressable>
-        </View>
       )}
 
       {/* Lines */}
