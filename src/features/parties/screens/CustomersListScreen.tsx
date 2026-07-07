@@ -33,7 +33,7 @@ export function CustomersListScreen() {
 
   const filterOptions: FilterOption<PartyFilter>[] = [
     { key: 'all', label: t('customers.filters.all'), activeClass: 'bg-primary' },
-    { key: 'withDebt', label: t('customers.filters.withDebt'), activeClass: 'bg-warning' },
+    // { key: 'withDebt', label: t('customers.filters.withDebt'), activeClass: 'bg-warning' },
   ];
 
   const openAdd = () => {
