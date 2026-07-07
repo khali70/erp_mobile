@@ -222,7 +222,14 @@
     },
     "qty": "Qty",
     "qtyInc": "Increase quantity",
-    "qtyDec": "Decrease quantity"
+    "qtyDec": "Decrease quantity",
+    "draft": {
+      "restored": "Restored an unsaved draft",
+      "discard": "Discard",
+      "discardTitle": "Discard draft",
+      "discardBody": "The items entered in this draft will be removed.",
+      "discardConfirm": "Discard"
+    }
   },
   "expenses": {
     "title": "Expenses",

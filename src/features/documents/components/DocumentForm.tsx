@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { View, Text, Pressable, ScrollView, Alert } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { useTranslation } from 'react-i18next';
@@ -17,6 +17,7 @@ import type { InventoryItem } from '@/features/inventory/types';
 import { PartyPicker } from './PartyPicker';
 import { LineItemPicker } from './LineItemPicker';
 import { DocLineRow } from './DocLineRow';
+import { useDocDraft } from '../hooks/useDocDraft';
 import type { DocLine, DocMode, Party } from '../types';
 
 // Demo data — swap for repository queries when the document repo lands.
@@ -53,15 +54,43 @@ export function DocumentForm({ mode }: DocumentFormProps) {
 
   const { items } = useItems();
   const allowNegativeStock = useSettingsStore((s) => s.allowNegativeStock);
+  const { initial: draft, persist: persistDraft, clear: clearDraft } = useDocDraft(mode);
 
   const allParties = mode === 'sale' ? DEMO_CUSTOMERS : DEMO_SUPPLIERS;
   const [parties, setParties] = useState<Party[]>(allParties);
-  const [party, setParty] = useState<Party | null>(null);
-  const [chosen, setChosen] = useState(false); // true once picker used (party or walk-in)
+  // Restore a party from the crash-safe buffer (name only; matched against the
+  // demo list, else kept as a walk-in tag).
+  const [party, setParty] = useState<Party | null>(
+    draft.partyName ? (allParties.find((p) => p.name === draft.partyName) ?? null) : null,
+  );
+  const [chosen, setChosen] = useState(Boolean(draft.partyName));
   const [pickerOpen, setPickerOpen] = useState(false);
   const [itemPickerOpen, setItemPickerOpen] = useState(false);
-  const [lines, setLines] = useState<DocLine[]>([]);
+  const [lines, setLines] = useState<DocLine[]>(draft.lines);
   const [saving, setSaving] = useState(false);
+  const [wasRestored] = useState(draft.lines.length > 0);
+
+  // Mirror the working buffer to MMKV on every change so an OS kill or mistap
+  // mid-entry never loses input; it re-hydrates on the next mount.
+  useEffect(() => {
+    persistDraft({ lines, partyName: party?.name ?? null });
+  }, [lines, party, persistDraft]);
+
+  const discardDraft = () => {
+    Alert.alert(t('documents.draft.discardTitle'), t('documents.draft.discardBody'), [
+      { text: t('common.cancel'), style: 'cancel' },
+      {
+        text: t('documents.draft.discardConfirm'),
+        style: 'destructive',
+        onPress: () => {
+          setLines([]);
+          setParty(null);
+          setChosen(false);
+          clearDraft();
+        },
+      },
+    ]);
+  };
 
   const total = useMemo(() => lines.reduce((s, l) => s + l.unitPrice * l.qty, 0), [lines]);
   const isWalkIn = chosen && party === null;
@@ -114,6 +143,7 @@ export function DocumentForm({ mode }: DocumentFormProps) {
         },
         { allowNegative: allowNegativeStock },
       );
+      clearDraft(); // posted to the ledger — the scratch buffer is done
       Alert.alert(t('documents.saved'), t('documents.savedBody'), [
         { text: t('documents.ok'), onPress: () => navigation.goBack() },
       ]);
@@ -209,6 +239,19 @@ export function DocumentForm({ mode }: DocumentFormProps) {
             </View>
           </View>
         </View>
+
+        {/* Restored-draft notice (never-lose-data): input survived a relaunch. */}
+        {wasRestored && lines.length > 0 && (
+          <View className={`${ROW} items-center justify-between bg-primary-light rounded-2xl px-3.5 py-2.5 border border-primary/20`}>
+            <Pressable onPress={discardDraft} accessibilityRole="button">
+              <Text className="text-danger text-xs font-bold">{t('documents.draft.discard')}</Text>
+            </Pressable>
+            <View className={`${ROW} items-center gap-1.5 flex-1`}>
+              <Text className="text-primary text-xs font-bold text-right flex-1">{t('documents.draft.restored')}</Text>
+              <Feather name="rotate-ccw" size={14} color={colors.primary} />
+            </View>
+          </View>
+        )}
 
         {/* Lines header */}
         <View className={`${ROW} items-center justify-between`}>
