@@ -5,6 +5,7 @@ import { useTranslation } from 'react-i18next';
 import Feather from '@expo/vector-icons/Feather';
 import colors from '@/theme/colors';
 import { ROW } from '@/theme/rtl';
+import { playScanBeep } from '@/utils/scan-sound';
 
 // Same retail formats as the documents scanner — fewer types = faster, safer decode.
 const BARCODE_TYPES = ['ean13', 'ean8', 'upc_a', 'upc_e', 'code128', 'code39'] as const;
@@ -40,6 +41,7 @@ export function BarcodeScanModal({ visible, onClose, onScanned }: BarcodeScanMod
   const handleScan = (data: string) => {
     if (locked.current) return;
     locked.current = true;
+    playScanBeep();
     onScanned(data);
     onClose();
   };

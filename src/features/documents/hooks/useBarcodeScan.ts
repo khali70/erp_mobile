@@ -1,5 +1,6 @@
 import { useCallback, useRef, useState } from 'react';
 import * as Haptics from 'expo-haptics';
+import { playScanBeep } from '@/utils/scan-sound';
 import type { InventoryItem } from '@/features/inventory/types';
 
 // Same physical scan fires the camera callback many times/sec. Ignore a repeat
@@ -26,25 +27,25 @@ export function useBarcodeScan({ items, onHit }: Options) {
   const [feedback, setFeedback] = useState<ScanFeedback>(null);
   const lastSeen = useRef<Record<string, number>>({});
 
-  const handleScan = useCallback(
+  const handleScan = 
     (code: string) => {
       const now = Date.now();
       const prev = lastSeen.current[code];
       if (prev && now - prev < COOLDOWN_MS) return; // same code, still cooling down
       lastSeen.current[code] = now;
 
+      playScanBeep();
       const item = items.find((i) => i.barcode === code);
       if (item) {
-        const qty = onHit(item);
         void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        const qty = onHit(item);
         setFeedback({ kind: 'hit', name: item.name, qty });
       } else {
         void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
         setFeedback({ kind: 'miss', code });
       }
-    },
-    [items, onHit],
-  );
+    }
+
 
   const clearFeedback = useCallback(() => setFeedback(null), []);
 
