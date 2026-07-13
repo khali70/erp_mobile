@@ -35,7 +35,8 @@
       "payable": {
         "label": "You owe (suppliers)",
         "tag": "Due to pay (tap for details)"
-      }
+      },
+      "hidden": "Figure hidden"
     },
     "actions": {
       "newOutgoing": "New outgoing",
@@ -377,6 +378,17 @@
       "label": "Allow negative stock",
       "hint": "When on, you can issue more than on-hand and the balance may go negative. Default: over-issue is blocked."
     },
+    "privacy": {
+      "section": "Privacy",
+      "privacyMode": {
+        "label": "Hide money figures",
+        "hint": "Stock value, profit, and supplier/customer balances show as dots until you tap the eye. Handy when the app is open in front of customers."
+      },
+      "startMasked": {
+        "label": "Start with figures hidden",
+        "hint": "Figures are hidden when the app opens and when you come back to it. When off, they show right away — figures still hide when you leave the app or after 30 seconds idle."
+      }
+    },
     "data": {
       "section": "Data & backup"
     },
@@ -386,6 +398,13 @@
       "button": "Back up now",
       "working": "Preparing backup…",
       "errorTitle": "Backup failed"
+    }
+  },
+  "privacy": {
+    "a11y": {
+      "showValues": "Show money figures",
+      "hideValues": "Hide money figures",
+      "revealValue": "Tap to show this figure"
     }
   }
 }

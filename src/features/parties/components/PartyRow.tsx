@@ -33,7 +33,13 @@ export function PartyRow({ party, debtHint, onPress }: PartyRowProps) {
 
       <View className="items-end gap-1">
         {party.hasDebt && <Text className="text-[10px] text-muted">{debtHint}</Text>}
-        <DebtBadge label={party.debtLabel} active={party.hasDebt} />
+        {/* Only an outstanding balance is money — the "settled" label is not,
+            so it stays unmasked. */}
+        <DebtBadge
+          label={party.debtLabel}
+          active={party.hasDebt}
+          maskId={party.hasDebt ? `party:${party.id}` : undefined}
+        />
       </View>
     </Pressable>
   );

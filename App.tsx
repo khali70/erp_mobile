@@ -8,9 +8,14 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { RootNavigator } from '@/navigation/RootNavigator';
 import { runMigrations } from '@/db/migrate';
 import { seedDemoDataIfEmpty, seedCategoriesIfEmpty } from '@/db/seed';
+import { usePrivacyGuard } from '@/privacy/usePrivacyGuard';
 
 export default function App() {
   const [ready, setReady] = useState(false);
+
+  // Privacy mode's AppState listener + idle timer — registered once, here, and
+  // inert while privacy mode is off.
+  usePrivacyGuard();
 
   useEffect(() => {
     runMigrations();

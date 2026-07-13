@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { View, Text, Pressable, ScrollView, I18nManager, ActivityIndicator } from 'react-native';
+import { View, Text, Pressable, ScrollView, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -9,107 +9,29 @@ import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import colors from '@/theme/colors';
 import type { RootStackParamList } from '@/navigation/RootNavigator';
 import { ROW } from '@/theme/rtl';
+import { PrivacyToggleButton } from '@/components/ui/PrivacyToggleButton';
 import { useDashboardStats } from '../hooks/useDashboardStats';
+import { formatDashboardNumber } from '../dashboard-presenters';
+import { KpiCard } from '../components/KpiCard';
+import { DashboardTile } from '../components/DashboardTile';
 
 /**
  * Home / Dashboard — native port of the web design
  * (arabic-retail-erp-mobile-desig · DashboardScreen.tsx).
  * Arabic-first, RTL. Copy comes from i18n (dashboard namespace); KPI figures
  * come from useDashboardStats (cached, background-computed, manual refresh).
+ * Money figures are wrapped in <MaskedValue> inside <KpiCard> — masking is a
+ * render-time concern only, the stats themselves are never filtered.
  * Styling: NativeWind `className` only. Colors resolve from src/theme/colors.js
  * (mirrored into tailwind.config.js). Icon `color` props read the same tokens
  * in JS, the one allowed exception for props that can't take a className.
  */
-
-// RTL row helper: force writing direction; row stays reversed for Arabic.
 
 // One-off translucent overlays NativeWind can only express via banned arbitrary
 // classes, so they stay inline per the styling law's rgba exception.
 const overlayStrong = 'rgba(6,78,59,0.40)';
 const overlaySoft = 'rgba(6,78,59,0.30)';
 const overlayLight = 'rgba(255,255,255,0.10)';
-
-// Locale-aware number formatting (Hermes has no ICU). Arabic-Indic digits +
-// '٬' separator for `ar`, Western digits + ',' otherwise.
-function formatNum(n: number, lang: string): string {
-  const sep = lang === 'ar' ? '٬' : ',';
-  const western = Math.round(n)
-    .toString()
-    .replace(/\B(?=(\d{3})+(?!\d))/g, sep);
-  if (lang !== 'ar') return western;
-  const map = ['٠', '١', '٢', '٣', '٤', '٥', '٦', '٧', '٨', '٩'];
-  return western.replace(/\d/g, (d) => map[Number(d)]);
-}
-
-type KpiProps = {
-  dotClass: string;
-  label: string;
-  valueText: string;
-  currency: string;
-  tagText: string;
-  tagTextClass: string;
-  tagBgClass: string;
-  onPress?: () => void;
-};
-
-function KpiCard({
-  dotClass,
-  label,
-  valueText,
-  currency,
-  tagText,
-  tagTextClass,
-  tagBgClass,
-  onPress,
-}: KpiProps) {
-  return (
-    <Pressable
-      className="grow basis-[46%] bg-surface rounded-[20px] p-4 border border-border"
-      onPress={onPress}
-      disabled={!onPress}
-    >
-      <View className={`${ROW} items-center gap-1.5 mb-2.5`}>
-        <View className={`w-2.5 h-2.5 rounded-full ${dotClass}`} />
-        <Text className="text-xs text-muted font-medium">{label}</Text>
-      </View>
-      <Text className="text-lg font-extrabold text-ink text-right">
-        {valueText} <Text className="text-xs font-normal text-muted">{currency}</Text>
-      </Text>
-      <View className={`self-end mt-1.5 px-2 py-0.5 rounded-md ${tagBgClass}`}>
-        <Text className={`text-[10px] font-semibold ${tagTextClass}`}>{tagText}</Text>
-      </View>
-    </Pressable>
-  );
-}
-
-type TileProps = {
-  icon: React.ReactNode;
-  iconBgClass: string;
-  label: string;
-  badgeText?: string;
-  onPress?: () => void;
-};
-
-function Tile({ icon, iconBgClass, label, badgeText, onPress }: TileProps) {
-  return (
-    <Pressable
-      className="grow basis-[30%] bg-surface rounded-2xl p-3 border border-border items-center gap-2"
-      onPress={onPress}
-    >
-      {!!badgeText && (
-        <View className="absolute -top-1.5 -left-1.5 min-w-[22px] h-[22px] px-1 rounded-full bg-danger border-2 border-surface items-center justify-center z-10">
-          <Text className="text-white text-[10px] font-bold">{badgeText}</Text>
-        </View>
-      )}
-      <View
-        className={`w-11 h-11 rounded-xl items-center justify-center ${iconBgClass}`}
-      >
-        {icon}
-      </View>
-      <Text className="text-xs font-semibold text-ink">{label}</Text>
-    </Pressable>
-  );
-}
 
 export function HomeScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
@@ -119,7 +41,7 @@ export function HomeScreen() {
 
   const lang = i18n.language;
   const currency = t('common.currency');
-  const num = (n: number) => formatNum(n, lang);
+  const num = (n: number) => formatDashboardNumber(n, lang);
 
   return (
     <View className="flex-1 bg-background">
@@ -141,6 +63,8 @@ export function HomeScreen() {
           </Pressable>
 
           <View className={`${ROW} items-center gap-2`}>
+            <PrivacyToggleButton />
+
             <Pressable
               className="w-9 h-9 rounded-xl items-center justify-center"
               style={{ backgroundColor: overlaySoft }}
@@ -177,6 +101,7 @@ export function HomeScreen() {
         {/* KPI grid 2x2 */}
         <View className={`${ROW} flex-wrap gap-3.5`}>
           <KpiCard
+            valueId="kpi:stockValue"
             dotClass="bg-ink"
             label={t('dashboard.kpi.stockValue.label')}
             valueText={num(stats?.inventoryValue ?? 0)}
@@ -186,6 +111,7 @@ export function HomeScreen() {
             tagBgClass="bg-background"
           />
           <KpiCard
+            valueId="kpi:monthlyProfit"
             dotClass="bg-positive"
             label={t('dashboard.kpi.profit.label')}
             valueText={num(stats?.monthlyProfit ?? 0)}
@@ -198,6 +124,7 @@ export function HomeScreen() {
               full — the shop carries debt only WITH suppliers (AP), never for
               customers. See docs/plan screens rule. */}
           <KpiCard
+            valueId="kpi:supplierDebt"
             dotClass="bg-danger"
             label={t('dashboard.kpi.payable.label')}
             valueText={num(stats?.supplierDebt ?? 0)}
@@ -245,39 +172,39 @@ export function HomeScreen() {
 
         {/* Sections grid 3x2 */}
         <View className={`${ROW} flex-wrap gap-3`}>
-          <Tile
+          <DashboardTile
             icon={<Feather name="file-text" size={22} color={colors.primary} />}
             iconBgClass="bg-primary-light"
             label={t('dashboard.sections.documents')}
             badgeText={stats?.docCount ? num(stats.docCount) : undefined}
             onPress={() => navigation.navigate('Documents')}
           />
-          <Tile
+          <DashboardTile
             icon={<Feather name="package" size={22} color={colors.primary} />}
             iconBgClass="bg-primary-light"
             label={t('dashboard.sections.goods')}
             badgeText={stats?.lowStockCount ? num(stats.lowStockCount) : undefined}
             onPress={() => navigation.navigate('Items')}
           />
-          <Tile
+          <DashboardTile
             icon={<MaterialCommunityIcons name="cash" size={22} color={colors.expense} />}
             iconBgClass="bg-expense-light"
             label={t('dashboard.sections.expenses')}
             onPress={() => navigation.navigate('Expenses')}
           />
-          <Tile
+          <DashboardTile
             icon={<Feather name="bar-chart-2" size={22} color={colors.info} />}
             iconBgClass="bg-info-light"
             label={t('dashboard.sections.reports')}
             onPress={() => navigation.navigate('Reports')}
           />
-          <Tile
+          <DashboardTile
             icon={<Feather name="users" size={22} color={colors.accent} />}
             iconBgClass="bg-accent-light"
             label={t('dashboard.sections.customers')}
             onPress={() => navigation.navigate('Customers')}
           />
-          <Tile
+          <DashboardTile
             icon={<Feather name="truck" size={22} color={colors['warning-dark']} />}
             iconBgClass="bg-warning-light"
             label={t('dashboard.sections.suppliers')}

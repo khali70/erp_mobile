@@ -1,22 +1,28 @@
 import { useState } from 'react';
-import { View, Text, Switch, ScrollView, Pressable, ActivityIndicator, Alert } from 'react-native';
+import { View, Text, ScrollView, Pressable, ActivityIndicator, Alert } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { useTranslation } from 'react-i18next';
 import Feather from '@expo/vector-icons/Feather';
 import colors from '@/theme/colors';
 import { ScreenHeader } from '@/components/ui/ScreenHeader';
 import { useSettingsStore } from '@/store/settings-store';
+import { SettingsSwitchRow } from '../components/SettingsSwitchRow';
 import { backupDatabase } from '../backup';
 
 /**
- * الإعدادات — device settings. Step-1 surfaces the negative-stock policy flag
- * (persisted to MMKV via settings-store). Composition-only; NativeWind styling.
+ * الإعدادات — device settings: the negative-stock policy flag, backup, and the
+ * privacy-mode flags (all persisted to MMKV via settings-store).
+ * Composition-only; NativeWind styling.
  */
 export function SettingsScreen() {
   const { t } = useTranslation();
   const navigation = useNavigation();
   const allowNegativeStock = useSettingsStore((s) => s.allowNegativeStock);
   const setAllowNegativeStock = useSettingsStore((s) => s.setAllowNegativeStock);
+  const privacyMode = useSettingsStore((s) => s.privacyMode);
+  const setPrivacyMode = useSettingsStore((s) => s.setPrivacyMode);
+  const startMasked = useSettingsStore((s) => s.startMasked);
+  const setStartMasked = useSettingsStore((s) => s.setStartMasked);
   const [backingUp, setBackingUp] = useState(false);
 
   const onBackup = async () => {
@@ -42,22 +48,32 @@ export function SettingsScreen() {
       <ScrollView className="flex-1 px-4 pt-4" contentContainerClassName="gap-3 pb-24">
         <Text className="text-xs font-bold text-muted px-1">{t('settings.stock.section')}</Text>
 
-        <View className="bg-surface rounded-2xl p-4 border border-border flex-row items-start justify-between gap-4">
-          <View className="flex-1 gap-1">
-            <Text className="text-sm font-bold text-ink text-right">
-              {t('settings.negativeStock.label')}
-            </Text>
-            <Text className="text-xs text-muted text-right leading-5">
-              {t('settings.negativeStock.hint')}
-            </Text>
-          </View>
-          <Switch
-            value={allowNegativeStock}
-            onValueChange={setAllowNegativeStock}
-            trackColor={{ true: colors.primary, false: colors.border }}
-            accessibilityLabel={t('settings.negativeStock.label')}
-          />
-        </View>
+        <SettingsSwitchRow
+          label={t('settings.negativeStock.label')}
+          hint={t('settings.negativeStock.hint')}
+          value={allowNegativeStock}
+          onValueChange={setAllowNegativeStock}
+        />
+
+        <Text className="text-xs font-bold text-muted px-1 mt-3">
+          {t('settings.privacy.section')}
+        </Text>
+
+        <SettingsSwitchRow
+          label={t('settings.privacy.privacyMode.label')}
+          hint={t('settings.privacy.privacyMode.hint')}
+          value={privacyMode}
+          onValueChange={setPrivacyMode}
+        />
+
+        {/* Sub-setting: meaningless while privacy mode is off, so it dims out. */}
+        <SettingsSwitchRow
+          label={t('settings.privacy.startMasked.label')}
+          hint={t('settings.privacy.startMasked.hint')}
+          value={startMasked}
+          onValueChange={setStartMasked}
+          disabled={!privacyMode}
+        />
 
         <Text className="text-xs font-bold text-muted px-1 mt-3">
           {t('settings.data.section')}

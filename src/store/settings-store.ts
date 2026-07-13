@@ -12,6 +12,21 @@ type SettingsState = {
    */
   allowNegativeStock: boolean;
   setAllowNegativeStock: (v: boolean) => void;
+
+  /**
+   * Privacy mode — when true, money aggregates (KPI figures, party balances)
+   * render as a dot-run until revealed. Presentation only: nothing is filtered
+   * or gated in the data layer. Off by default → zero visual change.
+   */
+  privacyMode: boolean;
+  setPrivacyMode: (v: boolean) => void;
+
+  /**
+   * Mask on every cold start and on resume from background. Only meaningful
+   * while `privacyMode` is on. Defaults to true — the safe side of the toggle.
+   */
+  startMasked: boolean;
+  setStartMasked: (v: boolean) => void;
 };
 
 export const useSettingsStore = create<SettingsState>()(
@@ -19,6 +34,10 @@ export const useSettingsStore = create<SettingsState>()(
     (set) => ({
       allowNegativeStock: false,
       setAllowNegativeStock: (allowNegativeStock) => set({ allowNegativeStock }),
+      privacyMode: false,
+      setPrivacyMode: (privacyMode) => set({ privacyMode }),
+      startMasked: true,
+      setStartMasked: (startMasked) => set({ startMasked }),
     }),
     {
       name: 'settings',
