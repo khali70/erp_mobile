@@ -16,6 +16,8 @@ export function toInventoryItem(row: ItemWithStock): InventoryItem {
     unit: toUnit(row.unit),
     costPriceMinor: row.costPrice,
     salePriceMinor: row.salePrice,
+    pricingMode: row.pricingMode,
+    minPriceMinor: row.minPrice,
     barcode: row.barcode,
     qty: row.qtyOnHand,
     lowStockThreshold: row.lowStockThreshold,

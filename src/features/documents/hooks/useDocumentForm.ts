@@ -158,17 +158,33 @@ export function useDocumentForm(mode: DocMode) {
   const total = useMemo(() => lines.reduce((s, l) => s + l.unitPrice * l.qty, 0), [lines]);
   const isWalkIn = chosen && party === null;
 
+  // Build a fresh line from a catalog item, snapshotting the pricing context the
+  // row needs to show margin while the owner haggles. Sale prefills the list
+  // price; purchase starts at 0 (owner types the unit cost).
+  const lineFromItem = useCallback(
+    (item: InventoryItem): DocLine => ({
+      id: nextId(),
+      itemId: item.id,
+      name: item.name,
+      unit: item.unit,
+      unitPrice: mode === 'sale' ? fromMinor(item.salePriceMinor) : 0,
+      qty: 1,
+      listPrice: fromMinor(item.salePriceMinor),
+      costPrice: fromMinor(item.costPriceMinor),
+      minPrice: item.minPriceMinor !== null ? fromMinor(item.minPriceMinor) : undefined,
+      pricingMode: item.pricingMode,
+    }),
+    [mode],
+  );
+
   const appendItem = (item: InventoryItem) => {
-    // Sale prefills the sale price; purchase starts at 0 (owner types unit cost).
-    const unitPrice = mode === 'sale' ? fromMinor(item.salePriceMinor) : 0;
-    setLines((prev) => [
-      ...prev,
-      { id: nextId(), itemId: item.id, name: item.name, unit: item.unit, unitPrice, qty: 1 },
-    ]);
+    setLines((prev) => [...prev, lineFromItem(item)]);
   };
 
   // Scan path: a repeat barcode bumps the existing line instead of stacking a
-  // duplicate row. Returns the resulting qty so the scanner can echo it.
+  // duplicate row. Crucially it does NOT re-read the price — re-scanning an item
+  // after haggling it down must not snap the line back to the list price.
+  // Returns the resulting qty so the scanner can echo it.
   const scanAppend = useCallback(
     (item: InventoryItem) => {
       const existing = lines.find((l) => l.itemId === item.id);
@@ -178,15 +194,11 @@ export function useDocumentForm(mode: DocMode) {
         if (idx >= 0) {
           return prev.map((l, i) => (i === idx ? { ...l, qty: l.qty + 1 } : l));
         }
-        const unitPrice = mode === 'sale' ? fromMinor(item.salePriceMinor) : 0;
-        return [
-          ...prev,
-          { id: nextId(), itemId: item.id, name: item.name, unit: item.unit, unitPrice, qty: 1 },
-        ];
+        return [...prev, lineFromItem(item)];
       });
       return resultQty;
     },
-    [lines, mode],
+    [lines, lineFromItem],
   );
 
   const mutateQty = (id: string, delta: number) =>
@@ -320,6 +332,17 @@ export function useDocumentForm(mode: DocMode) {
     setImportRows([]);
   }, []);
 
+  // Sale lines priced under the item's weighted-average cost. The owner is
+  // allowed to do this (clearing dead stock, a favour, a bundle) — he just has
+  // to mean it. Fast-entry lines have no known cost, so they can't be judged.
+  const belowCostLines = useMemo(
+    () =>
+      mode === 'sale'
+        ? lines.filter((l) => l.costPrice !== undefined && l.costPrice > 0 && l.unitPrice < l.costPrice)
+        : [],
+    [lines, mode],
+  );
+
   const save = () => {
     if (saving) return;
     if (lines.length === 0) {
@@ -335,6 +358,26 @@ export function useDocumentForm(mode: DocMode) {
       Alert.alert(t('documents.errors.title'), t('documents.errors.zeroCost'));
       return;
     }
+    // Selling at a loss is a confirm, never a block — it's his shop.
+    if (belowCostLines.length > 0) {
+      Alert.alert(
+        t('documents.belowCost.title'),
+        t('documents.belowCost.body', {
+          names: belowCostLines.map((l) => l.name).join('، '),
+          count: belowCostLines.length,
+        }),
+        [
+          { text: t('common.cancel'), style: 'cancel' },
+          { text: t('documents.belowCost.confirm'), style: 'destructive', onPress: post },
+        ],
+      );
+      return;
+    }
+    post();
+  };
+
+  function post() {
+    if (saving) return;
     setSaving(true);
     try {
       // Resolve every line to a real item id. Ad-hoc fast-entry lines (itemId
@@ -365,7 +408,21 @@ export function useDocumentForm(mode: DocMode) {
             }).id;
           if (l.tags?.length) tagRepository.upsertMany(l.tags);
         }
-        return { itemId, qty: l.qty, unitPrice: priceMinor, title, note: l.note ?? null, imageUri: l.imageUri ?? null };
+        // Record what the line was sold AGAINST, not just what it sold FOR — the
+        // gap is the discount, and it is unreconstructable once items.sale_price
+        // moves. A fast-entry line has no anchor, so the typed price is its own.
+        // NOTE: this never writes back to items.sale_price for an existing item.
+        // The list price is the anchor; a haggled sale must not erode it.
+        const listPriceMinor = mode === 'sale' ? toMinor(l.listPrice ?? l.unitPrice) : null;
+        return {
+          itemId,
+          qty: l.qty,
+          unitPrice: priceMinor,
+          listPrice: listPriceMinor,
+          title,
+          note: l.note ?? null,
+          imageUri: l.imageUri ?? null,
+        };
       });
       const docId = documentRepository.create(
         {
@@ -393,7 +450,7 @@ export function useDocumentForm(mode: DocMode) {
     } finally {
       setSaving(false);
     }
-  };
+  }
 
   // Open the party form prefilled from the picker's query — a numeric query
   // seeds the phone field, otherwise the name.

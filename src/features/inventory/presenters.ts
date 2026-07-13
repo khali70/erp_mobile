@@ -3,6 +3,7 @@ import type { Category } from '@/db/schema';
 import type { InventoryItem } from './types';
 import { getStockStatus, type StockStatus } from '@/utils/stock';
 import { toArabicDigits } from '@/utils/numerals';
+import { fromMinor } from '@/utils/money';
 
 /** Fully-resolved, display-ready shape consumed by <ItemRow>. */
 export interface ItemRowViewModel {
@@ -52,17 +53,20 @@ export function presentItem(
   const suffixKey = STATUS_SUFFIX_KEY[status];
   const badgeLabel = suffixKey ? `${qty} ${unit} (${t(suffixKey)})` : `${qty} ${unit}`;
   const category = resolveCategory(item.category, categoryIndex, t);
+  // Whole-unit display. Goes through money.ts rather than a hardcoded /100 so a
+  // non-2-exponent currency (KWD, JPY) doesn't silently render the wrong number.
+  const priceLabel = toArabicDigits(Math.round(fromMinor(item.salePriceMinor)));
 
   return {
     id: item.id,
     name: item.name,
     categoryLabel: category.label,
     categoryColor: category.color,
-    priceLabel: toArabicDigits(Math.round(item.salePriceMinor / 100)),
+    priceLabel,
     currency: t('common.currency'),
     status,
     badgeLabel,
     barcodeLabel: item.barcode?.trim() || null,
-    salePriceLabel: item.salePriceMinor > 0 ? toArabicDigits(Math.round(item.salePriceMinor / 100)) : null,
+    salePriceLabel: item.salePriceMinor > 0 ? priceLabel : null,
   };
 }

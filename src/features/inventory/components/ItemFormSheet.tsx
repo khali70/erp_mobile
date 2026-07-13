@@ -17,6 +17,8 @@ const EMPTY_DRAFT: ItemDraft = {
   unit: 'piece',
   costPrice: '',
   salePrice: '',
+  pricingMode: 'fixed',
+  minPrice: '',
   lowStockThreshold: '10',
   barcode: '',
   tags: [],
@@ -46,6 +48,7 @@ export function ItemFormSheet({ visible, initial, onClose, onSave }: ItemFormShe
     setDraft((prev) => ({ ...prev, [key]: value }));
 
   const isEdit = initial !== null;
+  const isDynamic = draft.pricingMode === 'negotiable';
   const canSave = draft.name.trim() !== '' && draft.salePrice.trim() !== '';
 
   return (
@@ -109,6 +112,45 @@ export function ItemFormSheet({ visible, initial, onClose, onSave }: ItemFormShe
                 />
               </View>
             </View>
+
+            {/* Dynamic price: the sale rate is haggled at the counter, so the sell
+                screen opens a text field prefilled with the sale price above rather
+                than showing it read-only. Off = one fixed price (the fast path). */}
+            <Pressable
+              className={`${ROW} items-start gap-3`}
+              onPress={() => update('pricingMode', isDynamic ? 'fixed' : 'negotiable')}
+              accessibilityRole="checkbox"
+              accessibilityState={{ checked: isDynamic }}
+              accessibilityLabel={t('inventory.form.dynamicPrice')}
+            >
+              <View
+                className={`w-6 h-6 rounded-md items-center justify-center border-2 mt-0.5 ${
+                  isDynamic ? 'bg-primary border-primary' : 'bg-surface border-border'
+                }`}
+              >
+                {isDynamic && <Feather name="check" size={15} color={colors.surface} />}
+              </View>
+              <View className="flex-1">
+                <Text className="text-ink text-sm font-bold text-right">
+                  {t('inventory.form.dynamicPrice')}
+                </Text>
+                <Text className="text-muted text-[11px] mt-0.5 text-right">
+                  {t('inventory.form.dynamicPriceHint')}
+                </Text>
+              </View>
+            </Pressable>
+
+            {/* Optional soft floor — only meaningful once the price can move. */}
+            {isDynamic && (
+              <LabeledInput
+                label={t('inventory.form.minPrice')}
+                value={draft.minPrice}
+                onChangeText={(v) => update('minPrice', v)}
+                keyboardType="numeric"
+                placeholder={t('inventory.form.minPricePlaceholder')}
+              />
+            )}
+
             <LabeledInput
               label={t('inventory.form.lowStockThreshold')}
               value={draft.lowStockThreshold}

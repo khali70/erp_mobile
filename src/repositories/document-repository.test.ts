@@ -91,6 +91,28 @@ describe('documentRepository — posting into real SQL', () => {
     expect(repo.getWithLines(id)!.totalAmount).toBe(700);
   });
 
+  // A haggled sale must record BOTH what it sold for and what it listed at. The
+  // gap is the discount, and it cannot be reconstructed later — items.sale_price
+  // moves, and the ledger is immutable. See docs/plan/features/02.
+  it('records the negotiated unit price and the list price it was sold against', () => {
+    repo.create(incoming('A', 5, 18000)); // stock to sell from
+    const id = repo.create({
+      kind: 'outgoing',
+      status: 'posted',
+      lines: [{ itemId: 'A', qty: 1, unitPrice: 20000, listPrice: 25000 }], // sold 200, lists 250
+    });
+    const [line] = repo.getWithLines(id)!.lines;
+    expect(line.unitPrice).toBe(20000);
+    expect(line.listPrice).toBe(25000);
+    // Revenue follows the price actually charged, not the list price.
+    expect(repo.getWithLines(id)!.totalAmount).toBe(20000);
+  });
+
+  it('leaves listPrice null when none is supplied (purchases, legacy lines)', () => {
+    const id = repo.create(incoming('A', 2, 350));
+    expect(repo.getWithLines(id)!.lines[0].listPrice).toBeNull();
+  });
+
   it('list filters by kind and status', () => {
     repo.create(incoming('A', 1));
     repo.create(outgoing('A', 0.0)); // zero-qty outgoing, still a posted doc

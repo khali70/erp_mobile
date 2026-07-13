@@ -10,9 +10,15 @@ export type UnitKey = 'piece' | 'pair';
 
 export type StockFilter = 'all' | 'low' | 'out';
 
+export type { PricingMode } from '@/repositories/item-repository';
+import type { PricingMode } from '@/repositories/item-repository';
+
 /**
  * An inventory item as the UI consumes it. `salePriceMinor` is INTEGER minor
  * units (never float); `qty` is derived on-hand from the stock ledger.
+ *
+ * `salePriceMinor` is the LIST price. A negotiated sale writes its own price on
+ * the document line and never mutates this — the list price is the anchor.
  */
 export interface InventoryItem {
   id: string;
@@ -21,6 +27,9 @@ export interface InventoryItem {
   unit: UnitKey;
   costPriceMinor: number;
   salePriceMinor: number;
+  pricingMode: PricingMode;
+  /** Soft floor in minor units; null = none. Warns on a sale below it, never blocks. */
+  minPriceMinor: number | null;
   barcode: string | null;
   qty: number;
   lowStockThreshold: number;
@@ -35,6 +44,8 @@ export interface ItemDraft {
   unit: UnitKey;
   costPrice: string;
   salePrice: string;
+  pricingMode: PricingMode;
+  minPrice: string;
   lowStockThreshold: string;
   barcode: string;
   tags: string[];

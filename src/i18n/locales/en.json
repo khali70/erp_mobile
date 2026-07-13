@@ -106,6 +106,10 @@
       "unit": "Unit",
       "costPrice": "Cost price",
       "salePrice": "Sale price",
+      "dynamicPrice": "Dynamic price",
+      "dynamicPriceHint": "Priced at the counter. When selling, the price field opens prefilled with the sale price so you can type what you agreed.",
+      "minPrice": "Minimum price (optional)",
+      "minPricePlaceholder": "Warns only — never blocks",
       "lowStockThreshold": "Low-stock alert threshold",
       "barcode": "Barcode (optional)",
       "scan": "Scan",
@@ -234,6 +238,17 @@
     "unitCost": "Unit cost",
     "lineTotal": "Total",
     "lineCost": "Line cost",
+    "editRate": "Edit price",
+    "listPrice": "List price",
+    "cost": "Cost",
+    "margin": "Profit",
+    "belowMin": "below minimum",
+    "belowCost": {
+      "badge": "Below cost — selling at a loss",
+      "title": "Selling at a loss",
+      "body": "The sale price is below cost on: {{names}}. Save anyway?",
+      "confirm": "Save anyway"
+    },
     "emptyLines": "No items yet — add one to start",
     "summary": {
       "count": "Item count",
