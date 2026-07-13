@@ -1,4 +1,13 @@
+---
+description: Turn a rough feature idea into a production-ready prompt for the rn-feature-builder agent
+argument-hint: [feature name / rough description]
+---
+
 # Feature Prompt Generator
+
+Raw request: $ARGUMENTS
+
+Fill the template at `.claude/templates/feature-template.md`. Output the prompt only — do not implement.
 
 ## 🎯 Goal
 

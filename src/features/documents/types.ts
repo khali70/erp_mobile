@@ -1,5 +1,7 @@
 /** Shared shapes for the document (sale/purchase) forms. Demo-level until repos. */
 
+import type { PricingMode } from '@/repositories/item-repository';
+
 export type DocMode = 'sale' | 'purchase';
 
 export interface DocLine {
@@ -14,6 +16,13 @@ export interface DocLine {
   /** Whole currency units (major). Sale = unit price, purchase = unit cost. */
   unitPrice: number;
   qty: number;
+  // Pricing context snapshotted from the catalog item when the line was added, so
+  // the row can show margin live while the owner haggles. Major units, like
+  // `unitPrice`. Undefined on fast-entry lines (no catalog item yet).
+  listPrice?: number; // the item's sale price — the anchor `unitPrice` starts at
+  costPrice?: number; // weighted-average cost, for the margin readout
+  minPrice?: number; // soft floor; undefined = none
+  pricingMode?: PricingMode;
   // Fast-entry provenance (undefined for from-list / scan lines).
   category?: string;
   tags?: string[];

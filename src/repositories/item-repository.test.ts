@@ -64,4 +64,40 @@ describe('itemRepository', () => {
     const row = repo.listWithStock().find((r) => r.id === item.id)!;
     expect(row.qtyOnHand).toBe(7);
   });
+
+  it('defaults to fixed pricing with no floor', () => {
+    const item = repo.create({ name: 'Socks', salePrice: 5000 });
+    const row = repo.listWithStock().find((r) => r.id === item.id)!;
+    expect(row.pricingMode).toBe('fixed');
+    expect(row.minPrice).toBeNull();
+  });
+
+  it('round-trips a negotiable item with a price floor', () => {
+    const item = repo.create({
+      name: 'Jacket',
+      salePrice: 25000,
+      costPrice: 18000,
+      pricingMode: 'negotiable',
+      minPrice: 19000,
+    });
+    const row = repo.listWithStock().find((r) => r.id === item.id)!;
+    expect(row.pricingMode).toBe('negotiable');
+    expect(row.minPrice).toBe(19000);
+  });
+
+  // The list price is the anchor. Posting a sale below it (a haggled price) must
+  // never erode items.sale_price, or the anchor decays to whatever the last
+  // customer talked the owner down to. See docs/plan/features/02 §3.
+  it('a discounted sale does not mutate the item list price', () => {
+    const item = repo.create({ name: 'Jacket', salePrice: 25000, costPrice: 18000 });
+    const docs = createDocumentRepository(db);
+    docs.create({ kind: 'incoming', status: 'posted', lines: [{ itemId: item.id, qty: 5 }] });
+    docs.create({
+      kind: 'outgoing',
+      status: 'posted',
+      lines: [{ itemId: item.id, qty: 1, unitPrice: 20000, listPrice: 25000 }],
+    });
+    expect(repo.getById(item.id)!.salePrice).toBe(25000);
+    expect(repo.getById(item.id)!.costPrice).toBe(18000);
+  });
 });

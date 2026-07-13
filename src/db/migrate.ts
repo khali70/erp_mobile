@@ -21,6 +21,8 @@ export function runMigrations(): void {
       cost_price INTEGER NOT NULL DEFAULT 0,
       sale_price INTEGER NOT NULL DEFAULT 0,
       currency TEXT NOT NULL DEFAULT 'EGP',
+      pricing_mode TEXT NOT NULL DEFAULT 'fixed',
+      min_price INTEGER,
       low_stock_threshold INTEGER NOT NULL DEFAULT 0,
       photo_uri TEXT
     );
@@ -50,7 +52,8 @@ export function runMigrations(): void {
       document_id TEXT NOT NULL,
       item_id TEXT NOT NULL,
       qty INTEGER NOT NULL,
-      unit_price INTEGER NOT NULL DEFAULT 0
+      unit_price INTEGER NOT NULL DEFAULT 0,
+      list_price INTEGER
     );
 
     CREATE TABLE IF NOT EXISTS stock_levels (
@@ -123,6 +126,11 @@ export function runMigrations(): void {
   addColumnIfMissing(sqlite, 'document_lines', 'title', 'TEXT');
   addColumnIfMissing(sqlite, 'document_lines', 'note', 'TEXT');
   addColumnIfMissing(sqlite, 'document_lines', 'image_uri', 'TEXT');
+  // Negotiated pricing: per-item haggling policy + floor, and the list price the
+  // line was sold against (null on legacy rows — a discount is unknowable there).
+  addColumnIfMissing(sqlite, 'items', 'pricing_mode', "TEXT NOT NULL DEFAULT 'fixed'");
+  addColumnIfMissing(sqlite, 'items', 'min_price', 'INTEGER');
+  addColumnIfMissing(sqlite, 'document_lines', 'list_price', 'INTEGER');
 
   // Attachment bytes live in a separate DB file — bootstrap it here too.
   initAttachmentsDb();

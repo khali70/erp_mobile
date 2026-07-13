@@ -10,6 +10,8 @@ export function toDraft(item: InventoryItem): ItemDraft {
     unit: item.unit,
     costPrice: item.costPriceMinor ? toMajor(item.costPriceMinor) : '',
     salePrice: item.salePriceMinor ? toMajor(item.salePriceMinor) : '',
+    pricingMode: item.pricingMode,
+    minPrice: item.minPriceMinor !== null ? toMajor(item.minPriceMinor) : '',
     lowStockThreshold: String(item.lowStockThreshold),
     barcode: item.barcode ?? '',
     tags: item.tags,
@@ -29,6 +31,12 @@ export function fromDraft(draft: ItemDraft): CreateItemInput {
     barcode: barcode === '' ? null : barcode,
     costPrice: draft.costPrice.trim() === '' ? 0 : toMinor(draft.costPrice),
     salePrice: draft.salePrice.trim() === '' ? 0 : toMinor(draft.salePrice),
+    pricingMode: draft.pricingMode,
+    // A floor only makes sense on a haggled item; a blank field means "no floor".
+    minPrice:
+      draft.pricingMode === 'negotiable' && draft.minPrice.trim() !== ''
+        ? toMinor(draft.minPrice)
+        : null,
     lowStockThreshold: Number.isFinite(threshold) ? threshold : 0,
     tags: draft.tags.map((tg) => tg.trim()).filter(Boolean),
     notes: notes === '' ? null : notes,

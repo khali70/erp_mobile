@@ -21,6 +21,8 @@ CREATE TABLE items (
   cost_price INTEGER NOT NULL DEFAULT 0,
   sale_price INTEGER NOT NULL DEFAULT 0,
   currency TEXT NOT NULL DEFAULT 'EGP',
+  pricing_mode TEXT NOT NULL DEFAULT 'fixed',
+  min_price INTEGER,
   low_stock_threshold INTEGER NOT NULL DEFAULT 0,
   photo_uri TEXT,
   tags TEXT,
@@ -69,6 +71,7 @@ CREATE TABLE document_lines (
   item_id TEXT NOT NULL,
   qty INTEGER NOT NULL,
   unit_price INTEGER NOT NULL DEFAULT 0,
+  list_price INTEGER,
   title TEXT,
   note TEXT,
   image_uri TEXT

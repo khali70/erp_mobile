@@ -1,3 +1,8 @@
+---
+description: Generate a Conventional Commit message from the staged changes
+allowed-tools: Bash(git diff:*), Bash(git status:*)
+---
+
 # Commit Message Command
 
 You are a senior software engineer.
@@ -8,9 +13,11 @@ Your task is to generate a high-quality Conventional Commit message from the cur
 
 # 🧠 Context
 
-You will receive the current `git diff --staged`.
+Staged diff:
 
-You must analyze it carefully and understand:
+!`git diff --staged`
+
+Analyze it carefully and understand:
 
 - Feature additions
 - Bug fixes

@@ -29,7 +29,10 @@ export interface AttachmentMeta {
 export interface DocumentLineInput {
   itemId: string;
   qty: number; // > 0 magnitude
-  unitPrice?: number; // minor units; default 0
+  unitPrice?: number; // minor units; default 0 — what it actually sold for
+  // The item's list price when the line was written (minor units). Sales only;
+  // null on purchases. unitPrice < listPrice ⇒ a discount was given.
+  listPrice?: number | null;
   title?: string | null; // fast-entry: typed product title for this line
   note?: string | null;
   imageUri?: string | null;
@@ -159,6 +162,7 @@ export function createDocumentRepository(db: DocDb) {
           itemId: l.itemId,
           qty: l.qty,
           unitPrice: l.unitPrice ?? 0,
+          listPrice: l.listPrice ?? null,
           title: l.title ?? null,
           note: l.note ?? null,
           imageUri: l.imageUri ?? null,

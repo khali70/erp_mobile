@@ -19,8 +19,12 @@ export const items = sqliteTable('items', {
   barcode: text('barcode'),
   unit: text('unit').notNull().default('pcs'),
   costPrice: integer('cost_price').notNull().default(0), // minor units
-  salePrice: integer('sale_price').notNull().default(0), // minor units
+  salePrice: integer('sale_price').notNull().default(0), // minor units (the LIST price — never overwritten by a negotiated sale)
   currency: text('currency').notNull().default('EGP'),
+  // 'fixed' = one price, rate field is read-only on a sale (override still possible).
+  // 'negotiable' = haggled at the counter; the rate field opens for typing.
+  pricingMode: text('pricing_mode').notNull().default('fixed'), // 'fixed' | 'negotiable'
+  minPrice: integer('min_price'), // minor units; null = no floor. Warns, never blocks.
   lowStockThreshold: integer('low_stock_threshold').notNull().default(0),
   photoUri: text('photo_uri'),
   // Denormalized JSON array of tag names (registry lives in `tags`). Stored on
@@ -75,7 +79,11 @@ export const documentLines = sqliteTable('document_lines', {
   documentId: text('document_id').notNull(),
   itemId: text('item_id').notNull(),
   qty: integer('qty').notNull(), // positive; sign comes from document.direction
-  unitPrice: integer('unit_price').notNull().default(0), // minor units
+  unitPrice: integer('unit_price').notNull().default(0), // minor units — what it ACTUALLY sold for
+  // The item's list price at the moment of sale (minor units; null on purchases
+  // and on legacy rows). unitPrice < listPrice ⇒ a discount was given. Recorded
+  // here because it is impossible to reconstruct later — items.sale_price moves.
+  listPrice: integer('list_price'),
   // Fast-entry provenance: the typed title/note/photo for this line. itemId
   // stays the ledger identity; these describe the individual entry.
   title: text('title'),

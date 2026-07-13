@@ -1,0 +1,786 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Claude Code Toolkit Reference</title>
+<style>
+  :root {
+    --ink: #1a2233;
+    --ink-soft: #3d4a63;
+    --muted: #6b7280;
+    --gold: #b8923e;
+    --gold-soft: #f3ead6;
+    --paper: #ffffff;
+    --cream: #faf7f0;
+    --line: #e3e0d8;
+    --blue: #2f5d8a;
+    --blue-soft: #e8f0f7;
+    --green: #3e7d4f;
+    --green-soft: #e9f3ec;
+    --amber: #a2652a;
+    --amber-soft: #f8efe3;
+    --code-bg: #f4f2ec;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  body {
+    font-family: "Avenir Next", "Helvetica Neue", Helvetica, Arial, sans-serif;
+    color: var(--ink);
+    font-size: 10.5pt;
+    line-height: 1.55;
+    background: var(--paper);
+  }
+  @page { size: A4; margin: 0; }
+  .page {
+    width: 210mm;
+    min-height: 297mm;
+    padding: 14mm 17mm 16mm 17mm;
+    page-break-after: always;
+    position: relative;
+    background: var(--paper);
+  }
+  .page:last-child { page-break-after: auto; }
+
+  /* ---------- Cover ---------- */
+  .cover {
+    background: linear-gradient(160deg, #16202f 0%, #1e2c42 55%, #253750 100%);
+    color: #f5f1e6;
+    display: flex; flex-direction: column; justify-content: space-between;
+    padding: 26mm 22mm;
+  }
+  .cover .rule { height: 3px; width: 64px; background: var(--gold); margin: 18px 0 26px; }
+  .cover .eyebrow {
+    text-transform: uppercase; letter-spacing: 0.32em; font-size: 9pt;
+    color: #c9b47a; font-weight: 600;
+  }
+  .cover h1 {
+    font-family: Georgia, "Times New Roman", serif;
+    font-size: 34pt; font-weight: 700; line-height: 1.16; margin-top: 14px;
+    letter-spacing: 0.01em;
+  }
+  .cover h1 em { color: #d9bc75; font-style: normal; }
+  .cover .sub {
+    margin-top: 20px; font-size: 12.5pt; color: #c7cedb; max-width: 128mm; line-height: 1.6;
+  }
+  .cover .stats { display: flex; gap: 14mm; margin-top: 16mm; }
+  .cover .stat .n {
+    font-family: Georgia, serif; font-size: 26pt; color: #e6cf8e; font-weight: 700;
+  }
+  .cover .stat .l {
+    text-transform: uppercase; letter-spacing: 0.18em; font-size: 7.5pt; color: #9fb0c8; margin-top: 2px;
+  }
+  .cover .foot {
+    display: flex; justify-content: space-between; align-items: flex-end;
+    border-top: 1px solid rgba(217,188,117,.35); padding-top: 14px;
+    font-size: 9pt; color: #aab6c9; letter-spacing: 0.04em;
+  }
+  .cover .foot b { color: #e8e2d2; font-weight: 600; }
+
+  /* ---------- Common ---------- */
+  h2.section {
+    font-family: Georgia, serif; font-size: 19pt; font-weight: 700; color: var(--ink);
+    padding-bottom: 8px; border-bottom: 2px solid var(--gold); margin-bottom: 5mm;
+  }
+  h2.section .no {
+    color: var(--gold); font-size: 12pt; vertical-align: 6px; margin-right: 10px; letter-spacing: .08em;
+  }
+  h3 { font-size: 12pt; font-weight: 700; color: var(--ink); margin: 4mm 0 2mm; }
+  p.lead { color: var(--ink-soft); font-size: 10.5pt; margin-bottom: 3mm; }
+  p + p { margin-top: 2.5mm; }
+  code, .mono {
+    font-family: "SF Mono", Menlo, Consolas, monospace;
+    font-size: 8.8pt; background: var(--code-bg); border-radius: 3px; padding: 1px 5px;
+    color: #454033;
+  }
+  pre {
+    font-family: "SF Mono", Menlo, Consolas, monospace; font-size: 8.6pt;
+    background: var(--code-bg); border: 1px solid var(--line); border-radius: 6px;
+    padding: 9px 12px; line-height: 1.5; overflow: hidden; white-space: pre-wrap;
+  }
+  .pagefoot {
+    position: absolute; bottom: 8mm; left: 17mm; right: 17mm;
+    display: flex; justify-content: space-between;
+    font-size: 7.5pt; color: var(--muted); letter-spacing: 0.06em;
+    border-top: 1px solid var(--line); padding-top: 6px;
+  }
+  .pagefoot .gold { color: var(--gold); font-weight: 600; }
+
+  /* badges */
+  .badge {
+    display: inline-block; font-size: 7pt; font-weight: 700; letter-spacing: 0.1em;
+    text-transform: uppercase; border-radius: 20px; padding: 2px 9px; vertical-align: middle;
+  }
+  .b-readonly { background: var(--blue-soft); color: var(--blue); }
+  .b-writes   { background: var(--green-soft); color: var(--green); }
+  .b-opus     { background: #efe6f5; color: #6b3fa0; }
+  .b-sonnet   { background: var(--gold-soft); color: #8a6a24; }
+  .b-inherit  { background: #eceff3; color: #55637d; }
+
+  /* ---------- TOC / overview ---------- */
+  .toc { width: 100%; border-collapse: collapse; margin-top: 2mm; }
+  .toc td { padding: 5px 4px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  .toc .num { color: var(--gold); font-family: Georgia, serif; font-weight: 700; width: 26px; font-size: 11pt; }
+  .toc .t { font-weight: 700; width: 62mm; }
+  .toc .d { color: var(--ink-soft); font-size: 9.5pt; }
+
+  .tree {
+    font-family: "SF Mono", Menlo, monospace; font-size: 8.6pt; line-height: 1.6;
+    background: #1d2738; color: #d5dce8; border-radius: 8px; padding: 11px 16px;
+  }
+  .tree .dir { color: #e6cf8e; font-weight: 600; }
+  .tree .cm { color: #7d8aa3; }
+
+  .concept-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 4mm; margin-top: 3mm; }
+  .concept {
+    border: 1px solid var(--line); border-radius: 8px; padding: 10px 13px; background: var(--cream);
+  }
+  .concept h4 { font-size: 10pt; margin-bottom: 3px; }
+  .concept h4 .mono { font-size: 8pt; }
+  .concept p { font-size: 9pt; color: var(--ink-soft); }
+
+  /* ---------- flow diagram ---------- */
+  .flow { margin: 4mm 0; }
+  .flow-title {
+    font-size: 8pt; font-weight: 700; letter-spacing: .14em; text-transform: uppercase;
+    color: var(--gold); margin-bottom: 2.5mm;
+  }
+  .flow-row { display: flex; align-items: stretch; gap: 0; }
+  .fnode {
+    flex: 1; min-width: 0; border: 1.4px solid var(--ink); border-radius: 7px; padding: 7px 9px;
+    background: #fff; text-align: center; position: relative;
+  }
+  .fnode .fn, .fnode .fd { overflow-wrap: break-word; }
+  .fnode .fn { font-weight: 700; font-size: 8.8pt; }
+  .fnode .fd { font-size: 7.6pt; color: var(--muted); margin-top: 1px; line-height: 1.35; }
+  .fnode.gold { border-color: var(--gold); background: var(--gold-soft); }
+  .fnode.blue { border-color: var(--blue); background: var(--blue-soft); }
+  .fnode.green { border-color: var(--green); background: var(--green-soft); }
+  .farrow {
+    align-self: center; padding: 0 6px; color: var(--gold); font-size: 13pt; font-weight: 700;
+  }
+  .flow-note { font-size: 8.4pt; color: var(--muted); margin-top: 2mm; font-style: italic; }
+
+  /* ---------- chooser table ---------- */
+  table.ref { width: 100%; border-collapse: collapse; margin-top: 2mm; }
+  table.ref th {
+    text-align: left; font-size: 8pt; text-transform: uppercase; letter-spacing: 0.1em;
+    color: #fff; background: var(--ink); padding: 7px 10px;
+  }
+  table.ref th:first-child { border-radius: 6px 0 0 0; }
+  table.ref th:last-child { border-radius: 0 6px 0 0; }
+  table.ref td { padding: 4px 10px; border-bottom: 1px solid var(--line); font-size: 9.3pt; vertical-align: top; }
+  table.ref tr:nth-child(even) td { background: var(--cream); }
+  table.ref .use { font-weight: 700; }
+  table.ref td.mono, table.ref .mono {
+    font-family: "SF Mono", Menlo, Consolas, monospace; font-size: 8.6pt;
+    overflow-wrap: break-word; word-break: break-word;
+  }
+
+  /* ---------- agent cards ---------- */
+  .agent {
+    border: 1px solid var(--line); border-left: 4px solid var(--gold);
+    border-radius: 8px; padding: 9px 13px 10px; margin-bottom: 3.2mm;
+    page-break-inside: avoid; background: #fff;
+  }
+  .agent.review { border-left-color: var(--blue); }
+  .agent.build  { border-left-color: var(--green); }
+  .agent.fix    { border-left-color: var(--amber); }
+  .agent-head { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; margin-bottom: 2px; }
+  .agent-head .name {
+    font-family: "SF Mono", Menlo, monospace; font-size: 10.5pt; font-weight: 700; color: var(--ink);
+  }
+  .agent .meta { font-size: 8pt; color: var(--muted); margin-bottom: 3px; }
+  .agent .meta b { color: var(--ink-soft); font-weight: 600; }
+  .agent p.desc { font-size: 9.4pt; color: var(--ink-soft); margin-bottom: 4px; }
+  .agent ul { margin: 2px 0 2px 15px; font-size: 9pt; color: var(--ink-soft); }
+  .agent ul li { margin-bottom: 1.5px; }
+  .agent .krule {
+    font-size: 7.6pt; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase;
+    color: var(--gold); margin-top: 4px;
+  }
+  .compact .agent { padding: 6px 12px 7px; margin-bottom: 2mm; }
+  .agent.review .krule { color: var(--blue); }
+  .agent.build .krule { color: var(--green); }
+  .agent.fix .krule { color: var(--amber); }
+  .verdict {
+    display: inline-block; font-family: "SF Mono", Menlo, monospace; font-size: 8pt;
+    background: var(--code-bg); border-radius: 3px; padding: 1px 6px; margin-right: 4px; margin-top: 2px;
+  }
+
+  /* ---------- skills ---------- */
+  .skill-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 4.5mm; }
+  .skill {
+    border: 1px solid var(--line); border-top: 3px solid var(--gold); border-radius: 8px;
+    padding: 11px 13px; background: var(--cream); page-break-inside: avoid;
+  }
+  .skill .name { font-family: "SF Mono", Menlo, monospace; font-weight: 700; font-size: 10pt; }
+  .skill p { font-size: 9pt; color: var(--ink-soft); margin-top: 3px; }
+  .skill ul { margin: 4px 0 0 15px; font-size: 8.8pt; color: var(--ink-soft); }
+  .skill ul li { margin-bottom: 1px; }
+
+  .callout {
+    border-left: 4px solid var(--gold); background: var(--gold-soft);
+    border-radius: 0 8px 8px 0; padding: 9px 14px; margin: 4mm 0; font-size: 9.4pt;
+    color: #5c4a1e;
+  }
+  .callout b { color: #493a15; }
+
+  /* ---------- conventions ---------- */
+  .conv-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 3.2mm; }
+  .conv {
+    border: 1px solid var(--line); border-radius: 8px; padding: 8px 12px; page-break-inside: avoid;
+  }
+  .conv h4 { font-size: 9.6pt; color: var(--ink); margin-bottom: 4px; }
+  .conv h4::before { content: "◆ "; color: var(--gold); font-size: 8pt; }
+  .conv ul { margin-left: 14px; font-size: 8.7pt; color: var(--ink-soft); }
+  .conv ul li { margin-bottom: 1px; }
+
+  .good-bad { display: grid; grid-template-columns: 1fr 1fr; gap: 3.5mm; margin-top: 2.5mm; }
+  .gb { border-radius: 6px; padding: 6px 11px; font-size: 8.6pt; }
+  .gb pre { background: transparent; border: none; padding: 4px 0 0; font-size: 8.2pt; }
+  .gb.bad { background: #faecec; border: 1px solid #e5c4c4; }
+  .gb.good { background: var(--green-soft); border: 1px solid #bedac6; }
+  .gb .lbl { font-weight: 700; font-size: 8pt; letter-spacing: .08em; }
+  .gb.bad .lbl { color: #a13c3c; }
+  .gb.good .lbl { color: var(--green); }
+</style>
+</head>
+<body>
+
+<!-- ======================= COVER ======================= -->
+<div class="page cover">
+  <div>
+    <div class="eyebrow">Engineering Playbook</div>
+    <div class="rule"></div>
+    <h1>Claude Code<br><em>Toolkit Reference</em></h1>
+    <p class="sub">
+      The team's shared AI-assisted development setup: specialized agents, reusable skills,
+      slash commands, and feature templates committed under <b>.claude/</b> — what each one does,
+      when to use it, and how they chain together from Figma design to approved PR.
+    </p>
+    <div class="stats">
+      <div class="stat"><div class="n">10</div><div class="l">Agents</div></div>
+      <div class="stat"><div class="n">4</div><div class="l">Skills</div></div>
+      <div class="stat"><div class="n">1</div><div class="l">Command</div></div>
+      <div class="stat"><div class="n">2</div><div class="l">Templates &amp; Tools</div></div>
+    </div>
+  </div>
+</div>
+
+<!-- ======================= CONTENTS + CONCEPTS ======================= -->
+<div class="page">
+  <h2 class="section"><span class="no">01</span>What Lives in <code style="font-size:14pt">.claude/</code></h2>
+  <p class="lead">Everything in this document is version-controlled in the repo, so the whole team shares the exact same AI tooling. Directory layout:</p>
+
+  <div class="tree">
+.claude/<br>
+├── <span class="dir">agents/</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="cm"># 10 specialized subagents (build · fix · review)</span><br>
+│   ├── flutter-feature-builder · flutter-figma-implementation-expert<br>
+│   ├── flutter-task-refiner · flutter-bug-fixer · refactoring-architect<br>
+│   ├── flutter-clean-code-reviewer · flutter-performance-reviewer<br>
+│   └── flutter-architecture-auditor · pre-pr-guardian · senior-pr-reviewer<br>
+├── <span class="dir">skills/</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="cm"># 4 reusable capabilities used by the feature builder</span><br>
+│   └── figma-to-flutter · api-integration · project-architecture · flutter-reviewer<br>
+├── <span class="dir">commands/</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="cm"># slash commands</span>&nbsp;&nbsp;→&nbsp; commit-message.md<br>
+├── <span class="dir">template/</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="cm"># fill-in feature request form</span>&nbsp;&nbsp;→&nbsp; feature-template.md<br>
+└── <span class="dir">tools/</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="cm"># prompt generators</span>&nbsp;&nbsp;→&nbsp; feature-prompt-generator.md
+  </div>
+
+  <h3>The four building blocks</h3>
+  <div class="concept-grid">
+    <div class="concept">
+      <h4>Agents <span class="mono">.claude/agents/</span></h4>
+      <p>Autonomous specialists with their own role, tools, and model. Invoked automatically when a request matches, or explicitly: <i>"use the pre-pr-guardian agent"</i>.</p>
+    </div>
+    <div class="concept">
+      <h4>Skills <span class="mono">.claude/skills/</span></h4>
+      <p>Focused instruction sets forming the feature builder's internal pipeline — UI conversion, API wiring, structure validation, self-review.</p>
+    </div>
+    <div class="concept">
+      <h4>Commands <span class="mono">.claude/commands/</span></h4>
+      <p>Slash commands typed in a session, e.g. <code>/commit-message</code>. Deterministic, single-purpose, instant.</p>
+    </div>
+    <div class="concept">
+      <h4>Templates &amp; Tools <span class="mono">template/ · tools/</span></h4>
+      <p>The developer fills the feature template; the prompt generator turns it into a build prompt — it never writes code itself.</p>
+    </div>
+  </div>
+
+  <h3>Contents of this reference</h3>
+  <table class="toc">
+    <tr><td class="num">02</td><td class="t">Workflows</td><td class="d">How the agents chain: feature, small-task, fix, and PR lanes.</td></tr>
+    <tr><td class="num">03</td><td class="t">Which agent do I use?</td><td class="d">One-glance decision table for everyday situations.</td></tr>
+    <tr><td class="num">04</td><td class="t">Builder agents</td><td class="d">feature-builder · figma-expert · task-refiner.</td></tr>
+    <tr><td class="num">05</td><td class="t">Fixer agents</td><td class="d">bug-fixer · refactoring-architect.</td></tr>
+    <tr><td class="num">06</td><td class="t">Reviewer agents</td><td class="d">clean-code · performance · architecture · guardian · PR.</td></tr>
+    <tr><td class="num">07</td><td class="t">Skills</td><td class="d">The feature builder's internal pipeline.</td></tr>
+    <tr><td class="num">08</td><td class="t">Command, template &amp; tool</td><td class="d">/commit-message · feature-template · prompt-generator.</td></tr>
+    <tr><td class="num">09</td><td class="t">House rules cheat sheet</td><td class="d">The non-negotiable conventions every agent enforces.</td></tr>
+  </table>
+
+  <div class="pagefoot"><span>Claude Code Toolkit Reference</span><span class="gold">01 · Overview</span></div>
+</div>
+
+<!-- ======================= WORKFLOWS ======================= -->
+<div class="page">
+  <h2 class="section"><span class="no">02</span>Workflows — How It Chains Together</h2>
+  <p class="lead">The toolkit is designed as pipelines, not isolated tools. Pick the lane that matches the size of the work.</p>
+
+  <div class="flow">
+    <div class="flow-title">Lane A — New feature (from Figma + API)</div>
+    <div class="flow-row">
+      <div class="fnode gold"><div class="fn">feature-template</div><div class="fd">Developer fills in name, Figma link, API spec, behavior</div></div>
+      <div class="farrow">→</div>
+      <div class="fnode gold"><div class="fn">feature-prompt-generator</div><div class="fd">Turns raw inputs into a structured build prompt (never codes)</div></div>
+      <div class="farrow">→</div>
+      <div class="fnode green"><div class="fn">flutter-feature-builder</div><div class="fd">Builds the feature end-to-end using its 4 skills</div></div>
+      <div class="farrow">→</div>
+      <div class="fnode blue"><div class="fn">reviewers</div><div class="fd">clean-code · performance · architecture</div></div>
+    </div>
+    <div class="flow-note">Inside the builder: figma-to-flutter → api-integration → project-architecture → flutter-reviewer.</div>
+  </div>
+
+  <div class="flow">
+    <div class="flow-title">Lane B — Small / vague task ("fix avatar in weekly sheet")</div>
+    <div class="flow-row">
+      <div class="fnode gold"><div class="fn">flutter-task-refiner</div><div class="fd">Investigates the codebase, produces an implementation-ready spec</div></div>
+      <div class="farrow">→</div>
+      <div class="fnode green"><div class="fn">flutter-feature-builder</div><div class="fd">Executes the refined spec</div></div>
+      <div class="farrow">→</div>
+      <div class="fnode blue"><div class="fn">flutter-clean-code-reviewer</div><div class="fd">Quality check on the diff</div></div>
+    </div>
+    <div class="flow-note">The refiner is read-only — it hands over a spec with target files, requirements, edge cases, and acceptance criteria.</div>
+  </div>
+
+  <div class="flow">
+    <div class="flow-title">Lane C — Bug fix / refactor</div>
+    <div class="flow-row">
+      <div class="fnode fix" style="border:1.4px solid var(--amber); background: var(--amber-soft);"><div class="fn">flutter-bug-fixer</div><div class="fd">Root-cause first, minimal fix, verify with analyze + test</div></div>
+      <div class="farrow">or</div>
+      <div class="fnode fix" style="border:1.4px solid var(--amber); background: var(--amber-soft);"><div class="fn">refactoring-architect</div><div class="fd">Behavior-preserving cleanup, mandatory verification</div></div>
+      <div class="farrow">→</div>
+      <div class="fnode blue"><div class="fn">pre-pr-guardian</div><div class="fd">Pre-flight check before opening the PR</div></div>
+    </div>
+  </div>
+
+  <div class="flow">
+    <div class="flow-title">Lane D — Before &amp; at the PR (every branch)</div>
+    <div class="flow-row">
+      <div class="fnode blue"><div class="fn">pre-pr-guardian</div><div class="fd">Catches bugs before the PR exists · verdict: READY / NOT READY</div></div>
+      <div class="farrow">→</div>
+      <div class="fnode gold"><div class="fn">/commit-message</div><div class="fd">Conventional Commit line from staged diff</div></div>
+      <div class="farrow">→</div>
+      <div class="fnode blue"><div class="fn">senior-pr-reviewer</div><div class="fd">Formal production-grade review · APPROVE / REQUEST CHANGES</div></div>
+      <div class="farrow">→</div>
+      <div class="fnode blue"><div class="fn">architecture-auditor</div><div class="fd">Optional: 3-year maintainability audit for structural changes</div></div>
+    </div>
+  </div>
+
+  <div class="callout">
+    <b>Rule of thumb:</b> builders and fixers <b>edit files</b>; every reviewer is <b>read-only</b> and ends with an explicit verdict.
+    Run at least <b>pre-pr-guardian</b> on every branch before opening a PR — it is the cheapest place to catch a production bug.
+  </div>
+
+  <div class="pagefoot"><span>Claude Code Toolkit Reference</span><span class="gold">02 · Workflows</span></div>
+</div>
+
+<!-- ======================= CHOOSER ======================= -->
+<div class="page">
+  <h2 class="section"><span class="no">03</span>Which Agent Do I Use?</h2>
+  <p class="lead">Match your situation on the left; invoke the tool on the right. Read-only agents never modify your working tree.</p>
+
+  <table class="ref">
+    <tr><th style="width:44%">I want to…</th><th>Use</th><th style="width:16%">Mode</th></tr>
+    <tr><td>Build a new feature/screen from Figma + API spec</td><td class="mono">feature-prompt-generator → flutter-feature-builder</td><td><span class="badge b-writes">Edits files</span></td></tr>
+    <tr><td>Get a pixel-perfect screen matching a specific Figma node</td><td class="mono">flutter-figma-implementation-expert</td><td><span class="badge b-writes">Edits files</span></td></tr>
+    <tr><td>Turn a vague request ("use same loader as leaderboard") into a real task</td><td class="mono">flutter-task-refiner</td><td><span class="badge b-readonly">Read-only</span></td></tr>
+    <tr><td>Fix a runtime error, build failure, or state bug</td><td class="mono">flutter-bug-fixer</td><td><span class="badge b-writes">Edits files</span></td></tr>
+    <tr><td>Clean up code without changing behavior</td><td class="mono">refactoring-architect</td><td><span class="badge b-writes">Edits files</span></td></tr>
+    <tr><td>Check my diff for clean-code / SOLID / convention violations</td><td class="mono">flutter-clean-code-reviewer</td><td><span class="badge b-readonly">Read-only</span></td></tr>
+    <tr><td>Hunt jank, rebuild storms, and slow lists</td><td class="mono">flutter-performance-reviewer</td><td><span class="badge b-readonly">Read-only</span></td></tr>
+    <tr><td>Know if a change will still be maintainable in 3 years</td><td class="mono">flutter-architecture-auditor</td><td><span class="badge b-readonly">Read-only</span></td></tr>
+    <tr><td>Pre-flight my branch before opening a PR</td><td class="mono">pre-pr-guardian</td><td><span class="badge b-readonly">Read-only</span></td></tr>
+    <tr><td>Get a formal, production-grade PR review</td><td class="mono">senior-pr-reviewer</td><td><span class="badge b-readonly">Read-only</span></td></tr>
+    <tr><td>Write a Conventional Commit message for staged changes</td><td class="mono">/commit-message</td><td><span class="badge b-inherit">Command</span></td></tr>
+  </table>
+
+  <h3 style="margin-top:2.5mm">Boundaries worth memorizing</h3>
+  <table class="ref">
+    <tr><th style="width:33%">Don't confuse…</th><th>…with</th></tr>
+    <tr>
+      <td><b>flutter-task-refiner</b><br><span style="font-size:8.6pt;color:var(--muted)">Bug fixes, tweaks, "same as X" requests → spec.</span></td>
+      <td><b>feature-prompt-generator</b><br><span style="font-size:8.6pt;color:var(--muted)">Full features from Figma + API → build prompt. Never executes.</span></td>
+    </tr>
+    <tr>
+      <td><b>flutter-clean-code-reviewer</b><br><span style="font-size:8.6pt;color:var(--muted)">Read-only feedback on quality and architecture.</span></td>
+      <td><b>refactoring-architect</b><br><span style="font-size:8.6pt;color:var(--muted)">Performs the refactor and proves it with analyze/format/test.</span></td>
+    </tr>
+    <tr>
+      <td><b>pre-pr-guardian</b><br><span style="font-size:8.6pt;color:var(--muted)">Before the PR: branch bug hunt → READY / NOT READY.</span></td>
+      <td><b>senior-pr-reviewer</b><br><span style="font-size:8.6pt;color:var(--muted)">At the PR: formal review → approval recommendation.</span></td>
+    </tr>
+    <tr>
+      <td><b>flutter-performance-reviewer</b><br><span style="font-size:8.6pt;color:var(--muted)">Rendering, rebuilds, memory, network efficiency only.</span></td>
+      <td><b>flutter-architecture-auditor</b><br><span style="font-size:8.6pt;color:var(--muted)">Layer boundaries, dependency direction, long-term scalability.</span></td>
+    </tr>
+  </table>
+
+  <div class="callout"><b>Scope discipline:</b> reviewers stay out of each other's lanes — clean-code defers performance findings to the performance reviewer, and vice-versa. Run both on a big diff.</div>
+
+  <div class="pagefoot"><span>Claude Code Toolkit Reference</span><span class="gold">03 · Decision Table</span></div>
+</div>
+
+<!-- ======================= BUILDERS ======================= -->
+<div class="page">
+  <h2 class="section"><span class="no">04</span>Builder Agents</h2>
+  <p class="lead">These agents create or shape production code. All of them enforce Clean Architecture and the project design system.</p>
+
+  <div class="agent build">
+    <div class="agent-head">
+      <span class="name">flutter-feature-builder</span>
+      <span class="badge b-opus">Opus</span><span class="badge b-writes">Edits files</span>
+    </div>
+    <div class="meta"><b>Tools:</b> Read · Write · Edit · Grep · Glob · Bash</div>
+    <p class="desc">Senior Flutter engineer that builds production-ready features end-to-end from Figma designs, API docs, or requirements — scaffolding data/domain/presentation, wiring Cubit/Bloc + GetIt + Dio + GoRouter, with AR/EN localization and responsive design.</p>
+    <div class="krule">Execution pipeline</div>
+    <ul>
+      <li>Analyze inputs → <code>figma-to-flutter</code> → <code>api-integration</code> → validate with <code>project-architecture</code> → generate code → apply UI composition rules → self-check with <code>flutter-reviewer</code>.</li>
+    </ul>
+    <div class="krule">Hard UI composition rules</div>
+    <ul>
+      <li><b>Never</b> a full screen in one file — split into logical widgets (LoginHeader, LoginForm…), one top-level widget class per file.</li>
+      <li><b>No <code>_buildX()</code> methods returning widgets</b> — extract a real widget class instead, even for single-use blocks (see §09).</li>
+      <li>UI repeated 2+ times becomes a widget; forms, lists, animations, and large layouts are always extracted. Screens only compose, navigate, and connect state.</li>
+    </ul>
+  </div>
+
+  <div class="agent build">
+    <div class="agent-head">
+      <span class="name">flutter-figma-implementation-expert</span>
+      <span class="badge b-inherit">Inherits model</span><span class="badge b-writes">Edits files</span>
+    </div>
+    <div class="meta"><b>Tools:</b> Read · Write · Edit · Grep · Glob · Bash · Figma MCP (design context, screenshots, metadata, variables, assets)</div>
+    <p class="desc">Pixel-perfect UI from a specific Figma node: exact spacing, typography, colors, radii, and layout hierarchy. Plans first (colors / typography / spacing / components), implements, then compares against Figma before finishing.</p>
+    <div class="krule">Mandatory project conventions</div>
+    <ul>
+      <li><code>flutter_screenutil</code> everywhere (<code>.w .h .r .sp</code>) — designSize <b>402×874</b> = the Figma artboard, so Figma px map 1:1. Never raw pixel doubles.</li>
+      <li>Colors only via <code>AppColors</code> (add a token if missing — never inline <code>Color(0xFF…)</code>); typography via <code>TextStyles</code> + <code>.copyWith(fontSize: X.sp)</code>; spacing via <code>AppSpacing</code>; assets in <code>AppAssets</code>/<code>AppIcons</code>; strings via <code>context.tr</code> with AR + EN entries.</li>
+      <li>Finishes only after <code>flutter analyze</code> is clean on changed files (zero warnings).</li>
+    </ul>
+  </div>
+
+  <div class="agent build">
+    <div class="agent-head">
+      <span class="name">flutter-task-refiner</span>
+      <span class="badge b-sonnet">Sonnet</span><span class="badge b-readonly">Read-only</span>
+    </div>
+    <div class="meta"><b>Tools:</b> Read · Grep · Glob · Bash</div>
+    <p class="desc">Turns short, vague requests ("image not loading in profile", "use same loader as leaderboard") into implementation-ready specs for the feature builder. Actively investigates the codebase — never trusts user-provided file names.</p>
+    <div class="krule">Output spec structure</div>
+    <ul>
+      <li>⚠️ Needs Confirmation (blocking gaps) → Title → Context → Goal → Target Files (real <code>path:line</code>) → Requirements incl. edge cases (null/empty/loading/error) → Constraints → Acceptance Criteria → Confidence + labeled assumptions. Never silent guessing of business logic.</li>
+    </ul>
+    <div class="krule">Lane</div>
+    <ul><li>Bug fixes, UI tweaks, refactors, small-to-medium changes, migrations. <b>Not</b> full features from Figma/API — that's the feature-prompt-generator's job.</li></ul>
+  </div>
+
+  <div class="pagefoot"><span>Claude Code Toolkit Reference</span><span class="gold">04 · Builders</span></div>
+</div>
+
+<!-- ======================= FIXERS ======================= -->
+<div class="page">
+  <h2 class="section"><span class="no">05</span>Fixer Agents</h2>
+  <p class="lead">Both edit files — and both are bound by strict safety rules: minimal change, verified results, no silent behavior changes.</p>
+
+  <div class="agent fix">
+    <div class="agent-head">
+      <span class="name">flutter-bug-fixer</span>
+      <span class="badge b-inherit">Inherits model</span><span class="badge b-writes">Edits files</span>
+    </div>
+    <div class="meta"><b>Tools:</b> Read · Edit · Bash · Grep · Glob</div>
+    <p class="desc">Senior debugging engineer for runtime errors, build failures, state management problems, performance issues, and architecture violations. Root cause comes before any fix.</p>
+    <div class="krule">Six-step process</div>
+    <ul>
+      <li>Read issue + related files → determine root cause and explain why → propose options, choose the <b>safest</b> → implement (update tests if needed) → verify with <code>flutter analyze</code>, <code>dart format .</code>, <code>flutter test</code> → report root cause, files changed, risks, and verification steps.</li>
+      <li>Checks the full Flutter problem space: rebuilds, memory leaks, async races, Bloc/Cubit and Riverpod issues, navigation, DI, null safety, BuildContext misuse, platform-specific issues.</li>
+    </ul>
+    <div class="krule">Never</div>
+    <ul><li>Random fixes · ignored analyzer warnings · architecture changes without justification · new packages unless necessary.</li></ul>
+  </div>
+
+  <div class="agent fix">
+    <div class="agent-head">
+      <span class="name">refactoring-architect</span>
+      <span class="badge b-inherit">Inherits model</span><span class="badge b-writes">Edits files</span>
+    </div>
+    <div class="meta"><b>Tools:</b> Read · Write · Edit · Bash · Grep · Glob</div>
+    <p class="desc">Staff-level, behavior-preserving refactoring: architecture, readability, maintainability, performance, consistency — while the app behaves <i>exactly</i> as before. Knows this repo's Riverpod/Freezed/GoRouter conventions in depth.</p>
+    <div class="krule">Non-negotiable rules</div>
+    <ul>
+      <li><b>Behavior is frozen.</b> If a change would alter business rules, API contracts, navigation, or UI behavior, it stops and reports it under "Behavior Changes Required" instead.</li>
+      <li><b>Never edits generated files</b> (<code>*.g.dart</code>, <code>*.freezed.dart</code>…) — regenerates with build_runner after touching annotated classes.</li>
+      <li>Stays in scope, never commits or pushes, and prefers many small safe changes over big rewrites.</li>
+      <li><b>Mandatory verification</b> — must actually run and report: <code>dart format</code>, <code>flutter analyze</code> (clean), <code>flutter test</code> (60% threshold). Never deletes a test to go green; "compiled mentally" doesn't count.</li>
+    </ul>
+    <div class="krule">Targets</div>
+    <ul>
+      <li>Guard clauses over nested ifs · meaningful names (no <code>res</code>/<code>tmp</code>/<code>doWork()</code>) · methods ~20–40 lines · dead code removal (git has history) · explicit null handling over <code>!</code> · no empty <code>catch</code> blocks · const constructors and immutability.</li>
+      <li>Reports: Summary · Changes · Verification · Behavior Preserved · Behavior Changes Required · Risks · Suggested Follow-ups.</li>
+    </ul>
+  </div>
+
+  <div class="callout"><b>When to pick which:</b> something is <i>broken</i> → bug-fixer. Something is <i>ugly but working</i> → refactoring-architect. If you only want the findings without edits, use the read-only <code>flutter-clean-code-reviewer</code> instead.</div>
+
+  <div class="pagefoot"><span>Claude Code Toolkit Reference</span><span class="gold">05 · Fixers</span></div>
+</div>
+
+<!-- ======================= REVIEWERS 1 ======================= -->
+<div class="page compact">
+  <h2 class="section"><span class="no">06</span>Reviewer Agents</h2>
+  <p class="lead">Five read-only specialists, each with a distinct lens and an explicit verdict. By default they review the <b>current branch diff</b>, not the whole codebase.</p>
+
+  <div class="agent review">
+    <div class="agent-head">
+      <span class="name">flutter-clean-code-reviewer</span>
+      <span class="badge b-opus">Opus</span><span class="badge b-readonly">Read-only</span>
+    </div>
+    <div class="meta"><b>Lens:</b> Clean Code · SOLID · Clean Architecture · project conventions &nbsp;|&nbsp; <b>Tools:</b> Read · Grep · Glob · Bash</div>
+    <p class="desc">Staff-engineer-strict review of naming, separation of concerns, widget decomposition, duplication, and consistency — plus the repo's hard rules: no hardcoded strings, no magic values, one widget class per file, <code>log()</code> never <code>print()</code>.</p>
+    <div class="krule">Output</div>
+    <ul><li>Issues (Critical/Major/Minor · <code>file:line</code> · problem · fix) → refactored examples → summary with top priorities. Defers performance findings to the performance reviewer.</li></ul>
+  </div>
+
+  <div class="agent review">
+    <div class="agent-head">
+      <span class="name">flutter-performance-reviewer</span>
+      <span class="badge b-opus">Opus</span><span class="badge b-readonly">Read-only</span>
+    </div>
+    <div class="meta"><b>Lens:</b> Rendering · rebuilds · memory · 60fps+ &nbsp;|&nbsp; <b>Tools:</b> Read · Grep · Glob · Bash</div>
+    <p class="desc">Hunts unnecessary rebuilds, missing const constructors, heavy build methods, unpaginated lists, over-emitting Cubits, deep widget trees, uncached images, repeated API calls, and missing debouncing.</p>
+    <div class="krule">Output</div>
+    <ul><li>Issues → severity (High/Medium/Low) → concrete fixes → optimized structure when needed. Small performance issues are not ignored.</li></ul>
+  </div>
+
+  <div class="agent review">
+    <div class="agent-head">
+      <span class="name">flutter-architecture-auditor</span>
+      <span class="badge b-opus">Opus</span><span class="badge b-readonly">Read-only</span>
+    </div>
+    <div class="meta"><b>Lens:</b> 3-year maintainability &nbsp;|&nbsp; <b>Tools:</b> Read · Grep · Glob · Bash</div>
+    <p class="desc">Principal-architect audit of layer boundaries and dependency direction: Domain must not depend on Data or frameworks, DTOs must not leak into Domain, UI holds no business logic. Also weighs scalability, reusability, premature abstraction, and god classes/widgets.</p>
+    <div class="krule">Verdict</div>
+    <ul><li><span class="verdict">PASS</span><span class="verdict">PASS WITH CONCERNS</span><span class="verdict">FAIL</span> + scalability grade (Excellent → Poor) + architectural debt introduced. Evidence-based, no personal preferences.</li></ul>
+  </div>
+
+  <div class="agent review">
+    <div class="agent-head">
+      <span class="name">pre-pr-guardian</span>
+      <span class="badge b-opus">Opus</span><span class="badge b-readonly">Read-only</span>
+    </div>
+    <div class="meta"><b>Lens:</b> Bug prevention before the PR exists &nbsp;|&nbsp; <b>Tools:</b> Read · Grep · Glob · Bash</div>
+    <p class="desc">Principal-engineer pre-flight of the branch: logic bugs, null safety, async/race conditions, error-handling gaps, lifecycle/memory/stream leaks, localization and accessibility problems, missing tests.</p>
+    <div class="krule">Verdict</div>
+    <ul><li>Change Summary → <b>Blocking Issues</b> → Improvements → Suggestions → Test Cases To Verify → <span class="verdict">READY</span> / <span class="verdict">NOT READY</span>. Only actionable findings — no praise, no invented issues.</li></ul>
+  </div>
+
+  <div class="agent review">
+    <div class="agent-head">
+      <span class="name">senior-pr-reviewer</span>
+      <span class="badge b-opus">Opus</span><span class="badge b-readonly">Read-only</span>
+    </div>
+    <div class="meta"><b>Lens:</b> Formal production-grade PR review &nbsp;|&nbsp; <b>Tools:</b> Read · Grep · Glob · Bash</div>
+    <p class="desc">Reviews the full diff and every commit as if it ships tomorrow: correctness, Flutter lifecycle/state, architecture, API &amp; data handling, security (secrets in logs, authorization, unsafe input), and test coverage.</p>
+    <div class="krule">Verdict</div>
+    <ul><li>PR Summary → findings with impact + recommendation → production risk &amp; confidence → <span class="verdict">APPROVE</span><span class="verdict">APPROVE WITH SUGGESTIONS</span><span class="verdict">REQUEST CHANGES</span>.</li></ul>
+  </div>
+
+  <div class="pagefoot"><span>Claude Code Toolkit Reference</span><span class="gold">06 · Reviewers</span></div>
+</div>
+
+<!-- ======================= SKILLS ======================= -->
+<div class="page">
+  <h2 class="section"><span class="no">07</span>Skills — The Feature Builder's Pipeline</h2>
+  <p class="lead">Four focused skills run in sequence inside <code>flutter-feature-builder</code>. Together they take a feature from design to reviewed code without leaving the project's architecture.</p>
+
+  <div class="skill-grid">
+    <div class="skill">
+      <div class="name">1 · figma-to-flutter</div>
+      <p>Converts Figma designs into Flutter UI: analyzes layout, typography, spacing, colors, and components, and detects reusable widgets.</p>
+      <ul>
+        <li><b>Uses:</b> AppColors · AppSpacing · TextStyles · ScreenUtil</li>
+        <li><b>Avoids:</b> hardcoded dimensions, duplicated widgets, inline styling</li>
+        <li><b>Generates:</b> screens, widgets, layouts — <b>UI only</b>, never repositories/use-cases/API logic</li>
+      </ul>
+    </div>
+    <div class="skill">
+      <div class="name">2 · api-integration</div>
+      <p>Generates the networking and business-logic stack to project standards.</p>
+      <ul>
+        <li><b>Produces the full chain:</b> Entity → Model → Mapper → Remote DataSource → Repository → UseCase → Cubit → States → DI registration</li>
+        <li><b>Uses:</b> DioConsumer · BaseRepositoryMixin · existing error handling</li>
+        <li><b>Maps:</b> network, server, unauthorized, and parsing errors — raw exceptions never reach the UI</li>
+      </ul>
+    </div>
+    <div class="skill">
+      <div class="name">3 · project-architecture</div>
+      <p>Validates that every generated feature matches the existing project structure — layers are never bypassed.</p>
+      <ul>
+        <li><b>Structure:</b> <code>data/</code> (datasources · models · mappers · repositories), <code>domain/</code> (entities · repositories · usecases), <code>presentation/</code> (cubit · pages · widgets)</li>
+        <li><b>Core stack:</b> DioConsumer · BaseRepositoryMixin · Failure/Exception hierarchies · GetIt · GoRouter · Cubit/BLoC</li>
+      </ul>
+    </div>
+    <div class="skill">
+      <div class="name">4 · flutter-reviewer</div>
+      <p>Self-review gate before the builder returns its output.</p>
+      <ul>
+        <li><b>Checks:</b> layer separation, no business logic in UI, no direct API calls from widgets, meaningful names, small focused classes, no unnecessary rebuilds, proper state management / DI / navigation / localization</li>
+        <li><b>Delivers:</b> issues found, suggested improvements, final approval</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="callout">
+    <b>Why skills instead of one giant prompt?</b> Each stage has a crisp contract — the UI skill can't invent API logic and the API skill can't restructure the architecture. That keeps generated features uniform across the whole team regardless of who prompts.
+  </div>
+
+  <div class="pagefoot"><span>Claude Code Toolkit Reference</span><span class="gold">07 · Skills</span></div>
+</div>
+
+<!-- ======================= COMMAND / TEMPLATE / TOOL ======================= -->
+<div class="page">
+  <h2 class="section"><span class="no">08</span>Command · Template · Tool</h2>
+
+  <h3>⌘ /commit-message — <span style="font-weight:400">Conventional Commits from the staged diff</span></h3>
+  <p class="lead">Analyzes <code>git diff --staged</code> and returns exactly one line — no markdown, no explanation. Present tense, short, meaningful, optional scope.</p>
+  <div style="display:grid;grid-template-columns:1fr 1.3fr;gap:4.5mm;">
+    <div>
+      <pre><b>Types</b>
+feat      new feature
+fix       bug fix
+refactor  code restructure
+chore     maintenance
+ui        UI changes
+api       API integration
+test      adding/updating tests
+docs      documentation</pre>
+    </div>
+    <div>
+      <pre><b>Examples</b>
+feat(auth): add login validation
+fix(api): handle timeout error in user request
+refactor(core): simplify repository structure
+ui(login): improve form layout responsiveness</pre>
+    </div>
+  </div>
+
+  <h3 style="margin-top:8mm">📋 feature-template — <span style="font-weight:400">what a developer fills in</span></h3>
+  <p class="lead">The standard request form for a new feature. Complete it, then hand it to the feature-prompt-generator.</p>
+  <pre>## FEATURE NAME      Login Feature
+## FIGMA             https://www.figma.com/file/xxxxx  (or MCP link)
+## API SPEC          POST /auth/login  + request/response JSON
+## BEHAVIOR          user actions · loading · success flow · error handling
+## REQUIREMENTS      AR/EN · responsive · Clean Architecture · existing theme · Cubit
+## NOTES (optional)  exclusions, e.g. "social login not included"</pre>
+
+  <h3 style="margin-top:8mm">⚙️ feature-prompt-generator — <span style="font-weight:400">template in, build-prompt out</span></h3>
+  <p class="lead">Converts the filled template into a structured, production-ready prompt for <code>flutter-feature-builder</code>: context, behavior (incl. loading/success/error/edge cases/navigation), requirements, UI guidelines, architecture guidelines, and acceptance criteria.</p>
+  <div class="callout">
+    <b>Hard execution boundary:</b> this tool <b>only generates prompts</b>. It never implements, edits files, or emits Dart code — even if the input says "work on it", "fix it", "implement", or "build". Those words are deliberately ignored; the output is always a prompt artifact for the downstream builder.
+  </div>
+  <ul style="margin-left:15px; font-size:9.3pt; color:var(--ink-soft)">
+    <li>Baked-in requirements: Clean Architecture, Cubit/BLoC, responsive UI, AR/EN localization, theme system, component reuse.</li>
+    <li>Baked-in UI rules: small reusable widgets, no monolithic screens, ~120–150 lines max per widget file, strict design-system adherence.</li>
+  </ul>
+
+  <div class="pagefoot"><span>Claude Code Toolkit Reference</span><span class="gold">08 · Command · Template · Tool</span></div>
+</div>
+
+<!-- ======================= CONVENTIONS ======================= -->
+<div class="page">
+  <h2 class="section"><span class="no">09</span>House Rules Cheat Sheet</h2>
+  <p class="lead">The project's non-negotiables — builders apply them, reviewers flag every violation.</p>
+
+  <div class="conv-grid">
+    <div class="conv">
+      <h4>Strings &amp; localization</h4>
+      <ul>
+        <li>No hardcoded user-facing text — use <code>AppLocalizations</code> / <code>context.tr</code></li>
+        <li>Constant string keys live in <code>AppStrings</code></li>
+        <li>Every string ships with both AR and EN entries; all UI must work RTL</li>
+      </ul>
+    </div>
+    <div class="conv">
+      <h4>Design tokens — no magic values</h4>
+      <ul>
+        <li>Colors: <code>AppColors</code> only — never inline <code>Color(0xFF…)</code>; add a token if missing</li>
+        <li>Spacing / radii / durations: <code>AppSpacing</code>, theme tokens, or named constants</li>
+        <li>Typography: <code>TextStyles</code> + <code>.copyWith(fontSize: X.sp)</code> — ClashGrotesk &amp; Sentient</li>
+        <li>Assets registered in <code>AppAssets</code> / <code>AppIcons</code></li>
+      </ul>
+    </div>
+    <div class="conv">
+      <h4>Responsive sizing</h4>
+      <ul>
+        <li><code>flutter_screenutil</code>: <code>.w</code> width · <code>.h</code> height · <code>.r</code> radius · <code>.sp</code> font</li>
+        <li>designSize <b>402×874</b> = the Figma artboard → Figma px map 1:1</li>
+        <li>Use <code>flex</code> in Rows/Columns; never raw pixel doubles</li>
+      </ul>
+    </div>
+    <div class="conv">
+      <h4>Widget composition</h4>
+      <ul>
+        <li>One top-level widget class per file — always</li>
+        <li>Small composable widgets over monoliths (~120–150 lines/widget file)</li>
+        <li>Screens compose; they never implement UI blocks inline</li>
+        <li>UI repeated 2+ times → extract a widget</li>
+      </ul>
+    </div>
+    <div class="conv">
+      <h4>Architecture</h4>
+      <ul>
+        <li>Clean Architecture per feature: <code>data</code> / <code>domain</code> / <code>presentation</code></li>
+        <li>No business logic in widgets; no direct API calls from UI</li>
+        <li>Domain depends on nothing; DTOs never leak into Domain</li>
+        <li>Never bypass DioConsumer / BaseRepositoryMixin / Failure hierarchy</li>
+      </ul>
+    </div>
+    <div class="conv">
+      <h4>Hygiene &amp; verification</h4>
+      <ul>
+        <li><code>log()</code> — never <code>print()</code></li>
+        <li>Never edit generated files (<code>*.g.dart</code>, <code>*.freezed.dart</code>) — re-run build_runner</li>
+        <li>Before done: <code>dart format</code> · <code>flutter analyze</code> clean · <code>flutter test</code> (60% coverage)</li>
+        <li>No commented-out code — git has the history</li>
+      </ul>
+    </div>
+  </div>
+
+  <h3>The one rule everyone gets wrong</h3>
+  <p class="lead" style="margin-bottom:1.5mm">Helper methods that return widgets are banned — they lose their const constructor and rebuild boundary, so they rebuild with the entire parent. Applies even for single-use blocks:</p>
+  <div class="good-bad">
+    <div class="gb bad">
+      <span class="lbl">❌ NEVER</span>
+      <pre>Widget _buildActionButtons({double? size}) {
+  return Row(children: [...]);
+}</pre>
+    </div>
+    <div class="gb good">
+      <span class="lbl">✅ ALWAYS</span>
+      <pre>// profile_header_actions.dart
+class ProfileHeaderActions extends StatelessWidget {
+  const ProfileHeaderActions({super.key,
+    required this.onSettings, ...});
+  ...
+}</pre>
+    </div>
+  </div>
+  <div class="callout" style="margin-top:4mm">
+    <b>Source of truth:</b> everything in this document lives in <code>.claude/</code> and <code>CLAUDE.md</code> in the repo.
+    When an agent definition changes, regenerate this reference — the files, not the PDF, are canonical.
+  </div>
+
+  <div class="pagefoot"><span>Claude Code Toolkit Reference</span><span class="gold">09 · House Rules</span></div>
+</div>
+
+</body>
+</html>

@@ -4,6 +4,9 @@ import { newId, now } from '@/utils/id';
 import type { Item } from '@/db/schema';
 import type { DocDb } from './document-repository';
 
+/** Haggling policy for an item's sale price. See docs/plan/features/02. */
+export type PricingMode = 'fixed' | 'negotiable';
+
 /** An item joined with its cached on-hand quantity (from the stock ledger). */
 export interface ItemWithStock {
   id: string;
@@ -12,7 +15,9 @@ export interface ItemWithStock {
   unit: string;
   barcode: string | null;
   costPrice: number; // minor units
-  salePrice: number; // minor units
+  salePrice: number; // minor units — the LIST price
+  pricingMode: PricingMode;
+  minPrice: number | null; // minor units; null = no floor
   lowStockThreshold: number;
   qtyOnHand: number;
   tags: string[];
@@ -26,6 +31,8 @@ export interface CreateItemInput {
   barcode?: string | null;
   costPrice?: number; // minor units
   salePrice?: number; // minor units
+  pricingMode?: PricingMode; // default 'fixed'
+  minPrice?: number | null; // minor units; null = no floor
   lowStockThreshold?: number;
   tags?: string[];
   notes?: string | null;
@@ -47,6 +54,10 @@ const parseTags = (raw: string | null): string[] => {
 
 /** Case/space-insensitive match key for find-or-create dedupe. */
 export const nameKey = (name: string): string => name.trim().toLowerCase();
+
+/** The column is open TEXT; anything unrecognised falls back to the safe default. */
+const toPricingMode = (raw: string | null): PricingMode =>
+  raw === 'negotiable' ? 'negotiable' : 'fixed';
 
 /** Thrown when a barcode collides with another live item. */
 export class DuplicateBarcodeError extends Error {
@@ -94,6 +105,8 @@ export function createItemRepository(database: DocDb) {
           barcode: schema.items.barcode,
           costPrice: schema.items.costPrice,
           salePrice: schema.items.salePrice,
+          pricingMode: schema.items.pricingMode,
+          minPrice: schema.items.minPrice,
           lowStockThreshold: schema.items.lowStockThreshold,
           tags: schema.items.tags,
           notes: schema.items.notes,
@@ -103,7 +116,12 @@ export function createItemRepository(database: DocDb) {
         .leftJoin(schema.stockLevels, eq(schema.stockLevels.itemId, schema.items.id))
         .where(isNull(schema.items.deletedAt))
         .all()
-        .map((row) => ({ ...row, qtyOnHand: row.qtyOnHand ?? 0, tags: parseTags(row.tags) }));
+        .map((row) => ({
+          ...row,
+          qtyOnHand: row.qtyOnHand ?? 0,
+          tags: parseTags(row.tags),
+          pricingMode: toPricingMode(row.pricingMode),
+        }));
     },
 
     /**
@@ -136,6 +154,8 @@ export function createItemRepository(database: DocDb) {
         costPrice: input.costPrice ?? 0,
         salePrice: input.salePrice ?? 0,
         currency: 'EGP',
+        pricingMode: input.pricingMode ?? 'fixed',
+        minPrice: input.minPrice ?? null,
         lowStockThreshold: input.lowStockThreshold ?? 0,
         photoUri: input.photoUri ?? null,
         tags: input.tags && input.tags.length ? JSON.stringify(input.tags) : null,

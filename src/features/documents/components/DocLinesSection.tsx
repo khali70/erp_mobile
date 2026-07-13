@@ -87,11 +87,12 @@ export function DocLinesSection({
         </View>
       ) : (
         <View className="gap-3">
-          {lines.map((line) => (
+          {lines.map((line, i) => (
             <DocLineRow
               key={line.id}
               line={line}
               mode={mode}
+              isNewest={i === lines.length - 1}
               onInc={() => onMutateQty(line.id, 1)}
               onDec={() => onMutateQty(line.id, -1)}
               onQty={(q) => onSetQty(line.id, q)}
