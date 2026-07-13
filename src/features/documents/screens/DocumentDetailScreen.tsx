@@ -1,4 +1,4 @@
-import { View, Text, ScrollView } from 'react-native';
+import { View, Text, ScrollView, Pressable } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RouteProp } from '@react-navigation/native';
@@ -10,6 +10,7 @@ import type { RootStackParamList } from '@/navigation/RootNavigator';
 import { ScreenHeader } from '@/components/ui/ScreenHeader';
 import { toArabicDigits } from '@/utils/numerals';
 import { useDocumentDetail } from '../hooks/useDocumentDetail';
+import { openAttachment } from '../utils/attachments';
 
 /**
  * تفاصيل المستند — one document with its lines and a report roll-up
@@ -90,6 +91,16 @@ export function DocumentDetailScreen() {
           </View>
         </View>
 
+        {/* Counterparty (supplier / customer) */}
+        {detail.partyLabel ? (
+          <View className="bg-surface rounded-2xl p-4 border border-border gap-1.5">
+            <Text className="text-xs font-bold text-muted text-right">
+              {incoming ? t('documents.incoming.party') : t('documents.outgoing.party')}
+            </Text>
+            <Text className="text-sm text-ink text-right">{detail.partyLabel}</Text>
+          </View>
+        ) : null}
+
         {/* Optional doc note */}
         {detail.noteLabel ? (
           <View className="bg-surface rounded-2xl p-4 border border-border gap-1.5">
@@ -97,6 +108,31 @@ export function DocumentDetailScreen() {
               {t('documents.detail.note')}
             </Text>
             <Text className="text-sm text-ink text-right">{detail.noteLabel}</Text>
+          </View>
+        ) : null}
+
+        {/* Receipt attachments */}
+        {detail.attachments.length > 0 ? (
+          <View className="bg-surface rounded-2xl p-4 border border-border gap-2">
+            <Text className="text-xs font-bold text-muted text-right">
+              {t('documents.attachments.title')}
+            </Text>
+            {detail.attachments.map((a) => (
+              <Pressable
+                key={a.id}
+                className={`${ROW} items-center gap-2 bg-background rounded-xl px-3 py-2.5`}
+                onPress={() => openAttachment(a)}
+                accessibilityRole="button"
+              >
+                <Feather
+                  name={a.mime.startsWith('image/') ? 'image' : 'file-text'}
+                  size={16}
+                  color={colors.muted}
+                />
+                <Text className="text-ink text-sm text-right flex-1" numberOfLines={1}>{a.name}</Text>
+                <Feather name="external-link" size={15} color={colors.muted} />
+              </Pressable>
+            ))}
           </View>
         ) : null}
 

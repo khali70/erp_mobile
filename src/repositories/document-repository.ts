@@ -18,6 +18,14 @@ export type DocDb = BaseSQLiteDatabase<'sync', any, typeof schema>;
 
 export type DocKind = 'incoming' | 'outgoing';
 
+/** Attachment metadata stored on the document (JSON). Bytes live in attachments.db. */
+export interface AttachmentMeta {
+  id: string;
+  name: string;
+  mime: string;
+  size: number;
+}
+
 export interface DocumentLineInput {
   itemId: string;
   qty: number; // > 0 magnitude
@@ -32,6 +40,8 @@ export interface CreateDocumentInput {
   lines: DocumentLineInput[];
   docDate?: number;
   note?: string;
+  partyId?: string | null; // suppliers.id (incoming) / customers.id (outgoing); null = walk-in
+  attachments?: AttachmentMeta[]; // receipt metadata; bytes already in attachments.db
   status?: 'draft' | 'posted'; // default 'draft'
 }
 
@@ -133,7 +143,9 @@ export function createDocumentRepository(db: DocDb) {
         docDate: input.docDate ?? ts,
         totalAmount: total,
         postedAt: null,
+        partyId: input.partyId ?? null,
         note: input.note ?? null,
+        attachments: input.attachments?.length ? JSON.stringify(input.attachments) : null,
       })
       .run();
     for (const l of input.lines) {
@@ -154,6 +166,23 @@ export function createDocumentRepository(db: DocDb) {
         .run();
     }
     return id;
+  }
+
+  function parseAttachments(raw: string | null): AttachmentMeta[] {
+    if (!raw) return [];
+    try {
+      const parsed = JSON.parse(raw);
+      return Array.isArray(parsed) ? (parsed as AttachmentMeta[]) : [];
+    } catch {
+      return [];
+    }
+  }
+
+  /** Resolve the counterparty name from its FK, keyed off the doc kind. */
+  function partyNameFor(kind: string, partyId: string): string | null {
+    const table = kind === 'in' ? schema.suppliers : schema.customers;
+    const row = db.select({ name: table.name }).from(table).where(eq(table.id, partyId)).get();
+    return row?.name ?? null;
   }
 
   function affectedItemIds(docId: string): string[] {
@@ -281,7 +310,9 @@ export function createDocumentRepository(db: DocDb) {
           ),
         )
         .all();
-      return { ...doc, lines };
+      const attachments = parseAttachments(doc.attachments);
+      const partyName = doc.partyId ? partyNameFor(doc.kind, doc.partyId) : null;
+      return { ...doc, lines, attachments, partyName };
     },
 
     /**

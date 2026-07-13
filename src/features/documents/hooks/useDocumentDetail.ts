@@ -28,7 +28,13 @@ export function useDocumentDetail(documentId: string) {
       note: l.note,
       itemName: itemRepository.getById(l.itemId)?.name ?? null,
     }));
-    setDetail(presentDocumentDetail({ ...doc, lines }, t, i18n.language));
+    setDetail(
+      presentDocumentDetail(
+        { ...doc, partyName: doc.partyName, attachments: doc.attachments, lines },
+        t,
+        i18n.language,
+      ),
+    );
   }, [documentId, t, i18n.language]);
 
   useEffect(() => {

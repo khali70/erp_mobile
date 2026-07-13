@@ -1,6 +1,7 @@
 import type { TFunction } from 'i18next';
 import { formatMoney, lineTotal } from '@/utils/money';
 import { formatDay } from '@/utils/numerals';
+import type { AttachmentMeta } from '@/repositories/document-repository';
 import type { DocumentRow } from './hooks/useDocuments';
 
 export interface DocumentRowViewModel {
@@ -42,7 +43,9 @@ export interface DocumentDetailViewModel {
   docLabel: string;
   dateLabel: string;
   kindLabel: string;
+  partyLabel: string | null;
   noteLabel: string | null;
+  attachments: AttachmentMeta[];
   lines: DocumentLineViewModel[];
   /** Report roll-up. */
   itemCount: number;
@@ -68,7 +71,9 @@ interface DetailDocInput {
   docDate: number | null;
   createdAt: number;
   totalAmount: number;
+  partyName: string | null;
   note: string | null;
+  attachments: AttachmentMeta[];
   lines: DetailLineInput[];
 }
 
@@ -94,7 +99,9 @@ export function presentDocumentDetail(
     docLabel: doc.docNo ?? t('documents.untitled'),
     dateLabel: formatDay(when, lang),
     kindLabel: kind === 'in' ? t('documents.kind.incoming') : t('documents.kind.outgoing'),
+    partyLabel: doc.partyName && doc.partyName.trim() ? doc.partyName : null,
     noteLabel: doc.note && doc.note.trim() ? doc.note : null,
+    attachments: doc.attachments,
     lines,
     itemCount: lines.length,
     totalQty: doc.lines.reduce((s, l) => s + l.qty, 0),

@@ -61,7 +61,13 @@ export const documents = sqliteTable('documents', {
   docDate: integer('doc_date'), // epoch ms the doc represents
   totalAmount: integer('total_amount').notNull().default(0), // cached Σ line totals, minor units
   postedAt: integer('posted_at'), // epoch ms when posted
-  note: text('note'),
+  // Counterparty FK: suppliers.id for incoming, customers.id for outgoing.
+  // null = walk-in (direct cash, no registered party). Kind picks the table.
+  partyId: text('party_id'),
+  note: text('note'), // free-text note the owner typed on the document
+  // Receipt attachments: JSON [{ id, name, mime, size }] metadata only. The bytes
+  // live in the separate attachments.db (BLOB), loaded lazily. null = none.
+  attachments: text('attachments'),
 });
 
 export const documentLines = sqliteTable('document_lines', {

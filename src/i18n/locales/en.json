@@ -243,6 +243,14 @@
       "total": "Total"
     },
     "save": "Save document",
+    "note": "Note",
+    "notePlaceholder": "Add a note for this document (optional)",
+    "attachments": {
+      "title": "Receipts & attachments",
+      "addPhoto": "Photo",
+      "addFile": "File",
+      "empty": "No attachments yet"
+    },
     "picker": {
       "searchPlaceholder": "Search by name or phone...",
       "debtTag": "Owes"

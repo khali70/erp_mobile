@@ -1,4 +1,4 @@
-import { View, ScrollView, Pressable, Text } from 'react-native';
+import { View, ScrollView, Pressable, Text, TextInput } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import Feather from '@expo/vector-icons/Feather';
 import colors from '@/theme/colors';
@@ -10,6 +10,7 @@ import { PartyCard } from '../components/PartyCard';
 import { RestoredDraftBanner } from '../components/RestoredDraftBanner';
 import { DocLinesSection } from '../components/DocLinesSection';
 import { DocSummaryCard } from '../components/DocSummaryCard';
+import { AttachmentsCard } from '../components/AttachmentsCard';
 import { SaveDocButton } from '../components/SaveDocButton';
 import { DocFormModals } from '../components/DocFormModals';
 
@@ -72,6 +73,26 @@ export function NewIncomingScreen() {
           onToggleLock={f.toggleLock}
           onAddQuick={f.addQuickLine}
           titleSuggestions={f.titleSuggestions}
+        />
+
+        <View className="bg-surface rounded-2xl p-4 border border-border gap-2">
+          <Text className="text-xs font-bold text-muted text-right">{t('documents.note')}</Text>
+          <TextInput
+            value={f.note}
+            onChangeText={f.setNote}
+            placeholder={t('documents.notePlaceholder')}
+            placeholderTextColor={colors.muted}
+            multiline
+            className="text-ink text-sm text-right bg-background rounded-xl px-3 py-2.5 min-h-[64px]"
+            style={{ textAlignVertical: 'top' }}
+          />
+        </View>
+
+        <AttachmentsCard
+          attachments={f.attachments}
+          onAddPhoto={f.addPhoto}
+          onAddFile={f.addFile}
+          onRemove={f.removeAttachment}
         />
 
         <DocSummaryCard count={f.lines.length} total={f.total} />

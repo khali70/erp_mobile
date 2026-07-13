@@ -1,5 +1,6 @@
 import type { openDatabaseSync } from 'expo-sqlite';
 import { sqlite } from './client';
+import { initAttachmentsDb } from './attachments-client';
 
 // Forward-only bootstrap migration, run once at app boot.
 // Additive only. Never destructive without an explicit backup step.
@@ -36,7 +37,9 @@ export function runMigrations(): void {
       doc_date INTEGER,
       total_amount INTEGER NOT NULL DEFAULT 0,
       posted_at INTEGER,
-      note TEXT
+      party_id TEXT,
+      note TEXT,
+      attachments TEXT
     );
 
     CREATE TABLE IF NOT EXISTS document_lines (
@@ -110,6 +113,9 @@ export function runMigrations(): void {
   addColumnIfMissing(sqlite, 'documents', 'doc_date', 'INTEGER');
   addColumnIfMissing(sqlite, 'documents', 'total_amount', 'INTEGER NOT NULL DEFAULT 0');
   addColumnIfMissing(sqlite, 'documents', 'posted_at', 'INTEGER');
+  // Counterparty FK + receipt note/attachments (additive on upgraded installs).
+  addColumnIfMissing(sqlite, 'documents', 'party_id', 'TEXT');
+  addColumnIfMissing(sqlite, 'documents', 'attachments', 'TEXT');
   // Rich items: denormalized tag-name array (JSON) + free notes.
   addColumnIfMissing(sqlite, 'items', 'tags', 'TEXT');
   addColumnIfMissing(sqlite, 'items', 'notes', 'TEXT');
@@ -117,6 +123,9 @@ export function runMigrations(): void {
   addColumnIfMissing(sqlite, 'document_lines', 'title', 'TEXT');
   addColumnIfMissing(sqlite, 'document_lines', 'note', 'TEXT');
   addColumnIfMissing(sqlite, 'document_lines', 'image_uri', 'TEXT');
+
+  // Attachment bytes live in a separate DB file — bootstrap it here too.
+  initAttachmentsDb();
 }
 
 function addColumnIfMissing(

@@ -56,7 +56,9 @@ CREATE TABLE documents (
   doc_date INTEGER,
   total_amount INTEGER NOT NULL DEFAULT 0,
   posted_at INTEGER,
-  note TEXT
+  party_id TEXT,
+  note TEXT,
+  attachments TEXT
 );
 CREATE TABLE document_lines (
   id TEXT PRIMARY KEY,

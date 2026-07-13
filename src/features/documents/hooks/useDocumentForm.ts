@@ -9,9 +9,15 @@ import { parseStockCsv, parseAmount, type ImportRow } from '../utils/importStock
 import { useItems } from '@/features/inventory/hooks/useItems';
 import { useSettingsStore } from '@/store/settings-store';
 import { documentRepository } from '@/repositories/document-repository.client';
-import { NegativeStockError, type DocumentLineInput } from '@/repositories/document-repository';
+import {
+  NegativeStockError,
+  type DocumentLineInput,
+  type AttachmentMeta,
+} from '@/repositories/document-repository';
+import { attachmentRepository } from '@/repositories/attachment-repository';
 import { itemRepository } from '@/repositories/item-repository.client';
 import { tagRepository } from '@/repositories/tag-repository.client';
+import { pickPhoto, pickFile, ingest, removeAttachment as removeAttachmentFile } from '../utils/attachments';
 import type { InventoryItem } from '@/features/inventory/types';
 import { useDocDraft } from './useDocDraft';
 import { useParties } from './useParties';
@@ -68,6 +74,8 @@ export function useDocumentForm(mode: DocMode) {
   const [csvImportOpen, setCsvImportOpen] = useState(false);
   const [importRows, setImportRows] = useState<ImportRow[]>([]);
   const [lines, setLines] = useState<DocLine[]>(draft.lines);
+  const [note, setNote] = useState(draft.note ?? '');
+  const [attachments, setAttachments] = useState<AttachmentMeta[]>(draft.attachments ?? []);
   const [saving, setSaving] = useState(false);
   const [wasRestored] = useState(draft.lines.length > 0);
   // Fast-entry: 'list' picks from the catalog; 'quick' types title/price/qty
@@ -89,8 +97,42 @@ export function useDocumentForm(mode: DocMode) {
   // Mirror the working buffer to MMKV on every change so an OS kill or mistap
   // mid-entry never loses input; it re-hydrates on the next mount.
   useEffect(() => {
-    persistDraft({ lines, partyName: party?.name ?? null, quick: { values: quick, locks } });
-  }, [lines, party, quick, locks, persistDraft]);
+    persistDraft({
+      lines,
+      partyName: party?.name ?? null,
+      note,
+      attachments,
+      quick: { values: quick, locks },
+    });
+  }, [lines, party, note, attachments, quick, locks, persistDraft]);
+
+  // Receipt attachments: pick → compress/store bytes immediately → track metadata.
+  const addPhoto = useCallback(async () => {
+    const picked = await pickPhoto();
+    if (!picked) return;
+    try {
+      const meta = await ingest(picked);
+      setAttachments((prev) => [...prev, meta]);
+    } catch (err) {
+      Alert.alert(t('documents.errors.title'), String((err as Error)?.message ?? err));
+    }
+  }, [t]);
+
+  const addFile = useCallback(async () => {
+    const picked = await pickFile();
+    if (!picked) return;
+    try {
+      const meta = await ingest(picked);
+      setAttachments((prev) => [...prev, meta]);
+    } catch (err) {
+      Alert.alert(t('documents.errors.title'), String((err as Error)?.message ?? err));
+    }
+  }, [t]);
+
+  const removeAttachment = useCallback((id: string) => {
+    removeAttachmentFile(id);
+    setAttachments((prev) => prev.filter((a) => a.id !== id));
+  }, []);
 
   const discardDraft = () => {
     Alert.alert(t('documents.draft.discardTitle'), t('documents.draft.discardBody'), [
@@ -99,9 +141,12 @@ export function useDocumentForm(mode: DocMode) {
         text: t('documents.draft.discardConfirm'),
         style: 'destructive',
         onPress: () => {
+          attachments.forEach((a) => removeAttachmentFile(a.id));
           setLines([]);
           setParty(null);
           setChosen(false);
+          setNote('');
+          setAttachments([]);
           setQuick(EMPTY_QUICK);
           setLocks(NO_LOCKS);
           clearDraft();
@@ -322,15 +367,19 @@ export function useDocumentForm(mode: DocMode) {
         }
         return { itemId, qty: l.qty, unitPrice: priceMinor, title, note: l.note ?? null, imageUri: l.imageUri ?? null };
       });
-      documentRepository.create(
+      const docId = documentRepository.create(
         {
           kind: mode === 'sale' ? 'outgoing' : 'incoming',
           status: 'posted',
-          note: party?.name ?? undefined,
+          partyId: party?.id ?? null,
+          note: note.trim() || undefined,
+          attachments,
           lines: resolvedLines,
         },
         { allowNegative: allowNegativeStock },
       );
+      // Backfill the doc id onto the attachment bytes now that it exists.
+      if (attachments.length) attachmentRepository.assignDocument(attachments.map((a) => a.id), docId);
       clearDraft(); // posted to the ledger — the scratch buffer is done
       Alert.alert(t('documents.saved'), t('documents.savedBody'), [
         { text: t('documents.ok'), onPress: () => navigation.goBack() },
@@ -383,6 +432,12 @@ export function useDocumentForm(mode: DocMode) {
     party,
     isWalkIn,
     partyLabel,
+    note,
+    setNote,
+    attachments,
+    addPhoto,
+    addFile,
+    removeAttachment,
     saving,
     wasRestored,
     // dialog / mode state

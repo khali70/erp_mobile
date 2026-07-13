@@ -1,5 +1,6 @@
 import { useCallback, useRef } from 'react';
 import { storage } from '@/store/mmkv';
+import type { AttachmentMeta } from '@/repositories/document-repository';
 import type { DocLine, DocMode, QuickEntryValues, QuickEntryLocks } from '../types';
 
 /**
@@ -15,6 +16,10 @@ import type { DocLine, DocMode, QuickEntryValues, QuickEntryLocks } from '../typ
 export interface DocDraftBuffer {
   lines: DocLine[];
   partyName: string | null;
+  // Free-text note + receipt attachment metadata. Bytes already live in
+  // attachments.db, so persisting the metadata alone re-hydrates the chips.
+  note?: string;
+  attachments?: AttachmentMeta[];
   quick?: { values: QuickEntryValues; locks: QuickEntryLocks } | null;
 }
 
@@ -49,7 +54,13 @@ export function useDocDraft(mode: DocMode) {
 
   const persist = useCallback(
     (buffer: DocDraftBuffer) => {
-      if (buffer.lines.length === 0 && !buffer.partyName && !quickHasContent(buffer.quick)) {
+      if (
+        buffer.lines.length === 0 &&
+        !buffer.partyName &&
+        !buffer.note &&
+        !buffer.attachments?.length &&
+        !quickHasContent(buffer.quick)
+      ) {
         storage.remove(key);
         return;
       }

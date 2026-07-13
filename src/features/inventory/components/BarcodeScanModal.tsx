@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import { View, Text, Pressable, Modal } from 'react-native';
+import { View, Text, Pressable, Modal, StyleSheet } from 'react-native';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { useTranslation } from 'react-i18next';
 import Feather from '@expo/vector-icons/Feather';
@@ -92,9 +92,17 @@ export function BarcodeScanModal({ visible, onClose, onScanned }: BarcodeScanMod
                 )}
               </View>
             ) : (
-              <View className="rounded-2xl overflow-hidden border border-primary/30 h-64 bg-black">
+                  // Android's native camera surface ignores an ancestor's
+                  // border-radius, so it bleeds past rounded corners. Mask it with
+                  // an explicit clipped wrapper (inline overflow + radius forces a
+                  // hardware layer) and pin the preview with absoluteFill so it
+                  // can't exceed the box.
+                  <View
+                    className="border border-primary/30 h-64 bg-black"
+                    style={{ borderRadius: 16, overflow: 'hidden' }}
+                  >
                 <CameraView
-                  style={{ flex: 1 }}
+                      style={StyleSheet.absoluteFill}
                   barcodeScannerSettings={{ barcodeTypes: [...BARCODE_TYPES] }}
                   onBarcodeScanned={({ data }) => handleScan(data)}
                 />
