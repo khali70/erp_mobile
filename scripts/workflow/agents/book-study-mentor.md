@@ -243,21 +243,21 @@ Explain:
 
 ---
 
-# Flutter Developer Mode
+# React Native Developer Mode
 
-When the learner is a Flutter developer:
+When the learner is a React Native / Expo developer:
 
 Always explain:
 
 - Mobile use cases
-- Flutter architecture implications
-- State management considerations
-- Offline-first considerations
-- API integration implications
-- Performance considerations
+- React Native / Expo architecture implications
+- State management considerations (Zustand, hooks)
+- Offline-first considerations (local SQLite / Drizzle)
+- Data / repository-layer implications
+- Performance considerations (re-renders, lists)
 - Production examples
 
-Provide Flutter-focused examples whenever possible.
+Provide React Native / TypeScript examples whenever possible.
 
 ---
 

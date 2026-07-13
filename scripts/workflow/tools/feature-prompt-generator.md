@@ -2,7 +2,7 @@
 
 ## 🎯 Goal
 
-Convert raw inputs (Feature name, Figma link, API spec, notes) into a structured, production-ready **prompt** for the Flutter Feature Builder Agent.
+Convert raw inputs (feature name, reference screen/screenshot, data spec, notes) into a structured, production-ready **prompt** for the React Native Feature Builder Agent (`rn-feature-builder`).
 
 > ⚠️ CRITICAL RULE:
 > This tool ONLY generates prompts.
@@ -18,13 +18,13 @@ You will receive:
 
 {{feature_name}}
 
-### Figma Link
+### Reference (optional)
 
-{{figma_link}}
+{{reference}}  <!-- a screenshot, a sketch, or "same layout as <existing screen>" -->
 
-### API
+### Data Spec
 
-{{api_spec}}
+{{data_spec}}  <!-- entities/fields, and where they live: local SQLite table via a repository -->
 
 ### Notes (optional)
 
@@ -36,10 +36,10 @@ You will receive:
 
 - Output ONLY the generated prompt
 - Do NOT execute any feature
-- Do NOT write Dart/Flutter code
+- Do NOT write TypeScript/React Native code
 - Do NOT modify files
 - Do NOT suggest implementation steps outside the prompt
-- Do NOT act as a Flutter developer
+- Do NOT act as a React Native developer
 
 Your job ends immediately after producing the prompt.
 
@@ -47,153 +47,89 @@ Your job ends immediately after producing the prompt.
 
 ## 🚫 EXECUTION BOUNDARY (CRITICAL)
 
-This tool MUST NEVER:
-
-- Implement any feature
-- Modify or suggest direct code changes
-- Open, edit, or reason at file-level implementation
-- Act as Flutter Feature Builder
-- Produce Dart/Flutter code snippets
-
-Even if the input contains words like:
-"work on it", "fix it", "implement", "build", "apply"
-
-👉 These MUST be ignored for execution purposes.
-
-You must STILL ONLY generate a structured prompt.
+This tool MUST NEVER implement a feature, modify/suggest code changes, edit files, act as the Feature Builder, or produce code snippets — even if the input says "work on it", "fix it", "implement", "build", "apply". Those words MUST be ignored for execution purposes. You must STILL ONLY generate a structured prompt.
 
 ---
 
 ## 🧠 INTERPRETATION RULE
 
-Always assume:
-
-- The user intent is **prompt generation only**
-- NOT feature execution
-- NOT code implementation
-
-Even if the request sounds like a development task.
-
----
-
-## FEATURE NAME
-
-{{feature_name}}
-
----
-
-## FIGMA
-
-{{figma_link}}
-
----
-
-## API SPEC
-
-{{api_spec}}
+Always assume the user intent is **prompt generation only** — NOT feature execution, NOT code implementation — even if the request sounds like a development task.
 
 ---
 
 ## BEHAVIOR
 
-Extract expected user behavior from the feature context.
-
-Include:
+Extract expected user behavior from the feature context:
 
 - User actions
-- Loading states
+- Loading / empty / error states
 - Success flow
-- Error handling
 - Edge cases
 - Navigation flow (if applicable)
+- Offline behavior (data reads/writes go to local SQLite)
 
 ---
 
-## REQUIREMENTS
+## REQUIREMENTS (always include)
 
-Always include:
-
-- Clean Architecture compliance
-- Cubit/BLoC state management
-- Responsive UI design
-- Localization support (AR/EN)
-- Theme system usage
-- Reuse existing components when possible
-
----
+- Feature-first structure (`src/features/<feature>/{screens,components,hooks,utils,types.ts}`)
+- Zustand for cross-screen state; hooks for feature logic
+- Data access via `src/repositories/*` (Drizzle + expo-sqlite) — never from screens
+- React Navigation wiring (routes in `RootStackParamList`)
+- NativeWind + `src/theme/colors` tokens; RTL via `src/theme/rtl`
+- Localization AR/EN (`ar.json` + `en.json`)
+- Reuse existing `src/components/ui/*` components
 
 ## UI RULES
 
-- Split UI into small reusable widgets
-- Avoid monolithic screens
-- Max 120–150 lines per widget file
-- Extract shared components
-- Follow existing design system strictly
-
----
+- Split UI into small reusable components (one per file)
+- No monolithic screens; no inline `renderX()` JSX helpers
+- Screens only compose + navigate + wire state
+- Follow the existing design system/tokens strictly
 
 ## ARCHITECTURE RULES
 
-- Follow project folder structure
-- Separate presentation / domain / data layers
-- No business logic inside UI
-- Use dependency injection if already used in project
+- Follow the repo folder structure
+- Business/data logic in hooks + repositories, not JSX
+- Preserve offline-first invariants (e.g. WAC costing)
 
 ---
 
 ## OUTPUT FORMAT (Generated Prompt)
 
-Produce a single structured prompt for the Flutter Feature Builder Agent:
-
----
+Produce a single structured prompt for `rn-feature-builder`:
 
 ### FEATURE NAME
 
 {{feature_name}}
 
----
-
 ### CONTEXT
 
-Explain what this feature is about based on inputs
+What this feature is about, based on the inputs.
 
----
+### REFERENCE
 
-### FIGMA
+{{reference}}
 
-{{figma_link}}
+### DATA SPEC
 
----
-
-### API SPEC
-
-{{api_spec}}
-
----
+{{data_spec}}
 
 ### BEHAVIOR
 
 - ...
 
----
-
 ### REQUIREMENTS
 
 - ...
-
----
 
 ### UI GUIDELINES
 
 - ...
 
----
-
 ### ARCHITECTURE GUIDELINES
 
 - ...
-
----
 
 ### ACCEPTANCE CRITERIA
 
@@ -203,8 +139,4 @@ Explain what this feature is about based on inputs
 
 ## FINAL NOTE
 
-This output is NOT a feature implementation.
-
-It is a **high-quality prompt artifact** designed to be consumed by a downstream Flutter Feature Builder Agent.
-
-Do not include explanations, code, or implementation details outside this structured format.
+This output is NOT a feature implementation. It is a **high-quality prompt artifact** to be consumed by the `rn-feature-builder` agent. Do not include explanations, code, or implementation details outside this structured format.

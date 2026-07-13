@@ -1,59 +1,55 @@
 ## FEATURE NAME
 
-Login Feature
+Suppliers List Feature
 
 ---
 
-## FIGMA
+## REFERENCE (optional)
 
-https://www.figma.com/file/xxxxx
-
-OR (MCP link if available)
+Same layout as `src/features/parties/screens` — or attach a screenshot / sketch.
 
 ---
 
-## API SPEC
+## DATA SPEC
 
-POST /auth/login
+Local SQLite (Drizzle), accessed via a repository — no REST backend.
 
-Request:
-{
-"email": "string",
-"password": "string"
-}
+Entity: Supplier
+- id: string (uuid)
+- name: string
+- phone: string | null
+- balance: integer (minor units)
+- createdAt: number (epoch ms)
 
-Response:
-{
-"token": "string",
-"user": {
-"id": "int",
-"name": "string"
-}
-}
+Repository: `src/repositories/supplier-repository.ts`
+- listSuppliers(): Supplier[]
+- getSupplier(id): Supplier | null
+- createSupplier(input): Supplier
 
 ---
 
 ## BEHAVIOR
 
-- User enters email/password
-- Tap login button
-- Show loading state
-- On success → navigate to Home
-- On failure → show error message
+- Screen lists suppliers from the local DB (via a `useSuppliers` hook)
+- Show loading + empty states
+- Tap a row → navigate to Supplier detail
+- Pull-to-refresh re-reads the repository
+- Search filters the list (debounced)
 
 ---
 
 ## REQUIREMENTS
 
-- Must support Arabic/English
-- Must be responsive
-- Must follow Clean Architecture
-- Must use existing theme
-- Must use Cubit for state management
+- Support Arabic/English (RTL-first)
+- NativeWind + theme tokens (`src/theme/colors`), RTL via `src/theme/rtl`
+- Feature-first structure (screens compose / hooks own logic / repository owns data)
+- Zustand only if cross-screen state is needed
+- Reuse existing `src/components/ui/*` (e.g. `ScreenHeader`, `SearchBar`)
+- FlatList for the list
 
 ---
 
 ## NOTES (optional)
 
-- Remember password feature not needed
-- Social login not included
+- No backend sync in this feature
+- Balance shown with the numerals util (Arabic digits)
