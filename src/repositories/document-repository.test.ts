@@ -65,6 +65,69 @@ describe('documentRepository — posting into real SQL', () => {
     expect(repo.onHand('A')).toBe(-3);
   });
 
+  // THE GUARD IS STILL THE AUTHORITY. The form now clamps quantities as they are
+  // typed — but that clamp reads a SNAPSHOT of on-hand taken when the form opened,
+  // and a quick-entry line only becomes a real item id inside this very call. So
+  // the repository refuses on its own, and it refuses with the FACTS: which item,
+  // how many were asked for, how many there are. The UI has nothing else to name.
+  it('the refusal carries per-item violations (itemId / available / requested)', () => {
+    repo.create(incoming('A', 5));
+    repo.create(incoming('B', 1));
+    const draftId = repo.create({
+      kind: 'outgoing',
+      lines: [
+        { itemId: 'A', qty: 8 },
+        { itemId: 'B', qty: 1 }, // exactly on hand — not a violation
+        { itemId: 'C', qty: 2 }, // never moved — available 0
+      ],
+    });
+
+    expect.assertions(4);
+    try {
+      repo.post(draftId);
+    } catch (err) {
+      const violations = (err as NegativeStockError).violations;
+      expect(violations).toEqual([
+        { itemId: 'A', available: 5, requested: 8 },
+        { itemId: 'C', available: 0, requested: 2 },
+      ]);
+      expect(repo.onHand('A')).toBe(5); // nothing moved…
+      expect(repo.onHand('B')).toBe(1);
+      expect(repo.list({ status: 'posted' })).toHaveLength(2); // …and the sale never posted
+    }
+  });
+
+  // The clamp is per ITEM, and so is the guard: two lines of the same item are
+  // summed BEFORE the check. Each row here is individually within the 5 on hand.
+  it('sums duplicate lines of one item before refusing (4 + 4 against 5 on hand)', () => {
+    repo.create(incoming('A', 5));
+    const draftId = repo.create({
+      kind: 'outgoing',
+      lines: [
+        { itemId: 'A', qty: 4 },
+        { itemId: 'A', qty: 4 },
+      ],
+    });
+
+    expect(() => repo.post(draftId)).toThrow(NegativeStockError);
+    try {
+      repo.post(draftId);
+    } catch (err) {
+      expect((err as NegativeStockError).violations).toEqual([
+        { itemId: 'A', available: 5, requested: 8 },
+      ]);
+    }
+    expect(repo.onHand('A')).toBe(5);
+  });
+
+  // A PURCHASE IS NEVER STOCK-GUARDED. Buying more of something cannot overdraw
+  // it — the new sale-side clamps must not have leaked into the incoming flow.
+  it('an incoming doc posts freely regardless of on-hand', () => {
+    const draftId = repo.create({ kind: 'incoming', lines: [{ itemId: 'A', qty: 100 }] });
+    expect(() => repo.post(draftId)).not.toThrow();
+    expect(repo.onHand('A')).toBe(100);
+  });
+
   it('unpost reverts a posted doc; on-hand re-derives without it', () => {
     repo.create(incoming('A', 10));
     const outId = repo.create(outgoing('A', 4));

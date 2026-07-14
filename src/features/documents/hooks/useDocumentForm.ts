@@ -25,7 +25,17 @@ import { pickPhoto, pickFile, ingest, removeAttachment as removeAttachmentFile }
 import type { InventoryItem } from '@/features/inventory/types';
 import { useDocDraft } from './useDocDraft';
 import { useParties } from './useParties';
-import type { DocLine, DocMode, Party, QuickEntryValues, QuickEntryLocks } from '../types';
+import { useStockCeilings } from './useStockCeilings';
+import { clampQty } from '../utils/stock-ceilings';
+import { negativeStockMessage } from '../utils/stock-messages';
+import type {
+  DocLine,
+  DocMode,
+  Party,
+  QuickEntryValues,
+  QuickEntryLocks,
+  ScanAppendResult,
+} from '../types';
 import type { PartyDraft } from '@/features/parties/types';
 
 let seq = 0;
@@ -112,6 +122,12 @@ export function useDocumentForm(mode: DocMode) {
   const [locks, setLocks] = useState<QuickEntryLocks>(draft.quick?.locks ?? NO_LOCKS);
   // Document date — stamped once at mount (today), not recomputed per render.
   const [docDate] = useState(() => Date.now());
+
+  // STOCK CEILINGS — sale only, and only while `allowNegativeStock` is off (the
+  // hook owns that gate). The rules themselves live in utils/stock-ceilings.ts,
+  // over the same engine the repository posts through; this hook only projects
+  // them onto the document being built.
+  const stock = useStockCeilings({ mode, items, lines });
 
   // Re-hydrate a restored party from the crash-safe buffer (name only) once the
   // DB list has loaded; no match keeps it as a walk-in tag.
@@ -364,16 +380,27 @@ export function useDocumentForm(mode: DocMode) {
     [mode],
   );
 
+  // Picking an item the shop cannot supply is a NO-OP, not a line. The picker
+  // already renders such a row disabled — this is the same rule stated where it
+  // cannot be routed around (scan, a stale sheet, a future caller).
   const appendItem = (item: InventoryItem) => {
+    if (!stock.canAdd(item)) return false;
     setLines((prev) => [...prev, lineFromItem(item)]);
+    return true;
   };
 
   // Scan path: a repeat barcode bumps the existing line instead of stacking a
   // duplicate row. Crucially it does NOT re-read the price — re-scanning an item
   // after haggling it down must not snap the line back to the list price.
-  // Returns the resulting qty so the scanner can echo it.
+  //
+  // A scan that would overdraw is REFUSED and says so on the camera strip: the
+  // owner is scanning fast, not reading, so a silent no-bump would look exactly
+  // like a successful one.
   const scanAppend = useCallback(
-    (item: InventoryItem) => {
+    (item: InventoryItem): ScanAppendResult => {
+      if (stock.enforced && stock.headroomFor(item.id) < 1) {
+        return { ok: false, name: item.name, available: stock.onHand[item.id] ?? 0 };
+      }
       const existing = lines.find((l) => l.itemId === item.id);
       const resultQty = (existing?.qty ?? 0) + 1;
       setLines((prev) => {
@@ -383,17 +410,37 @@ export function useDocumentForm(mode: DocMode) {
         }
         return [...prev, lineFromItem(item)];
       });
-      return resultQty;
+      return { ok: true, qty: resultQty };
     },
-    [lines, lineFromItem],
+    [lines, lineFromItem, stock],
   );
 
+  // Both qty paths clamp UPWARD against the item's on-hand — aggregated across
+  // every line of that item, so the same item on two rows shares one ceiling.
+  // Lower bounds are unchanged (stepper ≥ 1, typed ≥ 0), and a fast-entry line
+  // (itemId null) has no known item and so no ceiling.
+  //
+  // The clamp reads `prev`, never the render-time `lines`: a burst of taps must
+  // not race a stale closure into an overdraw.
   const mutateQty = (id: string, delta: number) =>
     setLines((prev) =>
-      prev.map((l) => (l.id === id ? { ...l, qty: Math.max(1, l.qty + delta) } : l)),
+      prev.map((l) => {
+        if (l.id !== id) return l;
+        const next = Math.max(1, l.qty + delta);
+        // Only the UP tap is clamped. Stepping DOWN from an over-stock restored
+        // draft must move by one, not snap silently to the ceiling — his numbers
+        // are his until he changes them.
+        return { ...l, qty: delta > 0 ? clampQty(l, prev, stock.onHand, stock.enforced, next) : next };
+      }),
     );
   const setQty = (id: string, qty: number) =>
-    setLines((prev) => prev.map((l) => (l.id === id ? { ...l, qty: Math.max(0, qty) } : l)));
+    setLines((prev) =>
+      prev.map((l) =>
+        l.id === id
+          ? { ...l, qty: clampQty(l, prev, stock.onHand, stock.enforced, Math.max(0, qty)) }
+          : l,
+      ),
+    );
   const setPrice = (id: string, unitPrice: number) =>
     setLines((prev) => prev.map((l) => (l.id === id ? { ...l, unitPrice: Math.max(0, unitPrice) } : l)));
   const removeLine = (id: string) => setLines((prev) => prev.filter((l) => l.id !== id));
@@ -530,6 +577,16 @@ export function useDocumentForm(mode: DocMode) {
     [lines, mode],
   );
 
+  // The name behind a violation's `itemId`. `f.items` covers everything the
+  // picker offered; a quick-entry / CSV line only becomes a real item AT POST
+  // TIME (find-or-create), so its id is unknown to this list and has to be read
+  // back from the catalog. The id itself is the last resort — never shown blank.
+  const itemName = useCallback(
+    (itemId: string) =>
+      items.find((i) => i.id === itemId)?.name ?? itemRepository.getById(itemId)?.name ?? itemId,
+    [items],
+  );
+
   const save = () => {
     if (saving) return;
     if (lines.length === 0) {
@@ -588,6 +645,20 @@ export function useDocumentForm(mode: DocMode) {
         Alert.alert(t('documents.errors.title'), t('payments.errors.splitExceedsTotal'));
         return;
       }
+    }
+    // OVERDRAW, told BEFORE the document is sent.
+    //
+    // The picker and the stepper already make this hard to reach — but a restored
+    // draft can carry yesterday's quantities, and `allowNegativeStock` can be
+    // switched off after the lines were built. When the UI already knows the post
+    // will fail, it must not send it and then translate the wreckage: one message,
+    // naming every offending item, requested vs. available.
+    //
+    // This is UX, not enforcement. The repository guard below is still the one
+    // that decides (see the NegativeStockError catch in `post`).
+    if (stock.violations.length > 0) {
+      Alert.alert(t('documents.errors.title'), negativeStockMessage(stock.violations, itemName, t, lang));
+      return;
     }
     // Selling at a loss is a confirm, never a block — it's his shop.
     if (belowCostLines.length > 0) {
@@ -712,9 +783,15 @@ export function useDocumentForm(mode: DocMode) {
         { text: t('documents.ok'), onPress: () => navigation.goBack() },
       ]);
     } catch (err) {
+      // THE BACKSTOP, AND IT STAYS AUTHORITATIVE. The pre-check reads `f.items`,
+      // which is a snapshot: another document may have posted since this form
+      // opened, and a quick-entry/CSV line only resolves to a real item id in the
+      // `create` call above. So the repository can still refuse — and when it
+      // does, it refuses with `violations`, which we now READ instead of
+      // discarding: same consolidated, item-named message as the pre-check.
       const msg =
         err instanceof NegativeStockError
-          ? t('documents.errors.negativeStock')
+          ? negativeStockMessage(err.violations, itemName, t, lang)
           : String((err as Error)?.message ?? err);
       Alert.alert(t('documents.errors.title'), msg);
     } finally {
@@ -767,6 +844,8 @@ export function useDocumentForm(mode: DocMode) {
     removeAttachment,
     saving,
     wasRestored,
+    // stock ceilings (sale + allowNegativeStock=false; inert otherwise)
+    stock,
     // payment (purchase)
     paid,
     paidValue,

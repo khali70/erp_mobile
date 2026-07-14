@@ -4,7 +4,9 @@ import Feather from '@expo/vector-icons/Feather';
 import colors from '@/theme/colors';
 import { DocLineRow } from './DocLineRow';
 import { DocLinesHeader } from './DocLinesHeader';
+import { OverStockBanner } from './OverStockBanner';
 import { QuickEntryRow } from './QuickEntryRow';
+import type { DocStock } from '../hooks/useStockCeilings';
 import type { DocLine, DocMode, QuickEntryValues, QuickEntryLocks } from '../types';
 
 interface DocLinesSectionProps {
@@ -12,6 +14,11 @@ interface DocLinesSectionProps {
   ns: string;
   mode: DocMode;
   lines: DocLine[];
+  /**
+   * Sale ceilings. Omitted by the purchase screen — buying more of something can
+   * never overdraw it, so the incoming form carries no ceilings at all.
+   */
+  stock?: DocStock;
   onMutateQty: (id: string, delta: number) => void;
   onSetQty: (id: string, qty: number) => void;
   onSetPrice: (id: string, price: number) => void;
@@ -36,6 +43,7 @@ export function DocLinesSection({
   ns,
   mode,
   lines,
+  stock,
   onMutateQty,
   onSetQty,
   onSetPrice,
@@ -79,6 +87,9 @@ export function DocLinesSection({
         />
       )}
 
+      {/* Which lines outgrew their stock — named, never silently trimmed. */}
+      <OverStockBanner names={(stock?.overLines ?? []).map((l) => l.name)} />
+
       {/* Lines */}
       {lines.length === 0 ? (
         <View className="bg-surface rounded-2xl p-8 border border-border items-center gap-3">
@@ -93,6 +104,7 @@ export function DocLinesSection({
               line={line}
               mode={mode}
               isNewest={i === lines.length - 1}
+              maxQty={stock?.maxQtyById[line.id] ?? null}
               onInc={() => onMutateQty(line.id, 1)}
               onDec={() => onMutateQty(line.id, -1)}
               onQty={(q) => onSetQty(line.id, q)}

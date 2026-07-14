@@ -12,6 +12,12 @@ interface DocLineRowProps {
   mode: DocMode;
   /** Only the newest row grabs focus — otherwise every row fights for it. */
   isNewest?: boolean;
+  /**
+   * Upper bound for this line's qty; `null`/undefined = unbounded (a purchase, a
+   * fast-entry line, or `allowNegativeStock` on). It is the ITEM's ceiling,
+   * already net of what the document's OTHER lines claim of the same item.
+   */
+  maxQty?: number | null;
   onInc: () => void;
   onDec: () => void;
   onQty: (qty: number) => void;
@@ -36,16 +42,37 @@ const parseNum = (text: string): number => {
  * While a sale price is being typed, the margin strip shows list / cost / profit
  * live, so the owner knows whether he's still making money before he says yes.
  */
-export function DocLineRow({ line, mode, isNewest, onInc, onDec, onQty, onPrice, onDelete }: DocLineRowProps) {
+export function DocLineRow({
+  line,
+  mode,
+  isNewest,
+  maxQty,
+  onInc,
+  onDec,
+  onQty,
+  onPrice,
+  onDelete,
+}: DocLineRowProps) {
   const { t, i18n } = useTranslation();
   const lang = i18n.language;
   const currency = t('common.currency');
 
+  // THE CEILING. `+` does not become a no-op tap — it becomes DISABLED, and it
+  // looks it. A control that silently ignores you is a bug you blame on yourself.
+  const bounded = maxQty !== null && maxQty !== undefined;
+  const atMax = bounded && line.qty >= (maxQty as number);
+  // A restored draft can carry yesterday's quantities. His numbers are never
+  // rewritten under him — the row says what is wrong and he decides.
+  const overMax = bounded && line.qty > (maxQty as number);
+  const maxHint = bounded ? t('documents.qtyMax', { n: formatNumber(maxQty as number, lang) }) : undefined;
+
   const isSale = mode === 'sale';
   const [override, setOverride] = useState(false);
-  // Purchase always types a cost. A sale types a price when the item is haggled
-  // — or when the owner explicitly overrides a fixed price (his shop, his call).
-  const rateEditable = !isSale || line.pricingMode === 'negotiable' || override;
+  // Purchase always types a cost — it feeds weighted-average valuation. A sale
+  // shows the price read-only until the owner taps the pencil, and the pencil is
+  // offered only on NEGOTIABLE items: a fixed price is fixed, and a haggled one is
+  // his call. A haggled price lives on the line; it never rewrites the catalog.
+  const rateEditable = !isSale || override;
 
   const rateLabel = isSale ? t('documents.unitPrice') : t('documents.unitCost');
   const totalLabel = isSale ? t('documents.lineTotal') : t('documents.lineCost');
@@ -53,14 +80,14 @@ export function DocLineRow({ line, mode, isNewest, onInc, onDec, onQty, onPrice,
 
   // Margin readout: sale lines only, and only when we know what the item cost.
   // Fast-entry lines carry no catalog cost, so there is nothing honest to show.
-  const hasCost = isSale && line.costPrice !== undefined && line.costPrice > 0;
-  const profit = hasCost ? line.unitPrice - (line.costPrice as number) : 0;
-  const belowCost = hasCost && line.unitPrice < (line.costPrice as number);
-  const belowMin =
-    isSale && !belowCost && line.minPrice !== undefined && line.unitPrice < line.minPrice;
-  const marginColor = belowCost ? colors.danger : belowMin ? colors.warning : colors.positive;
-  const marginPct =
-    hasCost && line.unitPrice > 0 ? Math.round((profit / line.unitPrice) * 100) : 0;
+  // const hasCost = isSale && line.costPrice !== undefined && line.costPrice > 0;
+  // const profit = hasCost ? line.unitPrice - (line.costPrice as number) : 0;
+  // const belowCost = hasCost && line.unitPrice < (line.costPrice as number);
+  // const belowMin =
+  //   isSale && !belowCost && line.minPrice !== undefined && line.unitPrice < line.minPrice;
+  // const marginColor = belowCost ? colors.danger : belowMin ? colors.warning : colors.positive;
+  // const marginPct =
+  //   hasCost && line.unitPrice > 0 ? Math.round((profit / line.unitPrice) * 100) : 0;
 
   return (
     <View className="bg-surface rounded-2xl p-3.5 border border-border">
@@ -93,33 +120,23 @@ export function DocLineRow({ line, mode, isNewest, onInc, onDec, onQty, onPrice,
           ) : (
             <Pressable
               className={`${ROW} items-center gap-1.5 mt-1`}
-              onPress={() => setOverride(true)}
+              onPress={() => {
+                if (isSale && line.pricingMode === 'negotiable') {
+                  setOverride(true);
+                }
+              }}
               accessibilityRole="button"
               accessibilityLabel={`${t('documents.editRate')} — ${line.name}`}
             >
-              <Feather name="edit-2" size={12} color={colors.muted} />
+              {isSale && line.pricingMode === 'negotiable' && (
+                <Feather name="edit-2" size={12} color={colors.muted} />
+              )}
               <Text className="text-muted text-xs text-right">
                 {rateLabel}: {formatMoneyMajor(line.unitPrice, lang)} {currency}
               </Text>
             </Pressable>
           )}
 
-          {/* Live margin while haggling: what it lists at, what it cost, what's left. */}
-          {hasCost && rateEditable && (
-            <View className="items-end mt-1.5 gap-0.5">
-              <Text className="text-muted text-[10px]">
-                {t('documents.listPrice')}: {formatMoneyMajor(line.listPrice ?? 0, lang)} ·{' '}
-                {t('documents.cost')}: {formatMoneyMajor(line.costPrice as number, lang)}
-              </Text>
-              {/* Prices and the margin are MONEY (never rounded); the % is a rate. */}
-              <Text className="text-[11px] font-bold" style={{ color: marginColor }}>
-                {belowCost
-                  ? t('documents.belowCost.badge')
-                  : `${t('documents.margin')}: ${formatMoneyMajor(profit, lang)} (${formatNumber(marginPct, lang)}%)`}
-                {belowMin ? ` · ${t('documents.belowMin')}` : ''}
-              </Text>
-            </View>
-          )}
         </View>
       </View>
 
@@ -144,11 +161,14 @@ export function DocLineRow({ line, mode, isNewest, onInc, onDec, onQty, onPrice,
             selectTextOnFocus
           />
           <Pressable
-            className="w-11 h-11 items-center justify-center"
+            className={`w-11 h-11 items-center justify-center ${atMax ? 'opacity-40' : ''}`}
             onPress={onInc}
+            disabled={atMax}
             accessibilityLabel={t('documents.qtyInc')}
+            accessibilityState={{ disabled: atMax }}
+            accessibilityHint={atMax ? maxHint : undefined}
           >
-            <Feather name="plus" size={16} color={colors.primary} />
+            <Feather name="plus" size={16} color={atMax ? colors['slate-400'] : colors.primary} />
           </Pressable>
         </View>
 
@@ -160,6 +180,25 @@ export function DocLineRow({ line, mode, isNewest, onInc, onDec, onQty, onPrice,
           <Feather name="trash-2" size={15} color={colors.danger} />
         </Pressable>
       </View>
+
+      {/* Stock feedback is INLINE and non-blocking. An Alert here would fight the
+          keyboard on every keystroke; the Alert is saved for the save-time refusal. */}
+      {overMax ? (
+        <View className={`${ROW} items-center gap-1.5 mt-2.5 justify-end`}>
+          <Text className="text-danger text-[11px] font-bold text-right">
+            {t('documents.qtyOverStock', {
+              requested: formatNumber(line.qty, lang),
+              available: formatNumber(maxQty as number, lang),
+            })}
+          </Text>
+          <Feather name="alert-triangle" size={13} color={colors.danger} />
+        </View>
+      ) : atMax ? (
+        <View className={`${ROW} items-center gap-1.5 mt-2.5 justify-end`}>
+          <Text className="text-warning-dark text-[11px] font-bold text-right">{maxHint}</Text>
+          <Feather name="info" size={13} color={colors.warning} />
+        </View>
+      ) : null}
     </View>
   );
 }

@@ -236,7 +236,9 @@
       "permTitle": "Camera needed",
       "permBody": "Allow camera access to scan barcodes.",
       "permGrant": "Allow camera",
-      "permDenied": "Camera blocked — enable it in Settings to scan."
+      "permDenied": "Camera blocked — enable it in Settings to scan.",
+      "outOfStock": "{{name}} — out of stock",
+      "atMax": "{{name}} — only {{available}} available"
     },
     "addLine": "Add item",
     "unitPrice": "Unit price",
@@ -302,7 +304,11 @@
       "title": "Choose an item",
       "searchPlaceholder": "Search items...",
       "empty": "No items. Add items first.",
-      "onHand": "On hand"
+      "onHand": "On hand",
+      "outOfStock": "Out of stock",
+      "inStockOnly": "In stock",
+      "showOutOfStock": "Show out of stock",
+      "emptyInStock": "Nothing in stock right now."
     },
     "saved": "Document saved",
     "savedBody": "Movement recorded and stock updated.",
@@ -311,7 +317,8 @@
       "noLines": "Add at least one item.",
       "negativeStock": "Requested quantity exceeds available stock.",
       "zeroQty": "Enter a quantity greater than zero for every line.",
-      "zeroCost": "Enter a unit cost for every line (cannot be zero)."
+      "zeroCost": "Enter a unit cost for every line (cannot be zero).",
+      "negativeStockDetail": "{{name}}: asked for {{requested}}, only {{available}} available"
     },
     "ok": "OK",
     "title": "Documents",
@@ -345,7 +352,10 @@
       "totalQty": "Total quantity",
       "total": "Total",
       "untitledItem": "Item"
-    }
+    },
+    "qtyMax": "Only {{n}} available",
+    "qtyOverStock": "Asking for {{requested}} — only {{available}} available",
+    "overStock": "These exceed available stock: {{names}}"
   },
   "payments": {
     "paid": "Paid",

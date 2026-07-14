@@ -22,6 +22,7 @@ export function DocFormModals({ f, mode, addTitle }: DocFormModalsProps) {
       <LineItemPicker
         visible={f.itemPickerOpen}
         items={f.items}
+        stock={f.stock}
         onClose={() => f.setItemPickerOpen(false)}
         onSelect={f.appendItem}
       />

@@ -64,6 +64,7 @@ export function NewOutgoingScreen() {
           ns={f.ns}
           mode="sale"
           lines={f.lines}
+          stock={f.stock}
           onMutateQty={f.mutateQty}
           onSetQty={f.setQty}
           onSetPrice={f.setPrice}

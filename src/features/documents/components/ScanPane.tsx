@@ -5,8 +5,10 @@ import { useTranslation } from 'react-i18next';
 import Feather from '@expo/vector-icons/Feather';
 import colors from '@/theme/colors';
 import { ROW } from '@/theme/rtl';
+import { formatNumber } from '@/utils/numerals';
 import type { InventoryItem } from '@/features/inventory/types';
 import { useBarcodeScan } from '../hooks/useBarcodeScan';
+import type { ScanAppendResult } from '../types';
 
 // Restrict to the retail formats we expect — fewer types = faster decode and
 // far fewer false reads than scanning every symbology.
@@ -14,8 +16,8 @@ const BARCODE_TYPES = ['ean13', 'ean8', 'upc_a', 'upc_e', 'code128', 'code39'] a
 
 interface ScanPaneProps {
   items: InventoryItem[];
-  /** Add/bump the scanned item; returns the resulting qty for the feedback strip. */
-  onScanItem: (item: InventoryItem) => number;
+  /** Add/bump the scanned item — or refuse it when the stock behind it is gone. */
+  onScanItem: (item: InventoryItem) => ScanAppendResult;
   onClose: () => void;
   /** Decode with no catalog match → let the user add it by hand. */
   onManualAdd: () => void;
@@ -27,7 +29,8 @@ interface ScanPaneProps {
  * cost. Continuous scan: each decode adds/bumps a line and the camera stays up.
  */
 export function ScanPane({ items, onScanItem, onClose, onManualAdd }: ScanPaneProps) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const lang = i18n.language;
   const [permission, requestPermission] = useCameraPermissions();
   const [torch, setTorch] = useState(false);
   const { feedback, handleScan } = useBarcodeScan({ items, onHit: onScanItem });
@@ -131,6 +134,21 @@ export function ScanPane({ items, onScanItem, onClose, onManualAdd }: ScanPanePr
             {feedback.qty > 1
               ? t('documents.scanner.qtyBumped', { name: feedback.name, qty: feedback.qty })
               : t('documents.scanner.added', { name: feedback.name })}
+          </Text>
+        </View>
+      )}
+      {/* Known barcode, no stock behind it: the scan is REFUSED, out loud. Nothing
+          was added — the strip is the only thing telling him so. */}
+      {feedback?.kind === 'blocked' && (
+        <View className={`${ROW} items-center justify-center gap-2 bg-danger-light rounded-xl px-3 py-2`}>
+          <Feather name="slash" size={15} color={colors.danger} />
+          <Text className="text-danger text-xs font-bold text-right flex-1" numberOfLines={2}>
+            {feedback.available > 0
+              ? t('documents.scanner.atMax', {
+                  name: feedback.name,
+                  available: formatNumber(feedback.available, lang),
+                })
+              : t('documents.scanner.outOfStock', { name: feedback.name })}
           </Text>
         </View>
       )}

@@ -35,6 +35,15 @@ export interface DocLine {
   lowStockThreshold?: number;
 }
 
+/**
+ * What a scan did to the document. A REFUSAL is a result, not a silent zero:
+ * scanning an item the shop has run out of (or has already fully committed to
+ * this invoice) must say so on the camera strip, not quietly bump a line.
+ */
+export type ScanAppendResult =
+  | { ok: true; qty: number }
+  | { ok: false; name: string; available: number };
+
 export interface Party {
   id: string;
   name: string;
