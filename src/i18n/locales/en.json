@@ -27,7 +27,7 @@
       },
       "profit": {
         "label": "Monthly profit",
-        "tag": "▲ 12%  Est. net profit"
+        "tag": "Est. net profit"
       },
       "receivable": {
         "label": "Owed to you (customers)",
@@ -46,7 +46,7 @@
     },
     "sections": {
       "title": "Sections",
-      "count": "6 sections",
+      "count": "{{n}} sections",
       "documents": "Documents",
       "goods": "Goods",
       "expenses": "Expenses",

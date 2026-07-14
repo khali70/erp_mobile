@@ -43,6 +43,70 @@ export function HomeScreen() {
   const currency = t('common.currency');
   const num = (n: number) => formatDashboardNumber(n, lang);
 
+  // Real net margin for the month. No sales → no percentage: an empty tag beats
+  // a fabricated one sitting next to a real number.
+  const marginPct = stats?.monthlyMarginPct ?? null;
+  const marginUp = (marginPct ?? 0) >= 0;
+  const marginTag =
+    marginPct === null
+      ? ''
+      : `${marginUp ? '▲' : '▼'} ${num(Math.abs(marginPct))}٪  ${t('dashboard.kpi.profit.tag')}`;
+
+  // The section grid is the single source of both the tiles and their count.
+  const sections = [
+    {
+      key: 'documents',
+      route: 'Documents',
+      icon: <Feather name="file-text" size={22} color={colors.primary} />,
+      iconBgClass: 'bg-primary-light',
+      badge: stats?.docCount ? num(stats.docCount) : undefined,
+    },
+    {
+      key: 'goods',
+      route: 'Items',
+      icon: <Feather name="package" size={22} color={colors.primary} />,
+      iconBgClass: 'bg-primary-light',
+      badge: stats?.lowStockCount ? num(stats.lowStockCount) : undefined,
+    },
+    {
+      key: 'expenses',
+      route: 'Expenses',
+      icon: <MaterialCommunityIcons name="cash" size={22} color={colors.expense} />,
+      iconBgClass: 'bg-expense-light',
+      badge: undefined,
+    },
+    // The one place the owner reconciles the app against the money actually in his
+    // drawer. It is also reachable from the Reports hub; this is the direct way.
+    {
+      key: 'cashbook',
+      route: 'CashBook',
+      icon: <Feather name="book-open" size={22} color={colors.primary} />,
+      iconBgClass: 'bg-primary-light',
+      badge: undefined,
+    },
+    {
+      key: 'reports',
+      route: 'Reports',
+      icon: <Feather name="bar-chart-2" size={22} color={colors.info} />,
+      iconBgClass: 'bg-info-light',
+      badge: undefined,
+    },
+    {
+      key: 'customers',
+      route: 'Customers',
+      icon: <Feather name="users" size={22} color={colors.accent} />,
+      iconBgClass: 'bg-accent-light',
+      badge: undefined,
+    },
+    {
+      key: 'suppliers',
+      route: 'Suppliers',
+      icon: <Feather name="truck" size={22} color={colors['warning-dark']} />,
+      iconBgClass: 'bg-warning-light',
+      badge: undefined,
+    },
+  ];
+
   return (
     <View className="flex-1 bg-background">
       {/* Teal header bar */}
@@ -112,23 +176,19 @@ export function HomeScreen() {
           />
           <KpiCard
             valueId="kpi:monthlyProfit"
-            dotClass="bg-positive"
+            dotClass={marginUp ? 'bg-positive' : 'bg-danger'}
             label={t('dashboard.kpi.profit.label')}
             valueText={num(stats?.monthlyProfit ?? 0)}
             currency={currency}
-            tagText={t('dashboard.kpi.profit.tag')}
-            tagTextClass="text-positive"
-            tagBgClass="bg-positive-light"
+            tagText={marginTag}
+            tagTextClass={marginUp ? 'text-positive' : 'text-danger'}
+            tagBgClass={marginUp ? 'bg-positive-light' : 'bg-danger-light'}
           />
           {/* No customer receivable (AR) KPI by design: sales are cash, paid in
               full — the shop carries debt only WITH suppliers (AP), never for
               customers. See docs/plan screens rule. */}
-          {/* WHAT THE OWNER ACTUALLY OWES: suppliers AND unpaid bills. Rent is
-              debt too — it is an obligation with no goods and no invoice, and
-              while this KPI counted only suppliers it under-reported the one
-              number the owner checks. */}
           <KpiCard
-            valueId="kpi:totalPayables"
+            valueId="kpi:supplierDebt"
             dotClass="bg-danger"
             label={t('dashboard.kpi.payable.label')}
             valueText={num(stats?.totalPayables ?? 0)}
@@ -166,54 +226,28 @@ export function HomeScreen() {
           </Pressable>
         </View>
 
-        {/* Sections header */}
+        {/* Sections header — the count is derived from the grid, never a literal. */}
         <View className={`${ROW} items-center justify-between`}>
           <Text className="text-base font-extrabold text-ink">{t('dashboard.sections.title')}</Text>
           <View className="bg-background px-2.5 py-1 rounded-full">
-            <Text className="text-[11px] text-muted font-medium">{t('dashboard.sections.count')}</Text>
+            <Text className="text-[11px] text-muted font-medium">
+              {t('dashboard.sections.count', { n: num(sections.length) })}
+            </Text>
           </View>
         </View>
 
         {/* Sections grid 3x2 */}
         <View className={`${ROW} flex-wrap gap-3`}>
-          <DashboardTile
-            icon={<Feather name="file-text" size={22} color={colors.primary} />}
-            iconBgClass="bg-primary-light"
-            label={t('dashboard.sections.documents')}
-            badgeText={stats?.docCount ? num(stats.docCount) : undefined}
-            onPress={() => navigation.navigate('Documents')}
-          />
-          <DashboardTile
-            icon={<Feather name="package" size={22} color={colors.primary} />}
-            iconBgClass="bg-primary-light"
-            label={t('dashboard.sections.goods')}
-            badgeText={stats?.lowStockCount ? num(stats.lowStockCount) : undefined}
-            onPress={() => navigation.navigate('Items')}
-          />
-          <DashboardTile
-            icon={<MaterialCommunityIcons name="cash" size={22} color={colors.expense} />}
-            iconBgClass="bg-expense-light"
-            label={t('dashboard.sections.expenses')}
-            onPress={() => navigation.navigate('Expenses')}
-          />
-          <DashboardTile
-            icon={<Feather name="bar-chart-2" size={22} color={colors.info} />}
-            iconBgClass="bg-info-light"
-            label={t('dashboard.sections.reports')}
-            onPress={() => navigation.navigate('Reports')}
-          />
-          <DashboardTile
-            icon={<Feather name="users" size={22} color={colors.accent} />}
-            iconBgClass="bg-accent-light"
-            label={t('dashboard.sections.customers')}
-            onPress={() => navigation.navigate('Customers')}
-          />
-          <DashboardTile
-            icon={<Feather name="truck" size={22} color={colors['warning-dark']} />}
-            iconBgClass="bg-warning-light"
-            label={t('dashboard.sections.suppliers')}
-            onPress={() => navigation.navigate('Suppliers')}
-          />
+          {sections.map((s) => (
+            <DashboardTile
+              key={s.route}
+              icon={s.icon}
+              iconBgClass={s.iconBgClass}
+              label={t(`dashboard.sections.${s.key}`)}
+              badgeText={s.badge}
+              onPress={() => navigation.navigate(s.route as never)}
+            />
+          ))}
         </View>
         {/* Removed the "credit invoices collected" banner: it implied customer
             credit/receivables, which don't exist here (sales are always cash). */}
