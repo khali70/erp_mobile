@@ -14,7 +14,7 @@ import { usePartyFilter, type PartyFilter } from '../hooks/usePartyFilter';
 import { presentParty } from '../presenters';
 import { PartyRow } from '../components/PartyRow';
 import { PartyFormSheet } from '../components/PartyFormSheet';
-import { customerRepository } from '@/repositories/customer-repository';
+import { customerRepository } from '@/repositories/customer-repository.client';
 import type { Party, PartyDraft } from '../types';
 
 /**

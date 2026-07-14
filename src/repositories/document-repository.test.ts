@@ -1,15 +1,24 @@
-import { makeTestDb } from '@/db/testing/test-db';
+import { makeTestDb, type TestDb } from '@/db/testing/test-db';
+import { seedSentinels } from '@/db/sentinels';
+import * as schema from '@/db/schema';
 import {
   createDocumentRepository,
+  InvalidPaymentError,
   NegativeStockError,
   type CreateDocumentInput,
   type DocumentRepository,
 } from './document-repository';
+import { createSupplierRepository } from './supplier-repository';
+import { createDebtRepository } from './debt-repository';
 
+const T0 = 1_760_000_000_000; // fixed clock — never Date.now()
+
+let db: TestDb;
 let repo: DocumentRepository;
 
 beforeEach(() => {
-  repo = createDocumentRepository(makeTestDb());
+  db = makeTestDb();
+  repo = createDocumentRepository(db);
 });
 
 const incoming = (itemId: string, qty: number, unitPrice = 0): CreateDocumentInput => ({
@@ -120,5 +129,99 @@ describe('documentRepository — posting into real SQL', () => {
     expect(repo.list({ kind: 'incoming' })).toHaveLength(2);
     expect(repo.list({ status: 'posted' })).toHaveLength(2);
     expect(repo.list({ status: 'draft' })).toHaveLength(1);
+  });
+});
+
+// TC-2.2 — THE trap of this feature. expo-sqlite's sync driver cannot nest
+// transactions, so the payment insert must run INSIDE create()'s existing
+// db.transaction(), not open its own. That constraint is also the guarantee:
+// document, lines, stock and cash book commit together or not at all.
+describe('documentRepository — payment atomicity (TC-2.2)', () => {
+  let suppliers: ReturnType<typeof createSupplierRepository>;
+  let debts: ReturnType<typeof createDebtRepository>;
+  let ahmed: string;
+
+  beforeEach(() => {
+    suppliers = createSupplierRepository(db, () => T0);
+    debts = createDebtRepository(db);
+    seedSentinels(db, T0);
+    ahmed = suppliers.create({ name: 'Ahmed' }).id;
+  });
+
+  const purchaseWithPayment = (amount: number): string =>
+    repo.create({
+      kind: 'incoming',
+      status: 'posted',
+      partyId: ahmed,
+      docDate: T0,
+      lines: [{ itemId: 'A', qty: 3, unitPrice: 2000 }], // total 6000
+      payments: [{ amount, account: 'cash' }],
+    });
+
+  const rowCounts = () => ({
+    docs: db.select().from(schema.documents).all().length,
+    lines: db.select().from(schema.documentLines).all().length,
+    txs: db.select().from(schema.transactions).all().length,
+  });
+
+  it('a FAILING payment insert rolls the document AND its lines back', () => {
+    // A negative amount violates the transactions CHECK constraint (and the
+    // repository guard). Either way it throws from inside the same transaction
+    // that wrote the document.
+    expect(() => purchaseWithPayment(-500)).toThrow();
+
+    // No orphan invoice carrying a phantom debt — the entire write is gone.
+    expect(rowCounts()).toEqual({ docs: 0, lines: 0, txs: 0 });
+    expect(debts.owed(ahmed)).toBe(0);
+    expect(repo.onHand('A')).toBe(0); // and the stock it would have added
+  });
+
+  it('a payment exceeding the document total rolls everything back too', () => {
+    expect(() => purchaseWithPayment(9999)).toThrow(InvalidPaymentError);
+    expect(rowCounts()).toEqual({ docs: 0, lines: 0, txs: 0 });
+  });
+
+  it('the happy path commits document, lines, stock and cash book together', () => {
+    purchaseWithPayment(2000);
+
+    expect(rowCounts()).toEqual({ docs: 1, lines: 1, txs: 1 });
+    expect(repo.onHand('A')).toBe(3);
+    expect(debts.owed(ahmed)).toBe(4000);
+  });
+
+  it('rejects a payment on a DRAFT — a draft is not an obligation and settles nothing', () => {
+    expect(() =>
+      repo.create({
+        kind: 'incoming',
+        status: 'draft',
+        partyId: ahmed,
+        docDate: T0,
+        lines: [{ itemId: 'A', qty: 1, unitPrice: 2000 }],
+        payments: [{ amount: 2000, account: 'cash' }],
+      }),
+    ).toThrow(InvalidPaymentError);
+    expect(rowCounts()).toEqual({ docs: 0, lines: 0, txs: 0 });
+  });
+
+  it('a sale takes money IN against the document itself (+1, ref_kind=sale)', () => {
+    repo.create(incoming('A', 10, 1000)); // stock to sell
+    const saleId = repo.create({
+      kind: 'outgoing',
+      status: 'posted',
+      partyId: 'walk-in-customer',
+      docDate: T0,
+      lines: [{ itemId: 'A', qty: 2, unitPrice: 5000 }], // total 10000
+      payments: [{ amount: 10000, account: 'cash' }],
+    });
+
+    const tx = db.select().from(schema.transactions).all();
+    expect(tx).toHaveLength(1);
+    expect(tx[0]).toMatchObject({
+      direction: 1, // money IN
+      amount: 10000,
+      refKind: 'sale',
+      refId: saleId, // points at the DOCUMENT, not a party
+      account: 'cash',
+    });
   });
 });

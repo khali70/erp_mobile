@@ -345,6 +345,30 @@
       "untitledItem": "Item"
     }
   },
+  "payments": {
+    "paid": "Paid",
+    "account": "Account",
+    "accounts": {
+      "cash": "Cash",
+      "instapay": "InstaPay"
+    },
+    "proof": "Payment proof",
+    "addProof": "Photo",
+    "proofHint": "Attach the InstaPay transfer screenshot",
+    "remaining": "Remaining (debt)",
+    "errors": {
+      "negative": "The paid amount cannot be negative.",
+      "exceedsTotal": "Paid exceeds the invoice total. To pay more than is owed, use the debts screen.",
+      "walkInMustBePaid": "A direct cash purchase (no supplier) must be paid in full — it cannot carry debt."
+    }
+  },
+  "debts": {
+    "title": "Supplier debts",
+    "owed": "Owed",
+    "credit": "Credit to you",
+    "settle": "Settle",
+    "empty": "You owe nobody. 🎉"
+  },
   "expenses": {
     "title": "Expenses",
     "currentMonth": "{{month}} expenses so far",

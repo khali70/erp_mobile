@@ -98,21 +98,74 @@ export const stockLevels = sqliteTable('stock_levels', {
   updatedAt: integer('updated_at').notNull(),
 });
 
-// Parties. `balance` is minor units; sign encodes direction of debt:
-//   customers: + = customer owes the shop (receivable / ديون لك)
-//   suppliers: + = shop owes the supplier (payable / ديون عليك)
+// Parties.
+//
+// `balance` is RETIRED (see docs/.../supplier-debt-spec.md §3.4). It was only
+// ever written as 0 at creation, and every consumer that read it rendered a
+// permanent zero. Debt is now DERIVED from documents − transactions (see
+// debt-repository). The column stays only because dropping it means a SQLite
+// table rebuild; NO code may read or write it.
+//
+// `is_system` marks a sentinel (null-object) party — the seeded walk-in rows
+// that absorb "no supplier"/"no customer" documents so `party_id` is never
+// null. Sentinels are hidden from lists/counts, are un-editable and
+// un-archivable, and are excluded from every debt figure — but their money
+// still moves the cash book. See src/db/sentinels.ts.
 export const customers = sqliteTable('customers', {
   ...standard,
   name: text('name').notNull(),
   phone: text('phone'),
+  /** @deprecated retired — debt is derived. Never read, never written. */
   balance: integer('balance').notNull().default(0),
+  isSystem: integer('is_system').notNull().default(0), // 1 = sentinel
 });
 
 export const suppliers = sqliteTable('suppliers', {
   ...standard,
   name: text('name').notNull(),
   phone: text('phone'),
+  /** @deprecated retired — debt is derived. Never read, never written. */
   balance: integer('balance').notNull().default(0),
+  isSystem: integer('is_system').notNull().default(0), // 1 = sentinel
+});
+
+// THE CASH BOOK. Every single movement of money, in or out, no exceptions —
+// this is not a "payments" table; paying a supplier is merely one reason money
+// moves. Debt is `documents` minus these rows, so a payment is the only event
+// the schema was ever missing.
+//
+// `amount` is ALWAYS POSITIVE (minor units); the sign lives in `direction`
+// (+1 in, −1 out) — enforced by CHECK constraints in the DDL, so a bad write
+// fails at the SQL layer and rolls its enclosing transaction back.
+//
+// `ref_kind`/`ref_id` is the engine: an untyped polymorphic FK resolved by the
+// sibling kind column (house convention — `documents.party_id` works the same
+// way). No SQL FK constraint.
+//   'supplier' → suppliers.id — you paid Ahmed; REDUCES his derived debt   (−1)
+//   'expense'  → expenses.id  — you paid rent                              (−1)
+//   'sale'     → documents.id — the customer paid you                      (+1)
+//   'owner'    → null         — drawings / capital injection               (±1)
+//   'transfer' → null         — drawer ↔ InstaPay: TWO rows netting to 0   (±1)
+//   'other'    → null         — escape hatch                               (±1)
+//
+// `account` must be a real column: cash and InstaPay are two separate pockets
+// that each reconcile independently. A row that doesn't say which pocket can
+// never be checked against either.
+//
+// `attachments` is PROOF OF MONEY (the InstaPay screenshot) and is distinct
+// from `documents.attachments`, which is PROOF OF GOODS (the paper invoice).
+// Three installments = three payments = three separate proofs, which is exactly
+// why a single `paid_amount` column on the document is impossible.
+export const transactions = sqliteTable('transactions', {
+  ...standard,
+  direction: integer('direction').notNull(), // +1 money IN, -1 money OUT
+  amount: integer('amount').notNull(), // minor units, ALWAYS POSITIVE
+  occurredAt: integer('occurred_at').notNull(), // when money MOVED (not when typed)
+  account: text('account').notNull(), // 'cash' | 'instapay'
+  refKind: text('ref_kind'), // why it moved
+  refId: text('ref_id'), // what it points at, resolved by ref_kind
+  note: text('note'),
+  attachments: text('attachments'), // JSON metadata — PROOF OF MONEY
 });
 
 export type Item = typeof items.$inferSelect;
@@ -123,3 +176,4 @@ export type Document = typeof documents.$inferSelect;
 export type Customer = typeof customers.$inferSelect;
 export type Supplier = typeof suppliers.$inferSelect;
 export type DocumentLine = typeof documentLines.$inferSelect;
+export type Transaction = typeof transactions.$inferSelect;

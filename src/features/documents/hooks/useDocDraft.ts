@@ -1,6 +1,7 @@
 import { useCallback, useRef } from 'react';
 import { storage } from '@/store/mmkv';
 import type { AttachmentMeta } from '@/repositories/document-repository';
+import type { Account } from '@/repositories/transaction-repository';
 import type { DocLine, DocMode, QuickEntryValues, QuickEntryLocks } from '../types';
 
 /**
@@ -21,6 +22,14 @@ export interface DocDraftBuffer {
   note?: string;
   attachments?: AttachmentMeta[];
   quick?: { values: QuickEntryValues; locks: QuickEntryLocks } | null;
+  // What the owner said he paid, mirrored so an OS kill mid-entry can't lose it.
+  // `paid` is null while UNTOUCHED — meaning "follow the total", which is the
+  // default. Only a number the owner actually typed is worth persisting; a
+  // stale one would silently override a total that has since changed.
+  paid?: string | null;
+  account?: Account;
+  /** PROOF OF MONEY (the InstaPay screenshot). Bytes already in attachments.db. */
+  paymentAttachments?: AttachmentMeta[];
 }
 
 /** True when the quick-entry row holds anything worth persisting. */
@@ -59,6 +68,8 @@ export function useDocDraft(mode: DocMode) {
         !buffer.partyName &&
         !buffer.note &&
         !buffer.attachments?.length &&
+        !buffer.paymentAttachments?.length &&
+        buffer.paid == null &&
         !quickHasContent(buffer.quick)
       ) {
         storage.remove(key);

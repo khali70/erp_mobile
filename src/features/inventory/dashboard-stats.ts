@@ -1,6 +1,6 @@
 import { itemRepository } from '@/repositories/item-repository.client';
 import { documentRepository } from '@/repositories/document-repository.client';
-import { supplierRepository } from '@/repositories/supplier-repository';
+import { debtRepository } from '@/repositories/debt-repository.client';
 import { getStockStatus } from '@/utils/stock';
 
 /** Dashboard KPI figures. Money fields are MAJOR units (already /100). */
@@ -30,9 +30,19 @@ export function computeDashboardStats(): DashboardStats {
     if (getStockStatus(it.qtyOnHand, it.lowStockThreshold) !== 'inStock') lowStockCount += 1;
   }
 
-  const supplierDebtMinor = supplierRepository
-    .list()
-    .reduce((sum, s) => (s.balance > 0 ? sum + s.balance : sum), 0);
+  // TOTAL PAYABLES, DERIVED — supplier debt (posted purchase invoices minus
+  // payments) PLUS every unpaid bill (each expense's total minus the payments
+  // pointing at it). RENT IS DEBT TOO.
+  //
+  // This KPI has been wrong twice, in two different ways. It used to sum
+  // `suppliers.balance`, a column nothing ever wrote, so it read 0 forever no
+  // matter how much the shop owed. Epic 1 fixed that — and it was STILL wrong,
+  // because it counted only suppliers: an owner with 20,000 of unpaid rent saw
+  // none of it. `payables()` now answers the whole question, and because Epic 1
+  // shaped it as a BREAKDOWN rather than a bare number, this line did not have to
+  // change to start telling the truth.
+  const payables = debtRepository.payables();
+  const payablesMinor = payables.total; // suppliers + unpaid expenses
 
   const posted = documentRepository.list({ status: 'posted' });
 

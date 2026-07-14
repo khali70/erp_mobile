@@ -10,6 +10,7 @@ import { PartyCard } from '../components/PartyCard';
 import { RestoredDraftBanner } from '../components/RestoredDraftBanner';
 import { DocLinesSection } from '../components/DocLinesSection';
 import { DocSummaryCard } from '../components/DocSummaryCard';
+import { PaymentCard } from '../components/PaymentCard';
 import { AttachmentsCard } from '../components/AttachmentsCard';
 import { SaveDocButton } from '../components/SaveDocButton';
 import { DocFormModals } from '../components/DocFormModals';
@@ -96,6 +97,16 @@ export function NewIncomingScreen() {
         />
 
         <DocSummaryCard count={f.lines.length} total={f.total} />
+        <PaymentCard
+          paidValue={f.paidValue}
+          onChangePaid={f.setPaid}
+          account={f.account}
+          onChangeAccount={f.setAccount}
+          proof={f.paymentAttachments}
+          onAddProof={f.addPaymentProof}
+          onRemoveProof={f.removePaymentProof}
+          remaining={f.remaining}
+        />
         <SaveDocButton onPress={f.save} saving={f.saving} />
       </ScrollView>
 

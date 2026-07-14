@@ -12,8 +12,11 @@ import { documentRepository } from '@/repositories/document-repository.client';
 import {
   NegativeStockError,
   type DocumentLineInput,
+  type DocumentPaymentInput,
   type AttachmentMeta,
 } from '@/repositories/document-repository';
+import type { Account } from '@/repositories/transaction-repository';
+import { WALKIN_CUSTOMER_ID, WALKIN_SUPPLIER_ID } from '@/db/sentinels';
 import { attachmentRepository } from '@/repositories/attachment-repository';
 import { itemRepository } from '@/repositories/item-repository.client';
 import { tagRepository } from '@/repositories/tag-repository.client';
@@ -76,6 +79,20 @@ export function useDocumentForm(mode: DocMode) {
   const [lines, setLines] = useState<DocLine[]>(draft.lines);
   const [note, setNote] = useState(draft.note ?? '');
   const [attachments, setAttachments] = useState<AttachmentMeta[]>(draft.attachments ?? []);
+  // PAYMENT — what the owner actually handed over.
+  //
+  // `paidInput` is null until he TOUCHES the field, and while it is null the
+  // paid amount simply IS the total. That is the whole point: this shop rarely
+  // buys on debt, debt is the exception, so the common path (paid in full) must
+  // need zero extra input and paying less has to be a deliberate act. It also
+  // means adding a line after typing nothing keeps paid == total automatically.
+  const [paidInput, setPaidInput] = useState<string | null>(draft.paid ?? null);
+  const [account, setAccount] = useState<Account>(draft.account ?? 'cash');
+  // PROOF OF MONEY — hangs off the payment, never the document (which carries
+  // proof of GOODS). Cash needs none; InstaPay IS a screenshot.
+  const [paymentAttachments, setPaymentAttachments] = useState<AttachmentMeta[]>(
+    draft.paymentAttachments ?? [],
+  );
   const [saving, setSaving] = useState(false);
   const [wasRestored] = useState(draft.lines.length > 0);
   // Fast-entry: 'list' picks from the catalog; 'quick' types title/price/qty
@@ -103,8 +120,22 @@ export function useDocumentForm(mode: DocMode) {
       note,
       attachments,
       quick: { values: quick, locks },
+      paid: paidInput,
+      account,
+      paymentAttachments,
     });
-  }, [lines, party, note, attachments, quick, locks, persistDraft]);
+  }, [
+    lines,
+    party,
+    note,
+    attachments,
+    quick,
+    locks,
+    paidInput,
+    account,
+    paymentAttachments,
+    persistDraft,
+  ]);
 
   // Receipt attachments: pick → compress/store bytes immediately → track metadata.
   const addPhoto = useCallback(async () => {
@@ -134,6 +165,24 @@ export function useDocumentForm(mode: DocMode) {
     setAttachments((prev) => prev.filter((a) => a.id !== id));
   }, []);
 
+  // Payment proof: same ingest pipeline as the receipt, different home. These
+  // bytes prove the MONEY moved; documents.attachments prove the GOODS arrived.
+  const addPaymentProof = useCallback(async () => {
+    const picked = await pickPhoto();
+    if (!picked) return;
+    try {
+      const meta = await ingest(picked);
+      setPaymentAttachments((prev) => [...prev, meta]);
+    } catch (err) {
+      Alert.alert(t('documents.errors.title'), String((err as Error)?.message ?? err));
+    }
+  }, [t]);
+
+  const removePaymentProof = useCallback((id: string) => {
+    removeAttachmentFile(id);
+    setPaymentAttachments((prev) => prev.filter((a) => a.id !== id));
+  }, []);
+
   const discardDraft = () => {
     Alert.alert(t('documents.draft.discardTitle'), t('documents.draft.discardBody'), [
       { text: t('common.cancel'), style: 'cancel' },
@@ -142,6 +191,7 @@ export function useDocumentForm(mode: DocMode) {
         style: 'destructive',
         onPress: () => {
           attachments.forEach((a) => removeAttachmentFile(a.id));
+          paymentAttachments.forEach((a) => removeAttachmentFile(a.id));
           setLines([]);
           setParty(null);
           setChosen(false);
@@ -149,6 +199,9 @@ export function useDocumentForm(mode: DocMode) {
           setAttachments([]);
           setQuick(EMPTY_QUICK);
           setLocks(NO_LOCKS);
+          setPaidInput(null);
+          setAccount('cash');
+          setPaymentAttachments([]);
           clearDraft();
         },
       },
@@ -157,6 +210,12 @@ export function useDocumentForm(mode: DocMode) {
 
   const total = useMemo(() => lines.reduce((s, l) => s + l.unitPrice * l.qty, 0), [lines]);
   const isWalkIn = chosen && party === null;
+
+  // An untouched paid field IS the total (see `paidInput` above). Both are major
+  // units here; they cross into integer minor units exactly once, at save.
+  const paid = paidInput === null ? total : Math.max(0, parseFloat(paidInput) || 0);
+  const paidValue = paidInput ?? String(total);
+  const remaining = total - paid; // > 0 ⇒ debt; shown only when it exists
 
   // Build a fresh line from a catalog item, snapshotting the pricing context the
   // row needs to show margin while the owner haggles. Sale prefills the list
@@ -358,6 +417,25 @@ export function useDocumentForm(mode: DocMode) {
       Alert.alert(t('documents.errors.title'), t('documents.errors.zeroCost'));
       return;
     }
+    if (mode === 'purchase') {
+      if (paid < 0) {
+        Alert.alert(t('documents.errors.title'), t('payments.errors.negative'));
+        return;
+      }
+      // Over-paying is a real thing, but it happens LATER, from the debts
+      // screen, where it correctly becomes a credit. You cannot hand a man more
+      // than the goods are worth in the same breath as receiving them.
+      if (toMinor(paid) > toMinor(total)) {
+        Alert.alert(t('documents.errors.title'), t('payments.errors.exceedsTotal'));
+        return;
+      }
+      // A sentinel must never carry debt: "بدون مورد" is not a person anyone can
+      // chase for the balance. A walk-in is settled in full or not recorded.
+      if (isWalkIn && toMinor(paid) !== toMinor(total)) {
+        Alert.alert(t('documents.errors.title'), t('payments.errors.walkInMustBePaid'));
+        return;
+      }
+    }
     // Selling at a loss is a confirm, never a block — it's his shop.
     if (belowCostLines.length > 0) {
       Alert.alert(
@@ -424,14 +502,39 @@ export function useDocumentForm(mode: DocMode) {
           imageUri: l.imageUri ?? null,
         };
       });
+      // A walk-in resolves to the SENTINEL party, never null — so a cash payment
+      // always has something to point at, and no query needs a null special case.
+      const walkInId = mode === 'sale' ? WALKIN_CUSTOMER_ID : WALKIN_SUPPLIER_ID;
+      const partyId = party?.id ?? walkInId;
+
+      // Money handed over at delivery. paid === 0 writes NO transaction row: no
+      // money moved, and the cash book must not claim otherwise.
+      //
+      // Sales are left alone here: a sale's payment (and its "must be settled in
+      // full" invariant) is Epic 4. Epic 1 only teaches the purchase to pay.
+      const paidMinor = toMinor(paid);
+      const payments: DocumentPaymentInput[] =
+        mode === 'purchase' && paidMinor > 0
+          ? [
+              {
+                amount: paidMinor,
+                account,
+                // Proof only ever accompanies InstaPay — cash was handed over and
+                // both men saw it; there is nothing to screenshot.
+                attachments: account === 'instapay' ? paymentAttachments : undefined,
+              },
+            ]
+          : [];
+
       const docId = documentRepository.create(
         {
           kind: mode === 'sale' ? 'outgoing' : 'incoming',
           status: 'posted',
-          partyId: party?.id ?? null,
+          partyId,
           note: note.trim() || undefined,
           attachments,
           lines: resolvedLines,
+          payments,
         },
         { allowNegative: allowNegativeStock },
       );
@@ -497,6 +600,16 @@ export function useDocumentForm(mode: DocMode) {
     removeAttachment,
     saving,
     wasRestored,
+    // payment (purchase)
+    paid,
+    paidValue,
+    setPaid: setPaidInput,
+    remaining,
+    account,
+    setAccount,
+    paymentAttachments,
+    addPaymentProof,
+    removePaymentProof,
     // dialog / mode state
     pickerOpen,
     setPickerOpen,

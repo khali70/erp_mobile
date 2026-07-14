@@ -3,6 +3,12 @@ import type { BaseSQLiteDatabase } from 'drizzle-orm/sqlite-core';
 import * as schema from '@/db/schema';
 import { newId, now } from '@/utils/id';
 import { lineTotal } from '@/utils/money';
+import { isSentinelId } from '@/db/sentinels';
+import {
+  insertTransactionRow,
+  type Account,
+  type TxRefKind,
+} from './transaction-repository';
 import {
   IN,
   OUT,
@@ -38,14 +44,48 @@ export interface DocumentLineInput {
   imageUri?: string | null;
 }
 
+/**
+ * Money handed over AS PART OF saving this document.
+ *
+ * One entry per pocket the money came out of: paying 2000 cash + 1000 InstaPay
+ * is TWO entries, hence two cash-book rows, each with its own proof. This is
+ * exactly why a `paid_amount` column on the document is impossible — a single
+ * number cannot say which screenshot proves which installment.
+ *
+ * Omit entirely (or pass []) to buy purely on debt: no money moved, so NO
+ * transaction row is written and the cash book does not claim otherwise.
+ */
+export interface DocumentPaymentInput {
+  /** Minor units, POSITIVE. The direction is implied by the document kind. */
+  amount: number;
+  account: Account;
+  /** PROOF OF MONEY (the InstaPay screenshot) — lives on the payment, not the document. */
+  attachments?: AttachmentMeta[];
+  note?: string | null;
+  /** When the money MOVED. Defaults to the document's date. */
+  occurredAt?: number;
+}
+
 export interface CreateDocumentInput {
   kind: DocKind;
   lines: DocumentLineInput[];
   docDate?: number;
   note?: string;
-  partyId?: string | null; // suppliers.id (incoming) / customers.id (outgoing); null = walk-in
-  attachments?: AttachmentMeta[]; // receipt metadata; bytes already in attachments.db
+  // suppliers.id (incoming) / customers.id (outgoing). Walk-ins resolve to a
+  // SENTINEL party id, never null — see src/db/sentinels.ts.
+  partyId?: string | null;
+  attachments?: AttachmentMeta[]; // PROOF OF GOODS (the paper invoice); bytes in attachments.db
   status?: 'draft' | 'posted'; // default 'draft'
+  /** What was actually handed over at delivery. See DocumentPaymentInput. */
+  payments?: DocumentPaymentInput[];
+}
+
+/** Thrown when a document's payments are inconsistent with the document itself. */
+export class InvalidPaymentError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'InvalidPaymentError';
+  }
 }
 
 /** One posted ledger movement for an item, with running balance + source doc. */
@@ -247,12 +287,99 @@ export function createDocumentRepository(db: DocDb) {
     recomputeStock(affectedItemIds(id));
   }
 
+  /**
+   * Write the cash-book rows for the money handed over with this document.
+   *
+   * CRITICALLY: this opens NO transaction of its own. It is only ever called
+   * from inside `create`'s existing `db.transaction()`, via
+   * `insertTransactionRow` (which is likewise transaction-free) — because
+   * expo-sqlite's sync driver CANNOT NEST TRANSACTIONS and a `BEGIN` inside a
+   * `BEGIN` throws. That constraint is also the feature: a payment that fails
+   * to write rolls the document AND its lines back with it, so there can never
+   * be an orphan invoice carrying a phantom debt.
+   */
+  function writePayments(
+    docId: string,
+    input: CreateDocumentInput,
+    totalAmount: number,
+    docDate: number,
+  ): void {
+    const payments = input.payments ?? [];
+    if (payments.length === 0) return; // no money moved — write nothing
+
+    // A draft is not an obligation and settles nothing; money against one is
+    // incoherent, and it would land in the cash book while the debt it paid
+    // stayed invisible (drafts are excluded from every derived figure).
+    if (input.status !== 'posted') {
+      throw new InvalidPaymentError('Cannot record a payment on a draft document');
+    }
+
+    const paid = payments.reduce((sum, p) => sum + p.amount, 0);
+    if (paid < 0) throw new InvalidPaymentError(`Paid amount cannot be negative (got ${paid})`);
+    // Over-paying at delivery is rejected: you cannot hand a man more than the
+    // goods are worth *in the same breath as receiving them*. Paying more than
+    // is owed is a real thing, but it happens LATER, from the debts screen, as a
+    // standalone transaction — where it correctly becomes a credit.
+    if (paid > totalAmount) {
+      throw new InvalidPaymentError(
+        `Paid (${paid}) exceeds the document total (${totalAmount})`,
+      );
+    }
+
+    const partyId = input.partyId ?? null;
+    if (!partyId) {
+      throw new InvalidPaymentError('A payment needs a party to point at (walk-ins use a sentinel)');
+    }
+
+    // A SENTINEL MUST NEVER CARRY DEBT. Nobody can be chased for it — "بدون
+    // مورد" is not a person you can go and pay. So a walk-in purchase has to be
+    // settled in full, here, or not recorded at all.
+    if (isSentinelId(partyId) && paid !== totalAmount) {
+      throw new InvalidPaymentError(
+        `A walk-in document must be paid in full (paid ${paid} of ${totalAmount})`,
+      );
+    }
+
+    // A purchase pays money OUT to a supplier; a sale takes money IN against the
+    // document itself (there is no AR book for a sale to be owed against).
+    const isPurchase = input.kind === 'incoming';
+    const direction: Direction = isPurchase ? OUT : IN;
+    const refKind: TxRefKind = isPurchase ? 'supplier' : 'sale';
+    const refId = isPurchase ? partyId : docId;
+
+    for (const p of payments) {
+      insertTransactionRow(db, {
+        direction: direction === IN ? 1 : -1,
+        amount: p.amount,
+        // Money and paperwork are different clocks: the cash book follows when
+        // the money MOVED, defaulting to the document's date only because at
+        // delivery they are the same instant.
+        occurredAt: p.occurredAt ?? docDate,
+        account: p.account,
+        refKind,
+        refId,
+        note: p.note ?? null,
+        attachments: p.attachments,
+      });
+    }
+  }
+
   const api = {
-    /** Create a draft (default) or post immediately (status: 'posted'). */
+    /**
+     * Create a draft (default) or post immediately (status: 'posted'), optionally
+     * recording what was paid — document, lines, stock and cash book all in ONE
+     * atomic transaction. Any failure rolls back every part of it.
+     */
     create(input: CreateDocumentInput, opts: PostOptions = {}): string {
       return db.transaction(() => {
         const id = insertDraft(input);
         if (input.status === 'posted') postInternal(id, opts);
+        const doc = db
+          .select({ totalAmount: schema.documents.totalAmount, docDate: schema.documents.docDate })
+          .from(schema.documents)
+          .where(eq(schema.documents.id, id))
+          .get();
+        writePayments(id, input, doc?.totalAmount ?? 0, doc?.docDate ?? now());
         return id;
       });
     },

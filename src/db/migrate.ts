@@ -1,6 +1,7 @@
 import type { openDatabaseSync } from 'expo-sqlite';
-import { sqlite } from './client';
+import { db, sqlite } from './client';
 import { initAttachmentsDb } from './attachments-client';
+import { backfillWalkInParties, seedSentinels, type SentinelDb } from './sentinels';
 
 // Forward-only bootstrap migration, run once at app boot.
 // Additive only. Never destructive without an explicit backup step.
@@ -69,7 +70,8 @@ export function runMigrations(): void {
       deleted_at INTEGER,
       name TEXT NOT NULL,
       phone TEXT,
-      balance INTEGER NOT NULL DEFAULT 0
+      balance INTEGER NOT NULL DEFAULT 0,
+      is_system INTEGER NOT NULL DEFAULT 0
     );
 
     CREATE TABLE IF NOT EXISTS suppliers (
@@ -79,7 +81,27 @@ export function runMigrations(): void {
       deleted_at INTEGER,
       name TEXT NOT NULL,
       phone TEXT,
-      balance INTEGER NOT NULL DEFAULT 0
+      balance INTEGER NOT NULL DEFAULT 0,
+      is_system INTEGER NOT NULL DEFAULT 0
+    );
+
+    -- The CASH BOOK. Every movement of money, in or out. The amount column is
+    -- always POSITIVE and the sign lives in direction — both CHECK-enforced, so
+    -- a bad payment write fails at the SQL layer and rolls back whatever
+    -- transaction encloses it (a document + its lines, for a purchase payment).
+    CREATE TABLE IF NOT EXISTS transactions (
+      id TEXT PRIMARY KEY,
+      created_at INTEGER NOT NULL,
+      updated_at INTEGER NOT NULL,
+      deleted_at INTEGER,
+      direction INTEGER NOT NULL CHECK (direction IN (-1, 1)),
+      amount INTEGER NOT NULL CHECK (amount > 0),
+      occurred_at INTEGER NOT NULL,
+      account TEXT NOT NULL,
+      ref_kind TEXT,
+      ref_id TEXT,
+      note TEXT,
+      attachments TEXT
     );
 
     CREATE TABLE IF NOT EXISTS categories (
@@ -104,6 +126,9 @@ export function runMigrations(): void {
 
     CREATE INDEX IF NOT EXISTS idx_lines_document ON document_lines(document_id);
     CREATE INDEX IF NOT EXISTS idx_lines_item ON document_lines(item_id);
+    CREATE INDEX IF NOT EXISTS idx_tx_ref ON transactions(ref_kind, ref_id);
+    CREATE INDEX IF NOT EXISTS idx_tx_occurred ON transactions(occurred_at);
+    CREATE INDEX IF NOT EXISTS idx_tx_account ON transactions(account);
   `);
 
   // Additive column back-fills for DBs created by an earlier schema.
@@ -131,6 +156,15 @@ export function runMigrations(): void {
   addColumnIfMissing(sqlite, 'items', 'pricing_mode', "TEXT NOT NULL DEFAULT 'fixed'");
   addColumnIfMissing(sqlite, 'items', 'min_price', 'INTEGER');
   addColumnIfMissing(sqlite, 'document_lines', 'list_price', 'INTEGER');
+  // Sentinel (null-object) parties — walk-in absorbers, so party_id is never null.
+  addColumnIfMissing(sqlite, 'suppliers', 'is_system', 'INTEGER NOT NULL DEFAULT 0');
+  addColumnIfMissing(sqlite, 'customers', 'is_system', 'INTEGER NOT NULL DEFAULT 0');
+
+  // Seed the sentinels and repoint legacy null-party documents at them. BOTH are
+  // idempotent (INSERT OR IGNORE on a fixed id; the backfill is a no-op once no
+  // nulls remain), which they must be — this runs on every single app boot.
+  seedSentinels(db as unknown as SentinelDb);
+  backfillWalkInParties(db as unknown as SentinelDb);
 
   // Attachment bytes live in a separate DB file — bootstrap it here too.
   initAttachmentsDb();

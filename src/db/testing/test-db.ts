@@ -81,13 +81,53 @@ CREATE TABLE stock_levels (
   qty_on_hand INTEGER NOT NULL DEFAULT 0,
   updated_at INTEGER NOT NULL
 );
+CREATE TABLE suppliers (
+  id TEXT PRIMARY KEY,
+  created_at INTEGER NOT NULL,
+  updated_at INTEGER NOT NULL,
+  deleted_at INTEGER,
+  name TEXT NOT NULL,
+  phone TEXT,
+  balance INTEGER NOT NULL DEFAULT 0,
+  is_system INTEGER NOT NULL DEFAULT 0
+);
+CREATE TABLE customers (
+  id TEXT PRIMARY KEY,
+  created_at INTEGER NOT NULL,
+  updated_at INTEGER NOT NULL,
+  deleted_at INTEGER,
+  name TEXT NOT NULL,
+  phone TEXT,
+  balance INTEGER NOT NULL DEFAULT 0,
+  is_system INTEGER NOT NULL DEFAULT 0
+);
+-- The CHECK constraints are the point, not decoration: they are what makes a
+-- bad payment insert fail *inside* documentRepository.create()'s transaction,
+-- rolling the document and its lines back with it (TC-2.2).
+CREATE TABLE transactions (
+  id TEXT PRIMARY KEY,
+  created_at INTEGER NOT NULL,
+  updated_at INTEGER NOT NULL,
+  deleted_at INTEGER,
+  direction INTEGER NOT NULL CHECK (direction IN (-1, 1)),
+  amount INTEGER NOT NULL CHECK (amount > 0),
+  occurred_at INTEGER NOT NULL,
+  account TEXT NOT NULL,
+  ref_kind TEXT,
+  ref_id TEXT,
+  note TEXT,
+  attachments TEXT
+);
 CREATE INDEX idx_lines_document ON document_lines(document_id);
 CREATE INDEX idx_lines_item ON document_lines(item_id);
+CREATE INDEX idx_tx_ref ON transactions(ref_kind, ref_id);
+CREATE INDEX idx_tx_occurred ON transactions(occurred_at);
+CREATE INDEX idx_tx_account ON transactions(account);
 `;
 
 export type TestDb = ReturnType<typeof drizzle<typeof schema>>;
 
-/** Fresh in-memory DB with Step-1 DDL applied. One per test for isolation. */
+/** Fresh in-memory DB with the app DDL applied. One per test for isolation. */
 export function makeTestDb(): TestDb {
   const sqlite = new Database(':memory:');
   sqlite.pragma('foreign_keys = ON');

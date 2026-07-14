@@ -14,7 +14,7 @@ import { usePartyFilter, type PartyFilter } from '../hooks/usePartyFilter';
 import { presentParty } from '../presenters';
 import { PartyRow } from '../components/PartyRow';
 import { PartyFormSheet } from '../components/PartyFormSheet';
-import { supplierRepository } from '@/repositories/supplier-repository';
+import { supplierRepository } from '@/repositories/supplier-repository.client';
 import type { Party, PartyDraft } from '../types';
 
 /**
@@ -31,9 +31,12 @@ export function SuppliersListScreen() {
   // Non-null while editing an existing supplier; null = add mode.
   const [editing, setEditing] = useState<Party | null>(null);
 
+  // The withDebt chip was commented out because it always matched nothing —
+  // it filtered on `suppliers.balance`, a column nothing ever wrote. Debt is now
+  // derived from the invoices, so the chip has something real to match.
   const filterOptions: FilterOption<PartyFilter>[] = [
     { key: 'all', label: t('suppliers.filters.all'), activeClass: 'bg-primary' },
-    // { key: 'withDebt', label: t('suppliers.filters.withDebt'), activeClass: 'bg-warning' },
+    { key: 'withDebt', label: t('suppliers.filters.withDebt'), activeClass: 'bg-warning' },
   ];
 
   const openAdd = () => {
