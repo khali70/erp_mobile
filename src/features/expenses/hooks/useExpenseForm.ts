@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { Alert } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { toMinor } from '@/utils/money';
+import { normalizeDigits } from '@/utils/numerals';
 import { addDays } from '@/utils/dates';
 import { ingest, pickPhoto, removeAttachment } from '@/utils/attachments';
 import { expenseRepository } from '@/repositories/expense-repository.client';
@@ -68,7 +69,13 @@ export function useExpenseForm({ visible, onSaved }: UseExpenseFormArgs) {
   const setCategory = useCallback((v: ExpenseCategory) => set('category', v), [set]);
   const setPartyName = useCallback((v: string) => set('partyName', v), [set]);
   const setNote = useCallback((v: string) => set('note', v), [set]);
-  const setAmount = useCallback((v: string) => set('amount', v.replace(/[^0-9.]/g, '')), [set]);
+  // The shop owner types on an ARABIC keypad. Stripping non-`[0-9.]` before
+  // normalizing threw every ٠-٩ away, so the box stayed empty as he typed and the
+  // expense could not be entered at all. Normalize first, THEN strip.
+  const setAmount = useCallback(
+    (v: string) => set('amount', normalizeDigits(v).replace(/[^0-9.]/g, '')),
+    [set],
+  );
 
   /** Nudge the date by whole days. Never into the future — a bill the shop has
    *  not received yet is not an obligation it can owe on. */

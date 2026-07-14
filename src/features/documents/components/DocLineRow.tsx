@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next';
 import Feather from '@expo/vector-icons/Feather';
 import colors from '@/theme/colors';
 import { ROW } from '@/theme/rtl';
-import { formatMoneyMajor, formatNumber } from '@/utils/numerals';
+import { formatMoneyMajor, formatNumber, normalizeDigits } from '@/utils/numerals';
 import type { DocLine, DocMode } from '../types';
 
 interface DocLineRowProps {
@@ -25,9 +25,16 @@ interface DocLineRowProps {
   onDelete: () => void;
 }
 
-/** Parse a free-typed numeric field; empty / malformed → 0 (never NaN). */
+/**
+ * Parse a free-typed numeric field; empty / malformed → 0 (never NaN).
+ *
+ * `normalizeDigits` is the whole point: this used to be `text.replace(',', '.')`,
+ * which turned an Arabic-typed `١٠٠٠` into NaN→0 and a comma-grouped `1,000` into
+ * `1.000` → **1**. A unit cost booked at 1 instead of 1000 feeds weighted-average
+ * valuation and is never noticed again.
+ */
 const parseNum = (text: string): number => {
-  const n = parseFloat(text.replace(',', '.'));
+  const n = parseFloat(normalizeDigits(text));
   return Number.isFinite(n) ? n : 0;
 };
 

@@ -26,6 +26,10 @@ import { createSupplierRepository } from '@/repositories/supplier-repository';
 import { createCustomerRepository } from '@/repositories/customer-repository';
 import { createDebtRepository } from '@/repositories/debt-repository';
 import { createTagRepository } from '@/repositories/tag-repository';
+import {
+  createExpenseRepository,
+  type ExpenseRepository,
+} from '@/repositories/expense-repository';
 
 /** Fixed clock. Every repo, every row, every test. */
 export const T0 = 1_760_000_000_000;
@@ -39,6 +43,7 @@ export interface HookRepoHarness {
   customers: ReturnType<typeof createCustomerRepository>;
   debts: ReturnType<typeof createDebtRepository>;
   tags: ReturnType<typeof createTagRepository>;
+  expenses: ExpenseRepository;
 }
 
 let current: HookRepoHarness | null = null;
@@ -56,6 +61,7 @@ export function resetHookRepos(): HookRepoHarness {
     customers: createCustomerRepository(db, () => T0),
     debts: createDebtRepository(db, () => T0),
     tags: createTagRepository(db),
+    expenses: createExpenseRepository(db, () => T0),
   };
   return current;
 }
@@ -93,5 +99,8 @@ export const repos = {
   },
   get tags(): HookRepoHarness['tags'] {
     return hookRepos().tags;
+  },
+  get expenses(): ExpenseRepository {
+    return hookRepos().expenses;
   },
 };
