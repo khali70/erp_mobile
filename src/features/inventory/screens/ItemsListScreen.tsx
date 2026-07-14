@@ -30,7 +30,7 @@ import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
  * All copy comes from i18n; styling is NativeWind `className` only.
  */
 export function ItemsListScreen() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const { items, reload } = useItems();
   const { byName: categoryIndex, reload: reloadCategories } = useCategories();
@@ -119,7 +119,7 @@ export function ItemsListScreen() {
             {filtered.map((item) => (
               <ItemRow
                 key={item.id}
-                item={presentItem(item, t, categoryIndex)}
+                item={presentItem(item, t, i18n.language, categoryIndex)}
                 onPress={() =>
                   navigation.navigate('ItemMovement', {
                     itemId: item.id,

@@ -27,10 +27,8 @@ export function DebtsTotalCard({ totalLabel, countLabel }: DebtsTotalCardProps) 
           <Feather name="trending-down" size={18} color={colors.danger} />
         </View>
         <View className="gap-0.5">
-          <Text className="text-muted text-[11px] font-semibold text-right">
-            {t('debts.totalOwed')}
-          </Text>
-          <Text className="text-muted text-[11px] text-right">{countLabel}</Text>
+          <Text className="text-muted text-[11px] font-semibold">{t('debts.totalOwed')}</Text>
+          <Text className="text-muted text-[11px]">{countLabel}</Text>
         </View>
       </View>
 

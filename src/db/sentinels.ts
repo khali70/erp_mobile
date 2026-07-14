@@ -51,6 +51,8 @@ export function isSentinelId(id: string | null | undefined): boolean {
  * A duplicate sentinel would silently split walk-in history in two.
  */
 export function seedSentinels(db: SentinelDb, ts: number = now()): void {
+  // `balance` is RETIRED (debt is derived) and is written NOWHERE, including
+  // here — the column keeps its DB default.
   db.insert(schema.suppliers)
     .values({
       id: WALKIN_SUPPLIER_ID,
@@ -59,7 +61,6 @@ export function seedSentinels(db: SentinelDb, ts: number = now()): void {
       deletedAt: null,
       name: WALKIN_SUPPLIER_NAME,
       phone: null,
-      balance: 0,
       isSystem: 1,
     })
     .onConflictDoNothing()
@@ -73,7 +74,6 @@ export function seedSentinels(db: SentinelDb, ts: number = now()): void {
       deletedAt: null,
       name: WALKIN_CUSTOMER_NAME,
       phone: null,
-      balance: 0,
       isSystem: 1,
     })
     .onConflictDoNothing()

@@ -2,7 +2,7 @@ import { View, Text, TextInput } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import colors from '@/theme/colors';
 import { ROW } from '@/theme/rtl';
-import { formatNumber } from '@/utils/numerals';
+import { formatMoneyMajor } from '@/utils/numerals';
 
 interface SplitAmountRowProps {
   /** The CASH half, as typed (major units). */
@@ -34,7 +34,7 @@ export function SplitAmountRow({ cashValue, onChangeCash, instapayPart }: SplitA
           keyboardType="numeric"
           selectTextOnFocus
           placeholder="0"
-          className="bg-surface text-ink text-sm font-extrabold text-center px-3 py-2 rounded-xl border border-primary/40 min-w-[96px]"
+          className="bg-surface text-ink text-sm font-extrabold text-center px-3 py-3 rounded-xl border border-primary/40 min-w-[96px]"
           placeholderTextColor={colors.muted}
           accessibilityLabel={t('payments.accounts.cash')}
         />
@@ -43,7 +43,7 @@ export function SplitAmountRow({ cashValue, onChangeCash, instapayPart }: SplitA
 
       <View className={`${ROW} items-center justify-between`}>
         <Text className="text-ink text-sm font-extrabold px-3 py-2">
-          {`${formatNumber(instapayPart, lang)} ${t('common.currency')}`}
+          {`${formatMoneyMajor(instapayPart, lang)} ${t('common.currency')}`}
         </Text>
         <Text className="text-muted text-sm font-semibold">
           {t('payments.accounts.instapay')}

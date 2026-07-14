@@ -6,7 +6,8 @@
     "delete": "Delete",
     "search": "Search",
     "back": "Back",
-    "currency": "EGP"
+    "currency": "EGP",
+    "loadFailed": "Could not load data"
   },
   "home": {
     "title": "ERP Mobile",
@@ -185,7 +186,9 @@
       "editTitle": "Edit supplier",
       "delete": "Delete supplier",
       "deleteTitle": "Delete supplier?",
-      "deleteBody": "\"{{name}}\" will be removed from your suppliers. This can't be undone."
+      "deleteBody": "\"{{name}}\" will be removed from your suppliers. This can't be undone.",
+      "deleteBlockedTitle": "You can't remove him yet",
+      "deleteBlockedBody": "You still owe \"{{name}}\" {{amount}}. Settle what's due first, then you can remove him."
     }
   },
   "documents": {

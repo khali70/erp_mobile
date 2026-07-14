@@ -134,8 +134,9 @@ describe('TC-6 — "how much did I sell today, cash versus InstaPay?"', () => {
     expect(rows).toHaveLength(2);
     expect(rows.every((r) => r.refKind === 'sale' && r.refId === docId)).toBe(true);
 
-    // TC-3.2 still holds: 5000 + 5000 === the document total.
-    expect(txs.sumByRef('sale', docId)).toBe(10000);
+    // TC-3.2 still holds: 5000 + 5000 === the document total. Read SIGNED, so a
+    // refund could never pose here as a second payment.
+    expect(txs.netByRef('sale', docId)).toBe(10000);
   });
 
   it('TC-6.5: the cash book follows the MONEY (occurred_at), not the paperwork (doc_date)', () => {
@@ -146,16 +147,47 @@ describe('TC-6 — "how much did I sell today, cash versus InstaPay?"', () => {
     expect(salesOn(D + DAY).cash).toBe(4000);
   });
 
+  // The DOCUMENT is deleted here, not the transaction. Archiving the transaction
+  // by hand tests nothing the app can do: no screen offers it. What the owner
+  // taps is "delete this sale" — and if that leaves the ref_kind='sale' row
+  // alive, the drawer still claims the 10000 he never took.
   it('TC-7.4: a soft-deleted sale vanishes from the daily split AND the balance', () => {
     const docId = sale([{ amount: 10000, account: 'cash' }]);
     expect(salesOn(D).cash).toBe(10000);
 
-    txs.archive(txs.listByRef('sale', docId)[0].id);
+    docs.remove(docId);
 
     expect(salesOn(D).cash).toBe(0);
     expect(netOn(D).cash).toBe(0);
     expect(txs.balances()).toEqual({ cash: 0, instapay: 0, total: 0 });
     expect(txs.listForCashBook()).toHaveLength(0);
+    expect(txs.listByRef('sale', docId)).toEqual([]);
+    expect(docs.list({ kind: 'outgoing' })).toEqual([]);
+  });
+
+  it('TC-7.4: deleting a SPLIT-paid sale takes BOTH of its rows with it', () => {
+    const docId = sale([
+      { amount: 5000, account: 'cash' },
+      { amount: 5000, account: 'instapay' },
+    ]);
+    expect(txs.listByRef('sale', docId)).toHaveLength(2);
+
+    docs.remove(docId);
+
+    // Cascading only the first row would leave 5000 of phantom InstaPay in a
+    // pocket the owner reconciles against a real app balance.
+    expect(txs.balances()).toEqual({ cash: 0, instapay: 0, total: 0 });
+    expect(salesOn(D).total).toBe(0);
+  });
+
+  it('TC-7.4: deleting one sale leaves every OTHER sale untouched', () => {
+    const kept = sale([{ amount: 3000, account: 'cash' }]);
+    const doomed = sale([{ amount: 10000, account: 'cash' }]);
+
+    docs.remove(doomed);
+
+    expect(salesOn(D).cash).toBe(3000);
+    expect(txs.listByRef('sale', kept)).toHaveLength(1);
   });
 });
 

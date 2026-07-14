@@ -38,10 +38,10 @@ export function InvoiceSettlementRow({ settlement, onPress }: InvoiceSettlementR
       <View className={`${ROW} items-center gap-3 flex-1`}>
         <Feather name={tone.icon} size={18} color={tone.color} />
         <View className="gap-0.5 flex-1">
-          <Text className="text-sm font-bold text-ink text-right" numberOfLines={1}>
+          <Text className="text-sm font-bold text-ink" numberOfLines={1}>
             {settlement.docNoLabel}
           </Text>
-          <Text className="text-[11px] text-muted text-right">{settlement.dateLabel}</Text>
+          <Text className="text-[11px] text-muted">{settlement.dateLabel}</Text>
         </View>
       </View>
 

@@ -156,6 +156,23 @@ export const suppliers = sqliteTable('suppliers', {
 // from `documents.attachments`, which is PROOF OF GOODS (the paper invoice).
 // Three installments = three payments = three separate proofs, which is exactly
 // why a single `paid_amount` column on the document is impossible.
+//
+// `doc_id` is PROVENANCE, NOT ALLOCATION — read this before touching it.
+//
+// It is set ONLY on a row BORN WITH a document: the money handed over at the
+// counter as the purchase was saved, and the customer's payment for a sale. It
+// answers exactly one question — "was this money row created as part of that
+// document?" — and it exists for exactly one reason: `documentRepository.remove()`
+// must take those rows down WITH the document. Without it, deleting a part-paid
+// purchase leaves its payment alive against an invoice that no longer exists,
+// and `owed(supplier)` goes NEGATIVE: a phantom credit the owner never earned.
+//
+// It is NOT an allocation link, and the FIFO settlement walk (debt-repository)
+// ignores it COMPLETELY. A payment still points at the SUPPLIER via ref_id, and
+// that is what keeps the allocation problem collapsed. A payment made later
+// through the سداد sheet carries doc_id = NULL and therefore SURVIVES the
+// deletion of any invoice — correctly, because that money really did move at the
+// supplier level. Start allocating on this column and the whole design unravels.
 export const transactions = sqliteTable('transactions', {
   ...standard,
   direction: integer('direction').notNull(), // +1 money IN, -1 money OUT
@@ -164,6 +181,9 @@ export const transactions = sqliteTable('transactions', {
   account: text('account').notNull(), // 'cash' | 'instapay'
   refKind: text('ref_kind'), // why it moved
   refId: text('ref_id'), // what it points at, resolved by ref_kind
+  // PROVENANCE, never allocation. Non-null ⇔ this row was written by
+  // documentRepository.create() for that document, and dies with it.
+  docId: text('doc_id'),
   note: text('note'),
   attachments: text('attachments'), // JSON metadata — PROOF OF MONEY
 });

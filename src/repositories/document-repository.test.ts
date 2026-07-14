@@ -107,10 +107,15 @@ describe('documentRepository — posting into real SQL', () => {
   // moves, and the ledger is immutable. See docs/plan/features/02.
   it('records the negotiated unit price and the list price it was sold against', () => {
     repo.create(incoming('A', 5, 18000)); // stock to sell from
+    seedSentinels(db, T0);
     const id = repo.create({
       kind: 'outgoing',
       status: 'posted',
+      partyId: WALKIN_CUSTOMER_ID,
       lines: [{ itemId: 'A', qty: 1, unitPrice: 20000, listPrice: 25000 }], // sold 200, lists 250
+      // A posted sale is settled IN FULL, always — there is no AR book to hold
+      // the rest. The discount lives in the PRICE, never in an unpaid remainder.
+      payments: [{ amount: 20000, account: 'cash' }],
     });
     const [line] = repo.getWithLines(id)!.lines;
     expect(line.unitPrice).toBe(20000);
@@ -281,6 +286,57 @@ describe('documentRepository — a sale is settled in full, in one pocket or two
     expect(txs.listForCashBook()).toHaveLength(0);
   });
 
+  // The two ways ROUND the invariant, as opposed to through it. Both post a sale
+  // whose goods leave the shelf and whose money exists NOWHERE — the exact state
+  // the rule forbids, reached by not mentioning payments at all.
+  it('TC-3.2: REJECTS a posted sale whose `payments` key is OMITTED, not merely empty', () => {
+    expect(() =>
+      repo.create({
+        kind: 'outgoing',
+        status: 'posted',
+        partyId: WALKIN_CUSTOMER_ID,
+        docDate: T0,
+        lines: [{ itemId: 'A', qty: 1, unitPrice: 10000 }],
+        // no `payments` key at all — this used to skip the check entirely
+      }),
+    ).toThrow(InvalidPaymentError);
+
+    expect(db.select().from(schema.documents).all()).toHaveLength(1); // only the purchase
+    expect(txs.listForCashBook()).toHaveLength(0);
+    expect(repo.onHand('A')).toBe(100); // the goods never left the shelf
+  });
+
+  it('TC-3.2: REJECTS post() on a DRAFT sale — it carries no money, and post takes none', () => {
+    const draftId = repo.create({
+      kind: 'outgoing',
+      status: 'draft', // a draft holds no money; a payment on one is rejected outright
+      partyId: WALKIN_CUSTOMER_ID,
+      docDate: T0,
+      lines: [{ itemId: 'A', qty: 1, unitPrice: 10000 }],
+    });
+
+    expect(() => repo.post(draftId)).toThrow(InvalidPaymentError);
+
+    // Still a draft, still no stock movement, still no money. `post()` is the
+    // OTHER door into 'posted', and the invariant has to stand in both.
+    expect(repo.getWithLines(draftId)!.status).toBe('draft');
+    expect(repo.onHand('A')).toBe(100);
+    expect(txs.listForCashBook()).toHaveLength(0);
+  });
+
+  it('post() still materializes a PURCHASE draft — buying on debt is legitimate', () => {
+    // The guard is about SALES only. A purchase with no money attached is a
+    // purchase on debt, and the debt book is there to hold it.
+    const draftId = repo.create({
+      kind: 'incoming',
+      status: 'draft',
+      lines: [{ itemId: 'B', qty: 5, unitPrice: 1000 }],
+    });
+
+    expect(() => repo.post(draftId)).not.toThrow();
+    expect(repo.onHand('B')).toBe(5);
+  });
+
   it('TC-4.1: an InstaPay sale carries the screenshot and leaves the DRAWER untouched', () => {
     const screenshot: AttachmentMeta = {
       id: 'att-1',
@@ -316,8 +372,9 @@ describe('documentRepository — a sale is settled in full, in one pocket or two
     expect(rows.map((r) => r.account).sort()).toEqual(['cash', 'instapay']);
 
     expect(txs.balances()).toEqual({ cash: 5000, instapay: 5000, total: 10000 });
-    // The settled-in-full invariant still holds: 5000 + 5000 === 10000.
-    expect(txs.sumByRef('sale', docId)).toBe(10000);
+    // The settled-in-full invariant still holds: 5000 + 5000 === 10000. Read
+    // SIGNED (+1 = money in), so a refund could never pose as a payment here.
+    expect(txs.netByRef('sale', docId)).toBe(10000);
   });
 
   it('REJECTS a split that does not add up to the total', () => {

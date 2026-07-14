@@ -6,12 +6,18 @@ import type {
 } from '@/repositories/debt-repository';
 import type { ExpenseDebt } from '@/repositories/expense-repository';
 import { fromMinor } from '@/utils/money';
-import { formatNumber } from '@/utils/numerals';
+import { formatMoneyMajor, formatNumber } from '@/utils/numerals';
 import { formatDate } from '@/utils/dates';
 
-/** Money → "٤٬٠٠٠ ج.م". The one place minor units become something readable. */
+/**
+ * Money → "٤٬٠٠٠٫٠٠ ج.م". The one place minor units become something readable.
+ *
+ * MAGNITUDE: a credit is titled "رصيد لك" and shown as a positive figure, which
+ * is why the abs is deliberate here. `formatNumber` is for COUNTS only — it
+ * rounds, and rounding a debt of 0.50 to "٠" is not a rounding error.
+ */
 function money(minor: number, t: TFunction, lang: string): string {
-  return `${formatNumber(fromMinor(Math.abs(minor)), lang)} ${t('common.currency')}`;
+  return `${formatMoneyMajor(fromMinor(Math.abs(minor)), lang)} ${t('common.currency')}`;
 }
 
 /** A row of the debts list. */

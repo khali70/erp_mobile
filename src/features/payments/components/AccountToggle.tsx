@@ -33,10 +33,12 @@ export function AccountToggle({ value, onChange }: AccountToggleProps) {
           return (
             <Pressable
               key={opt.key}
-              className={`${ROW} items-center gap-1.5 px-3 py-2 rounded-xl border ${
+              // A REQUIRED field on every purchase — it gets a full 44pt target.
+              className={`${ROW} items-center gap-1.5 px-3 py-3 rounded-xl border ${
                 active ? 'bg-primary border-primary' : 'bg-background border-border'
               }`}
               onPress={() => onChange(opt.key)}
+              hitSlop={12}
               accessibilityRole="button"
               accessibilityState={{ selected: active }}
               accessibilityLabel={t(`payments.accounts.${opt.key}`)}

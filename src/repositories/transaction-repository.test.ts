@@ -258,7 +258,7 @@ describe('the cash book — money moves, in one pocket or the other', () => {
     txs.archive(id);
 
     expect(txs.cashByAccount('cash')).toBe(0);
-    expect(txs.sumByRef('sale', 'd1')).toBe(0);
+    expect(txs.netByRef('sale', 'd1')).toBe(0);
     expect(txs.listByRef('sale', 'd1')).toHaveLength(0);
     expect(txs.listForCashBook()).toHaveLength(0);
   });
@@ -300,14 +300,28 @@ describe('the sign invariant — it lives in `direction`, never in `amount`', ()
   });
 });
 
-describe('sumByRef', () => {
+describe('netByRef / settledByRef — the sign is READ from the rows, never assumed', () => {
   it('sums only live rows pointing at that exact ref', () => {
     txs.create(out({ amount: 2000, refKind: 'supplier', refId: 'ahmed' }));
     txs.create(out({ amount: 3000, refKind: 'supplier', refId: 'ahmed' }));
     txs.create(out({ amount: 9999, refKind: 'supplier', refId: 'mahmoud' }));
     txs.create(out({ amount: 8888, refKind: 'expense', refId: 'ahmed' })); // different kind
 
-    expect(txs.sumByRef('supplier', 'ahmed')).toBe(5000);
-    expect(txs.sumByRef('supplier', 'nobody')).toBe(0);
+    // Money OUT to a supplier: net is NEGATIVE (the drawer lost it), and what he
+    // has been SETTLED is the positive 5000.
+    expect(txs.netByRef('supplier', 'ahmed')).toBe(-5000);
+    expect(txs.settledByRef('supplier', 'ahmed')).toBe(5000);
+    expect(txs.netByRef('supplier', 'nobody')).toBe(0);
+    expect(txs.settledByRef('supplier', 'nobody')).toBe(0);
+  });
+
+  it('a +1 row against a supplier is money coming BACK, and UN-settles the debt', () => {
+    txs.create(out({ amount: 5000, refKind: 'supplier', refId: 'ahmed' })); // paid him
+    txs.create(out({ direction: 1, amount: 2000, refKind: 'supplier', refId: 'ahmed' })); // he refunded
+
+    // Σ|amount| would say 7000 settled — the refund would PAY OFF the very debt
+    // it re-creates. The sign has to be encoded, not assumed by the caller.
+    expect(txs.settledByRef('supplier', 'ahmed')).toBe(3000);
+    expect(txs.netByRef('supplier', 'ahmed')).toBe(-3000);
   });
 });

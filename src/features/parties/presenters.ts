@@ -1,6 +1,6 @@
 import type { TFunction } from 'i18next';
 import type { Party } from './types';
-import { toArabicDigits } from '@/utils/numerals';
+import { formatMoneyMajor } from '@/utils/numerals';
 import { fromMinor } from '@/utils/money';
 
 /** Fully-resolved, display-ready shape consumed by <PartyRow>. */
@@ -21,10 +21,12 @@ export interface PartyViewModel {
  * of an over-payment, never an error, and it must not be flattened into
  * "settled" as if the books were level.
  */
-export function presentParty(party: Party, t: TFunction): PartyViewModel {
+export function presentParty(party: Party, t: TFunction, lang: string): PartyViewModel {
   const hasDebt = party.balanceMinor > 0;
   const isCredit = party.balanceMinor < 0;
-  const amount = toArabicDigits(Math.abs(fromMinor(party.balanceMinor)));
+  // MONEY — the piastres stay. The sign is carried by the LABEL (debt vs credit),
+  // so the figure itself is a magnitude on purpose.
+  const amount = formatMoneyMajor(Math.abs(fromMinor(party.balanceMinor)), lang);
 
   const debtLabel = hasDebt
     ? `${amount} ${t('common.currency')}`

@@ -1,9 +1,15 @@
-import { View, Text, Pressable } from 'react-native';
+import { View, Text, Pressable, I18nManager } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import Feather from '@expo/vector-icons/Feather';
 import colors from '@/theme/colors';
 import { ROW } from '@/theme/rtl';
 import { formatDate, isSameDay } from '@/utils/dates';
+
+// The steppers point BACK and FORWARD in time, and which glyph that is depends on
+// the writing direction: `ROW` reverses under LTR, so a hardcoded chevron-right
+// for "earlier" reads correctly in Arabic and backwards in English.
+const EARLIER_ICON = I18nManager.isRTL ? 'chevron-right' : 'chevron-left';
+const LATER_ICON = I18nManager.isRTL ? 'chevron-left' : 'chevron-right';
 
 interface SettleDateFieldProps {
   /** When the money moved, epoch ms. */
@@ -30,12 +36,13 @@ export function SettleDateField({ value, onShift, label }: SettleDateFieldProps)
     <View className={`${ROW} items-center justify-between`}>
       <View className={`${ROW} items-center gap-2`}>
         <Pressable
-          className="w-9 h-9 rounded-xl items-center justify-center bg-background border border-border"
+          className="w-11 h-11 rounded-xl items-center justify-center bg-background border border-border"
           onPress={() => onShift(-1)}
+          hitSlop={12}
           accessibilityRole="button"
           accessibilityLabel={t('payments.dayEarlier')}
         >
-          <Feather name="chevron-right" size={16} color={colors.muted} />
+          <Feather name={EARLIER_ICON} size={16} color={colors.muted} />
         </Pressable>
 
         <View className="bg-background rounded-xl border border-border px-3 py-2 items-center min-w-[110px]">
@@ -45,19 +52,16 @@ export function SettleDateField({ value, onShift, label }: SettleDateFieldProps)
         </View>
 
         <Pressable
-          className={`w-9 h-9 rounded-xl items-center justify-center border ${
+          className={`w-11 h-11 rounded-xl items-center justify-center border ${
             today ? 'bg-background/50 border-border' : 'bg-background border-border'
           }`}
           disabled={today}
           onPress={() => onShift(1)}
+          hitSlop={12}
           accessibilityRole="button"
           accessibilityLabel={t('payments.dayLater')}
         >
-          <Feather
-            name="chevron-left"
-            size={16}
-            color={today ? colors.border : colors.muted}
-          />
+          <Feather name={LATER_ICON} size={16} color={today ? colors.border : colors.muted} />
         </Pressable>
       </View>
 

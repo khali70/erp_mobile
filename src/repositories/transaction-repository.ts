@@ -47,6 +47,13 @@ export interface CreateTransactionInput {
   account: Account;
   refKind?: TxRefKind | null;
   refId?: string | null;
+  /**
+   * PROVENANCE, NOT ALLOCATION. Set ONLY by `documentRepository.create()`, on the
+   * rows born with that document, so that deleting the document takes its money
+   * rows with it. A payment made later from the سداد sheet leaves this NULL and
+   * survives any invoice deletion — see schema.ts. The FIFO walk never reads it.
+   */
+  docId?: string | null;
   note?: string | null;
   /** PROOF OF MONEY (the InstaPay screenshot). Distinct from the document's proof of goods. */
   attachments?: AttachmentMeta[];
@@ -111,12 +118,58 @@ export function insertTransactionRow(
       account: input.account,
       refKind: input.refKind ?? null,
       refId: input.refId ?? null,
+      docId: input.docId ?? null,
       note: input.note ?? null,
       attachments: input.attachments?.length ? JSON.stringify(input.attachments) : null,
     })
     .run();
   return id;
 }
+
+/**
+ * Soft-delete every cash-book row BORN WITH one document.
+ *
+ * Like `insertTransactionRow`, this opens NO transaction of its own: it is called
+ * from inside `documentRepository.remove()`'s existing `db.transaction()`, and
+ * expo-sqlite's sync driver cannot nest a `BEGIN` inside a `BEGIN`. The document
+ * and its money must die in ONE atomic step or the failure mode is exactly the
+ * one this whole change exists to kill: an invoice gone, its payment still
+ * counted, and `owed(supplier)` NEGATIVE.
+ *
+ * It matches on `doc_id`, so it can only ever reach rows this document created.
+ * A standalone سداد payment (doc_id NULL) points at the SUPPLIER and is left
+ * alone — that money really did move, and no deletion can un-move it.
+ */
+export function archiveTransactionsForDocument(
+  db: TxDb,
+  docId: string,
+  clock: () => number = now,
+): void {
+  const ts = clock();
+  db.update(schema.transactions)
+    .set({ deletedAt: ts, updatedAt: ts })
+    .where(and(eq(schema.transactions.docId, docId), isNull(schema.transactions.deletedAt)))
+    .run();
+}
+
+/**
+ * Σ(direction × amount) — the ONLY correct way to add cash-book rows together.
+ * `amount` is a magnitude; adding magnitudes together silently merges money that
+ * came IN with money that went OUT.
+ */
+export const NET_AMOUNT_SQL = sql<number>`coalesce(sum(${schema.transactions.direction} * ${schema.transactions.amount}), 0)`;
+
+/**
+ * Σ(−direction × amount) — what the shop has NET HANDED OVER to a ref.
+ *
+ * The "paid" side of every debt subtraction, and the reason it is signed: a −1
+ * row is a payment and pays the debt DOWN; a +1 row against the same ref is
+ * money coming BACK (a refund, a returned crate) and pushes the debt back UP.
+ * Summing |amount| would have a refund PAY OFF the debt it should re-create.
+ * Shared by debt-repository and expense-repository, which derive the same
+ * subtraction over two different kinds of obligation.
+ */
+export const SETTLED_AMOUNT_SQL = sql<number>`coalesce(sum(-${schema.transactions.direction} * ${schema.transactions.amount}), 0)`;
 
 /** Fold a grouped-by-account SQL result into a figure per pocket, plus the sum. */
 function totalsFrom(rows: { account: string; total: number }[]): AccountTotals {
@@ -144,10 +197,19 @@ export function createTransactionRepository(db: TxDb, clock: () => number = now)
       return db.transaction(() => inputs.map((i) => insertTransactionRow(db, i, clock)));
     },
 
-    /** Σ amount pointing at one ref. Positive; the caller knows the direction. */
-    sumByRef(refKind: TxRefKind, refId: string): number {
+    /**
+     * NET movement against one ref: Σ(direction × amount). SIGNED, deliberately.
+     *
+     * Positive ⇒ money came IN against it (a sale). Negative ⇒ money went OUT
+     * (a supplier payment). The sign is READ from the rows, never assumed by the
+     * caller — the old `sumByRef` summed |amount| and so could not tell a payment
+     * from a refund. Nothing writes a +1 supplier row today; the day something
+     * does (a return credit from Ahmed), every figure derived from this one has
+     * to move in the right direction on its own.
+     */
+    netByRef(refKind: TxRefKind, refId: string): number {
       const row = db
-        .select({ total: sql<number>`coalesce(sum(${schema.transactions.amount}), 0)` })
+        .select({ total: NET_AMOUNT_SQL })
         .from(schema.transactions)
         .where(
           and(
@@ -158,6 +220,21 @@ export function createTransactionRepository(db: TxDb, clock: () => number = now)
         )
         .get();
       return row?.total ?? 0;
+    },
+
+    /**
+     * What the shop has NET HANDED OVER to one ref — the "paid" side of every
+     * debt subtraction (`owed = invoiced − settled`).
+     *
+     * It is exactly `−netByRef`: money OUT (−1) counts as paid, and money IN
+     * against the same ref (+1 — a refund, a returned crate) counts AGAINST it,
+     * pushing the debt back UP. That is the whole reason it is not a Σ|amount|.
+     */
+    settledByRef(refKind: TxRefKind, refId: string): number {
+      const net = api.netByRef(refKind, refId);
+      // `-0` is not `0` to Object.is (nor to a strict test), and it renders as
+      // "-0" the moment anything stringifies it. Negating zero must give zero.
+      return net === 0 ? 0 : -net;
     },
 
     /** Every movement pointing at one ref, oldest first (a payment history). */

@@ -5,7 +5,9 @@ import { newId, now } from '@/utils/id';
 import { lineTotal } from '@/utils/money';
 import { isSentinelId } from '@/db/sentinels';
 import {
+  archiveTransactionsForDocument,
   insertTransactionRow,
+  NET_AMOUNT_SQL,
   type Account,
   type TxRefKind,
 } from './transaction-repository';
@@ -319,10 +321,18 @@ export function createDocumentRepository(db: DocDb) {
     // If this ever proves wrong in the real shop, that is the signal to
     // UN-DEPRECATE AR. It is not a constraint to paper over.
     //
-    // The check is scoped to callers that DECLARE payments. A caller that omits
-    // `payments` entirely is not recording money at all (drafts, stock-only
-    // fixtures); the sale screen always declares them, and always in full.
-    if (input.kind === 'outgoing' && input.payments !== undefined && paid !== totalAmount) {
+    // UNCONDITIONAL for a POSTED sale. It used to be skipped when `payments` was
+    // omitted rather than empty — a distinction the invariant cannot survive:
+    // `create({ kind: 'outgoing', status: 'posted' })` with no payments key
+    // posted a sale with ZERO cash-book rows, goods gone and the money nowhere,
+    // which is precisely the state the rule exists to forbid. Omitting the key
+    // is not a licence to skip the check; it is the worst way to fail it.
+    //
+    // A DRAFT sale is exempt because a draft holds no money at all — and the
+    // moment it stops being a draft, `post()` applies this same rule to it.
+    // PURCHASES may legitimately omit payments (buying on debt, and seed.ts
+    // relies on it): the debt book is there to hold the rest.
+    if (input.kind === 'outgoing' && input.status === 'posted' && paid !== totalAmount) {
       throw new InvalidPaymentError(
         `A sale must be settled in full — there is no customer-debt book to hold the rest (paid ${paid} of ${totalAmount})`,
       );
@@ -380,9 +390,57 @@ export function createDocumentRepository(db: DocDb) {
         account: p.account,
         refKind,
         refId,
+        // PROVENANCE: this row was BORN WITH this document and must die with it
+        // (`remove()`). It is NOT an allocation link — a purchase payment still
+        // points at the SUPPLIER through `refId`, and the FIFO walk reads only
+        // that. Money paid LATER through the سداد sheet carries no docId and
+        // rightly survives the deletion of any invoice.
+        docId,
         note: p.note ?? null,
         attachments: p.attachments,
       });
+    }
+  }
+
+  /**
+   * THE SALES INVARIANT, applied to the OTHER door into 'posted'.
+   *
+   * `create()` enforces it on the payments it is handed; `post()` is handed none
+   * at all, and a draft sale by definition carries no money (a payment on a draft
+   * is rejected outright). So posting one would have materialized a sale whose
+   * goods left the shelf and whose money exists nowhere — the exact hole the
+   * invariant forbids, reached by walking round it instead of through it.
+   *
+   * The figure is Σ(direction × amount) over the sale's live rows: a magnitude
+   * sum would let a refund pose as a payment.
+   */
+  function assertSaleIsSettled(docId: string): void {
+    const doc = db
+      .select({
+        kind: schema.documents.kind,
+        totalAmount: schema.documents.totalAmount,
+      })
+      .from(schema.documents)
+      .where(eq(schema.documents.id, docId))
+      .get();
+    if (!doc || doc.kind !== 'out') return;
+
+    const row = db
+      .select({ total: NET_AMOUNT_SQL })
+      .from(schema.transactions)
+      .where(
+        and(
+          eq(schema.transactions.refKind, 'sale'),
+          eq(schema.transactions.refId, docId),
+          isNull(schema.transactions.deletedAt),
+        ),
+      )
+      .get();
+    const paid = row?.total ?? 0;
+    if (paid !== doc.totalAmount) {
+      throw new InvalidPaymentError(
+        `A sale must be settled in full — there is no customer-debt book to hold the rest (paid ${paid} of ${doc.totalAmount})`,
+      );
     }
   }
 
@@ -406,9 +464,16 @@ export function createDocumentRepository(db: DocDb) {
       });
     },
 
-    /** Materialize a draft into stock. Outgoing docs are stock-guarded. */
+    /**
+     * Materialize a draft into stock. Outgoing docs are stock-guarded — and
+     * MONEY-guarded: a sale cannot post unless its full price is in the cash
+     * book, because there is no customer-debt book to hold the remainder.
+     */
     post(id: string, opts: PostOptions = {}): void {
-      db.transaction(() => postInternal(id, opts));
+      db.transaction(() => {
+        assertSaleIsSettled(id);
+        postInternal(id, opts);
+      });
     },
 
     /** Revert a posted doc to draft; stock re-derives without it. */
@@ -423,7 +488,27 @@ export function createDocumentRepository(db: DocDb) {
       });
     },
 
-    /** Soft-delete a doc; its stock effect disappears (archive, never hard-delete). */
+    /**
+     * Soft-delete a doc: its stock effect AND ITS MONEY both disappear, in one
+     * atomic step (archive, never hard-delete).
+     *
+     * THE MONEY IS THE HALF THAT USED TO BE MISSING. Deleting the document alone
+     * left every cash-book row it had written alive and counted, and the two
+     * derived figures then contradicted the world:
+     *
+     *   • a part-paid PURCHASE — the 6000 invoice stops being invoiced, the 2000
+     *     paid against it keeps being paid, and `owed(Ahmed)` = 0 − 2000 = −2000.
+     *     The debts screen tells the owner "Ahmed owes YOU 2000": a phantom
+     *     credit, against a man he never overpaid a piastre.
+     *   • a SALE — the ref_kind='sale' rows stay in `balances()` and
+     *     `salesBetween()`, so the drawer claims 10,000 that is not in it, and
+     *     the day's takings include a sale that no longer exists.
+     *
+     * Only rows carrying this document's `doc_id` are touched — the money BORN
+     * WITH it. A standalone سداد payment points at the supplier, carries no
+     * doc_id, and survives: that money really did move, and deleting an invoice
+     * cannot un-move it (it becomes a credit, which is the truth).
+     */
     remove(id: string): void {
       db.transaction(() => {
         const items = affectedItemIds(id);
@@ -432,6 +517,9 @@ export function createDocumentRepository(db: DocDb) {
           .set({ deletedAt: ts, updatedAt: ts })
           .where(eq(schema.documents.id, id))
           .run();
+        // Transaction-free by design: expo-sqlite's sync driver cannot nest a
+        // BEGIN inside this BEGIN. Same reason `insertTransactionRow` exists.
+        archiveTransactionsForDocument(db, id);
         recomputeStock(items);
       });
     },

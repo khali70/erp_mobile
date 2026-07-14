@@ -4,7 +4,8 @@ import { useNavigation } from '@react-navigation/native';
 import { useTranslation } from 'react-i18next';
 import { getDocumentAsync } from 'expo-document-picker';
 import { File } from 'expo-file-system';
-import { fromMinor, lineTotal, toMinor } from '@/utils/money';
+import { fromMinor, lineTotal, toMajor, toMinor } from '@/utils/money';
+import { normalizeDigits, toLocaleDigits } from '@/utils/numerals';
 import { parseStockCsv, parseAmount, type ImportRow } from '../utils/importStock';
 import { useItems } from '@/features/inventory/hooks/useItems';
 import { useSettingsStore } from '@/store/settings-store';
@@ -223,7 +224,6 @@ export function useDocumentForm(mode: DocMode) {
     ]);
   };
 
-  const total = useMemo(() => lines.reduce((s, l) => s + l.unitPrice * l.qty, 0), [lines]);
   const isWalkIn = chosen && party === null;
 
   // The document total in MINOR units, computed exactly as documentRepository
@@ -238,11 +238,31 @@ export function useDocumentForm(mode: DocMode) {
     [lines],
   );
 
-  // An untouched paid field IS the total (see `paidInput` above). Both are major
-  // units here; they cross into integer minor units exactly once, at save.
-  const paid = paidInput === null ? total : Math.max(0, parseFloat(paidInput) || 0);
-  const paidValue = paidInput ?? String(total);
+  // The major-unit total is DERIVED from the integer one, never float-summed
+  // alongside it. `Σ unitPrice * qty` in floats is how "25.200000000000003" got
+  // into the المدفوع box, and how the form's total could disagree with the
+  // ledger's by a piastre.
+  const total = fromMinor(totalMinor);
+
+  // An untouched paid field IS the total (see `paidInput` above). `paidInput` is
+  // always CANONICAL (Latin digits, '.') so parseFloat can read it; the shaping
+  // to ٢٥٫٢٠ happens on the way out, in `paidValue`.
+  const paidCanonical = paidInput ?? toMajor(totalMinor);
+  const paid = Math.max(0, parseFloat(paidCanonical) || 0);
+  const paidValue = toLocaleDigits(paidCanonical, lang);
   const remaining = total - paid; // > 0 ⇒ debt; shown only when it exists
+
+  // Everything the owner types into a money box is normalised at the boundary:
+  // an Arabic-Indic keyboard must not land NaN in `paid` (which would silently
+  // turn a paid-in-full purchase into a debt for the whole amount).
+  const setPaid = useCallback(
+    (value: string | null) => setPaidInput(value === null ? null : normalizeDigits(value)),
+    [],
+  );
+  const setCashPart = useCallback(
+    (value: string) => setCashPartInput(normalizeDigits(value)),
+    [],
+  );
 
   // HOW THE CUSTOMER PAID — cash, InstaPay, or both.
   //
@@ -252,8 +272,17 @@ export function useDocumentForm(mode: DocMode) {
   // how much of it was cash. The InstaPay part is the REMAINDER, by construction:
   // the two halves cannot fail to add up to the total, because the second one is
   // defined as what the first leaves behind.
+  //
+  // An EMPTY cash box means the FULL TOTAL, not zero. Zero would route the whole
+  // sale to InstaPay the instant the toggle is tapped — one stray tap misfiling a
+  // cash sale into the wrong pocket, silently, with nothing on screen saying so.
+  // The split therefore opens as a NO-OP (all cash) and the owner types DOWN.
+  //
+  // Unclamped, so a cash half bigger than the sale is still TOLD to him at save
+  // rather than quietly trimmed (see `save`).
+  const cashPartMinor = toMinor(cashPartInput.trim() || toMajor(totalMinor));
   const saleCashMinor = splitEnabled
-    ? Math.min(Math.max(0, toMinor(cashPartInput || '0')), totalMinor)
+    ? Math.min(Math.max(0, cashPartMinor), totalMinor)
     : account === 'cash'
       ? totalMinor
       : 0;
@@ -262,6 +291,31 @@ export function useDocumentForm(mode: DocMode) {
   const saleInstapayPart = fromMinor(saleInstapayMinor);
   /** True when any of the sale's money came through InstaPay — proof rides on it. */
   const saleTouchesInstapay = mode === 'sale' && saleInstapayMinor > 0;
+
+  // Opening the split PRE-FILLS the cash half with the whole sale, so the number
+  // the owner sees is the one the app would post, and he adjusts it downward.
+  // Closing it hands the sale back to the الحساب toggle.
+  const toggleSplit = useCallback(
+    (next: boolean) => {
+      setSplitEnabled(next);
+      setCashPartInput(next ? toMajor(totalMinor) : '');
+    },
+    [totalMinor],
+  );
+
+  // Switching the pocket away from InstaPay DROPS the proof — it is proof of an
+  // InstaPay transfer that no longer exists, and `payments` only ever attaches it
+  // to an InstaPay payment. Leaving the metadata in state would leave its bytes
+  // in attachments.db attached to nothing, forever, while the owner still sees a
+  // chip on screen that will never be written.
+  const selectAccount = useCallback((next: Account) => {
+    setAccount(next);
+    if (next === 'instapay') return;
+    setPaymentAttachments((prev) => {
+      prev.forEach((a) => removeAttachmentFile(a.id));
+      return [];
+    });
+  }, []);
 
   // Build a fresh line from a catalog item, snapshotting the pricing context the
   // row needs to show margin while the owner haggles. Sale prefills the list
@@ -485,7 +539,7 @@ export function useDocumentForm(mode: DocMode) {
     // A split whose cash half is bigger than the whole sale is a typo, and it is
     // told rather than silently trimmed: the owner's number is never quietly
     // changed under him — he wrote it, so he gets to see it was wrong.
-    if (mode === 'sale' && splitEnabled && toMinor(cashPartInput || '0') > totalMinor) {
+    if (mode === 'sale' && splitEnabled && cashPartMinor > totalMinor) {
       Alert.alert(t('documents.errors.title'), t('payments.errors.splitExceedsTotal'));
       return;
     }
@@ -670,18 +724,18 @@ export function useDocumentForm(mode: DocMode) {
     // payment (purchase)
     paid,
     paidValue,
-    setPaid: setPaidInput,
+    setPaid,
     remaining,
     account,
-    setAccount,
+    setAccount: selectAccount,
     paymentAttachments,
     addPaymentProof,
     removePaymentProof,
     // payment (sale) — always the full total, across one pocket or two
     splitEnabled,
-    setSplitEnabled,
-    cashPartValue: cashPartInput,
-    setCashPart: setCashPartInput,
+    setSplitEnabled: toggleSplit,
+    cashPartValue: toLocaleDigits(cashPartInput, lang),
+    setCashPart,
     saleCashPart,
     saleInstapayPart,
     saleTouchesInstapay,

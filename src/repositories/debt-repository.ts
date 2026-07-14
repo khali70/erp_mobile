@@ -3,7 +3,7 @@ import type { BaseSQLiteDatabase } from 'drizzle-orm/sqlite-core';
 import * as schema from '@/db/schema';
 import { now } from '@/utils/id';
 import type { AttachmentMeta } from './document-repository';
-import type { Account } from './transaction-repository';
+import { SETTLED_AMOUNT_SQL, type Account } from './transaction-repository';
 import { createExpenseRepository, type ExpenseDebt } from './expense-repository';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -101,10 +101,15 @@ export function walkFifo(invoices: DebtInvoice[], paidTotal: number): InvoiceSet
 /**
  * DERIVED SUPPLIER DEBT (accounts payable).
  *
- *   owed(S) = Σ documents.total_amount  WHERE kind='in' AND party_id=S
- *                                         AND status='posted' AND deleted_at IS NULL
- *           − Σ transactions.amount     WHERE ref_kind='supplier' AND ref_id=S
- *                                         AND deleted_at IS NULL
+ *   owed(S) = Σ documents.total_amount        WHERE kind='in' AND party_id=S
+ *                                               AND status='posted' AND deleted_at IS NULL
+ *           − Σ (−direction × transactions.amount) WHERE ref_kind='supplier' AND ref_id=S
+ *                                               AND deleted_at IS NULL
+ *
+ * The payment side is SIGNED, never a Σ|amount|: money OUT (−1) pays the debt
+ * down, money IN against the same supplier (+1 — a refund, a returned crate)
+ * pushes it back UP. Summing magnitudes has a refund PAY OFF the debt it should
+ * re-create.
  *
  * Debt is DERIVED, never stored. A stored debt column drifts the first time a
  * save half-fails or a document is soft-deleted, and then the owner sees "you
@@ -150,10 +155,21 @@ export function createDebtRepository(db: DebtDb, clock: () => number = now) {
     return row?.total ?? 0;
   }
 
-  /** Σ live payments pointing at this supplier (amounts are always positive). */
+  /**
+   * What the shop has NET PAID this supplier: Σ(−direction × amount) over his
+   * live rows.
+   *
+   * SIGNED, not a Σ|amount|. A −1 row is money handed over and pays the debt
+   * down. A +1 row against the same supplier is money coming BACK (a refund, a
+   * returned crate) and pushes the debt back UP — which a magnitude sum gets
+   * exactly backwards, letting a refund PAY OFF the debt it should re-create.
+   * Nothing writes a +1 supplier row today; the sign is encoded here rather than
+   * assumed, so that the day something does, this number moves the right way on
+   * its own.
+   */
   function paidTo(supplierId: string): number {
     const row = db
-      .select({ total: sql<number>`coalesce(sum(${schema.transactions.amount}), 0)` })
+      .select({ total: SETTLED_AMOUNT_SQL })
       .from(schema.transactions)
       .where(
         and(
@@ -184,15 +200,24 @@ export function createDebtRepository(db: DebtDb, clock: () => number = now) {
    * FIFO walk depends on. `created_at` breaks a same-day tie, because two
    * invoices dated the same morning still have an order the owner would
    * recognise: the one he entered first.
+   *
+   * THE SORT KEY AND THE RETURNED KEY ARE THE SAME EXPRESSION, and they have to
+   * be. `doc_date` is nullable, and SQLite sorts NULL FIRST — so ordering by the
+   * raw column while returning `doc_date ?? created_at` made every legacy
+   * undated row sort as the OLDEST invoice the supplier has, whatever its real
+   * age. FIFO would then drink the supplier's money into a row the owner cannot
+   * even see the date of, and the aging on the debts list would read from it.
+   * `coalesce` in the SQL is what keeps the walk's order and its dates one fact.
    */
+  const invoiceDate = sql<number>`coalesce(${schema.documents.docDate}, ${schema.documents.createdAt})`;
+
   function invoicesOf(supplierId: string): DebtInvoice[] {
     return db
       .select({
         documentId: schema.documents.id,
         docNo: schema.documents.docNo,
-        docDate: schema.documents.docDate,
+        docDate: invoiceDate,
         total: schema.documents.totalAmount,
-        createdAt: schema.documents.createdAt,
       })
       .from(schema.documents)
       .where(
@@ -203,14 +228,12 @@ export function createDebtRepository(db: DebtDb, clock: () => number = now) {
           isNull(schema.documents.deletedAt),
         ),
       )
-      .orderBy(asc(schema.documents.docDate), asc(schema.documents.createdAt))
+      .orderBy(asc(invoiceDate), asc(schema.documents.createdAt))
       .all()
       .map((r) => ({
         documentId: r.documentId,
         docNo: r.docNo,
-        // docDate is nullable in the schema; a document with no date is as old as
-        // its row, and the walk needs a number to age against either way.
-        docDate: r.docDate ?? r.createdAt,
+        docDate: r.docDate,
         total: r.total,
       }));
   }
@@ -285,13 +308,60 @@ export function createDebtRepository(db: DebtDb, clock: () => number = now) {
     },
 
     /**
-     * Derived debt for every real supplier, keyed by id — one map for the whole
-     * screen, so a list of N suppliers costs 2 queries, not 2N. Credits (negative)
-     * are included; callers decide whether a credit is worth showing.
+     * Derived debt for every real supplier, keyed by id — ONE map for the whole
+     * screen, in 3 queries flat (the suppliers, then one GROUP BY per side of the
+     * subtraction), not 2 per supplier.
+     *
+     * It used to loop `owed(s.id)` over every supplier — 2 full scans of
+     * `documents`/`transactions` EACH, while the docstring above it claimed "2
+     * queries, not 2N". It is read on every focus of the debts screen and again
+     * inside `computeDashboardStats()` on Home, so the shop's home screen was
+     * paying N × (2 scans) to render one number.
+     *
+     * Credits (negative) are included; callers decide whether a credit is worth
+     * showing. Sentinels are absent — `realSuppliers()` filters them out, and the
+     * grouped rows for a sentinel are simply never looked up (guard #3).
      */
     owedBySupplier(): Map<string, number> {
+      const invoiced = new Map<string, number>();
+      const invoicedRows = db
+        .select({
+          partyId: schema.documents.partyId,
+          total: sql<number>`coalesce(sum(${schema.documents.totalAmount}), 0)`,
+        })
+        .from(schema.documents)
+        .where(
+          and(
+            eq(schema.documents.kind, 'in'),
+            eq(schema.documents.status, 'posted'), // a draft is not an obligation
+            isNull(schema.documents.deletedAt), // a deleted invoice owes nothing
+          ),
+        )
+        .groupBy(schema.documents.partyId)
+        .all();
+      for (const r of invoicedRows) if (r.partyId) invoiced.set(r.partyId, r.total);
+
+      const paid = new Map<string, number>();
+      const paidRows = db
+        .select({
+          refId: schema.transactions.refId,
+          total: SETTLED_AMOUNT_SQL, // SIGNED — a refund is not a payment
+        })
+        .from(schema.transactions)
+        .where(
+          and(
+            eq(schema.transactions.refKind, 'supplier'),
+            isNull(schema.transactions.deletedAt), // a deleted payment paid nothing
+          ),
+        )
+        .groupBy(schema.transactions.refId)
+        .all();
+      for (const r of paidRows) if (r.refId) paid.set(r.refId, r.total);
+
       const owed = new Map<string, number>();
-      for (const s of realSuppliers()) owed.set(s.id, api.owed(s.id));
+      for (const s of realSuppliers()) {
+        owed.set(s.id, (invoiced.get(s.id) ?? 0) - (paid.get(s.id) ?? 0));
+      }
       return owed;
     },
 

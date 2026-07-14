@@ -12,10 +12,21 @@ interface CashBookState {
   balances: AccountTotals;
   /** What the shop SOLD today, split by the pocket it landed in. */
   salesToday: AccountTotals;
+  /** True until the first read RETURNS — an empty cash book is an ANSWER, and
+   *  it must not be drawn before the question has been asked. */
+  loading: boolean;
+  /** A repository throw is a red box today. Here it becomes a state. */
+  error: boolean;
 }
 
 const ZERO: AccountTotals = { cash: 0, instapay: 0, total: 0 };
-const EMPTY: CashBookState = { days: [], balances: ZERO, salesToday: ZERO };
+const EMPTY: CashBookState = {
+  days: [],
+  balances: ZERO,
+  salesToday: ZERO,
+  loading: true,
+  error: false,
+};
 
 /**
  * THE CASH BOOK — every movement of money, and what each pocket holds.
@@ -39,12 +50,18 @@ export function useCashBook() {
 
   const reload = useCallback(() => {
     const now = Date.now();
-    setState({
-      days: toLedgerDays(transactionRepository.listForCashBook()),
-      balances: transactionRepository.balances(),
-      // Half-open [startOfDay, startOfTomorrow) in the shop's LOCAL timezone.
-      salesToday: transactionRepository.salesBetween(startOfDay(now), endOfDay(now)),
-    });
+    try {
+      setState({
+        days: toLedgerDays(transactionRepository.listForCashBook()),
+        balances: transactionRepository.balances(),
+        // Half-open [startOfDay, startOfTomorrow) in the shop's LOCAL timezone.
+        salesToday: transactionRepository.salesBetween(startOfDay(now), endOfDay(now)),
+        loading: false,
+        error: false,
+      });
+    } catch {
+      setState({ ...EMPTY, loading: false, error: true });
+    }
   }, []);
 
   useFocusEffect(reload);
@@ -53,7 +70,9 @@ export function useCashBook() {
     days: state.days,
     balances: state.balances,
     salesToday: state.salesToday,
-    isEmpty: state.days.length === 0,
+    loading: state.loading,
+    error: state.error,
+    isEmpty: !state.loading && !state.error && state.days.length === 0,
     reload,
   };
 }

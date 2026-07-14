@@ -51,6 +51,7 @@ export function SettleSheet({
   const { t } = useTranslation();
   const {
     draft,
+    amountValue,
     setAmount,
     setAccount,
     setNote,
@@ -70,7 +71,7 @@ export function SettleSheet({
         contentContainerClassName="p-5 gap-4 pb-8"
         keyboardShouldPersistTaps="handled"
       >
-        <SettleAmountField value={draft.amount} onChange={setAmount} />
+        <SettleAmountField value={amountValue} onChange={setAmount} />
         <AccountToggle value={draft.account} onChange={setAccount} />
         <SettleDateField value={draft.occurredAt} onShift={shiftDate} />
 

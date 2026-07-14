@@ -30,8 +30,9 @@ export function PaymentProofPicker({ proof, onAdd, onRemove }: PaymentProofPicke
     <View className="gap-2">
       <View className={`${ROW} items-center justify-between`}>
         <Pressable
-          className={`${ROW} items-center gap-1.5 px-3 py-2 rounded-xl border border-dashed border-primary bg-primary-light`}
+          className={`${ROW} items-center gap-1.5 px-3 py-3 rounded-xl border border-dashed border-primary bg-primary-light`}
           onPress={onAdd}
+          hitSlop={12}
           accessibilityRole="button"
           accessibilityLabel={t('payments.addProof')}
         >
@@ -42,7 +43,7 @@ export function PaymentProofPicker({ proof, onAdd, onRemove }: PaymentProofPicke
       </View>
 
       {proof.length === 0 ? (
-        <Text className="text-muted text-[11px] text-right">{t('payments.proofHint')}</Text>
+        <Text className="text-muted text-[11px]">{t('payments.proofHint')}</Text>
       ) : (
         proof.map((a) => (
           <View
@@ -51,17 +52,19 @@ export function PaymentProofPicker({ proof, onAdd, onRemove }: PaymentProofPicke
           >
             <Feather name="image" size={14} color={colors.muted} />
             <Pressable
-              className="flex-1"
+              className="flex-1 py-3"
               onPress={() => openAttachment(a)}
               accessibilityRole="button"
             >
-              <Text className="text-ink text-xs text-right" numberOfLines={1}>
+              <Text className="text-ink text-xs" numberOfLines={1}>
                 {a.name}
               </Text>
             </Pressable>
             <Pressable
+              // 14pt glyph + 15pt of slop each side ≈ a 44pt target, without a
+              // 44pt box stretching the chip it sits in.
               onPress={() => onRemove(a.id)}
-              hitSlop={8}
+              hitSlop={15}
               accessibilityRole="button"
               accessibilityLabel={t('common.delete')}
             >

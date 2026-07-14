@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import Feather from '@expo/vector-icons/Feather';
 import colors from '@/theme/colors';
 import { ROW } from '@/theme/rtl';
-import { formatNumber } from '@/utils/numerals';
+import { formatMoneyMajor } from '@/utils/numerals';
 import type { Party } from '../types';
 
 interface PartyCardProps {
@@ -49,7 +49,7 @@ export function PartyCard({ ns, party, isWalkIn, partyLabel, showDebt, onOpen, o
           (sales are cash, paid in full — no AR by design). */}
       {showDebt && party && party.debt > 0 && (
         <Text className="text-warning-dark text-xs font-bold text-right">
-          {t(`${ns}.prevDebt`)}: {formatNumber(party.debt, i18n.language)} {currency}
+          {t(`${ns}.prevDebt`)}: {formatMoneyMajor(party.debt, i18n.language)} {currency}
         </Text>
       )}
     </View>

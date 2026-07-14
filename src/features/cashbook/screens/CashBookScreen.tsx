@@ -1,8 +1,9 @@
 import { useCallback, useState } from 'react';
-import { View, SectionList } from 'react-native';
+import { View, Text, SectionList, ActivityIndicator } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { useTranslation } from 'react-i18next';
 import { ScreenHeader } from '@/components/ui/ScreenHeader';
+import colors from '@/theme/colors';
 import { useCashBook } from '../hooks/useCashBook';
 import { presentDay, presentEntry, type LedgerDayViewModel } from '../presenters';
 import type { LedgerEntry } from '../types';
@@ -36,7 +37,7 @@ export function CashBookScreen() {
   const { t, i18n } = useTranslation();
   const lang = i18n.language;
 
-  const { days, balances, salesToday, isEmpty, reload } = useCashBook();
+  const { days, balances, salesToday, isEmpty, loading, error, reload } = useCashBook();
   const [recordOpen, setRecordOpen] = useState(false);
   const today = Date.now();
 
@@ -74,7 +75,17 @@ export function CashBookScreen() {
         }
         renderSectionHeader={({ section }) => <CashDayHeader day={section.day} />}
         renderItem={({ item }) => <CashEntryRow entry={presentEntry(item, t, lang)} />}
-        ListEmptyComponent={isEmpty ? <CashBookEmptyState /> : null}
+        // "No movements yet" is an ANSWER. Before the first read returns there is
+        // no answer, and a repository throw is not one either.
+        ListEmptyComponent={
+          loading ? (
+            <ActivityIndicator className="mt-8" color={colors.primary} />
+          ) : error ? (
+            <Text className="text-muted text-xs text-center mt-8">{t('common.loadFailed')}</Text>
+          ) : isEmpty ? (
+            <CashBookEmptyState />
+          ) : null
+        }
         stickySectionHeadersEnabled={false}
         contentContainerClassName="px-4 py-4 pb-24 gap-2.5"
         showsVerticalScrollIndicator={false}

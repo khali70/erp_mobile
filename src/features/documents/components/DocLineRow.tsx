@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next';
 import Feather from '@expo/vector-icons/Feather';
 import colors from '@/theme/colors';
 import { ROW } from '@/theme/rtl';
-import { formatNumber } from '@/utils/numerals';
+import { formatMoneyMajor, formatNumber } from '@/utils/numerals';
 import type { DocLine, DocMode } from '../types';
 
 interface DocLineRowProps {
@@ -68,7 +68,7 @@ export function DocLineRow({ line, mode, isNewest, onInc, onDec, onQty, onPrice,
         <View className="items-start">
           <Text className="text-[11px] text-muted font-medium">{totalLabel}</Text>
           <Text className="text-primary text-base font-extrabold mt-0.5">
-            {formatNumber(total, lang)} <Text className="text-[11px] font-normal text-muted">{currency}</Text>
+            {formatMoneyMajor(total, lang)} <Text className="text-[11px] font-normal text-muted">{currency}</Text>
           </Text>
         </View>
         <View className="flex-1 items-end">
@@ -99,7 +99,7 @@ export function DocLineRow({ line, mode, isNewest, onInc, onDec, onQty, onPrice,
             >
               <Feather name="edit-2" size={12} color={colors.muted} />
               <Text className="text-muted text-xs text-right">
-                {rateLabel}: {formatNumber(line.unitPrice, lang)} {currency}
+                {rateLabel}: {formatMoneyMajor(line.unitPrice, lang)} {currency}
               </Text>
             </Pressable>
           )}
@@ -108,13 +108,14 @@ export function DocLineRow({ line, mode, isNewest, onInc, onDec, onQty, onPrice,
           {hasCost && rateEditable && (
             <View className="items-end mt-1.5 gap-0.5">
               <Text className="text-muted text-[10px]">
-                {t('documents.listPrice')}: {formatNumber(line.listPrice ?? 0, lang)} ·{' '}
-                {t('documents.cost')}: {formatNumber(line.costPrice as number, lang)}
+                {t('documents.listPrice')}: {formatMoneyMajor(line.listPrice ?? 0, lang)} ·{' '}
+                {t('documents.cost')}: {formatMoneyMajor(line.costPrice as number, lang)}
               </Text>
+              {/* Prices and the margin are MONEY (never rounded); the % is a rate. */}
               <Text className="text-[11px] font-bold" style={{ color: marginColor }}>
                 {belowCost
                   ? t('documents.belowCost.badge')
-                  : `${t('documents.margin')}: ${formatNumber(profit, lang)} (${formatNumber(marginPct, lang)}%)`}
+                  : `${t('documents.margin')}: ${formatMoneyMajor(profit, lang)} (${formatNumber(marginPct, lang)}%)`}
                 {belowMin ? ` · ${t('documents.belowMin')}` : ''}
               </Text>
             </View>

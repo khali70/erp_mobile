@@ -5,7 +5,7 @@ import Feather from '@expo/vector-icons/Feather';
 import colors from '@/theme/colors';
 import { ROW } from '@/theme/rtl';
 import { BottomSheet } from '@/components/ui/BottomSheet';
-import { formatNumber } from '@/utils/numerals';
+import { formatMoneyMajor } from '@/utils/numerals';
 import type { DocMode, Party } from '../types';
 
 interface PartyPickerProps {
@@ -139,7 +139,7 @@ export function PartyPicker({ visible, mode, parties, onClose, onSelect, onQuick
                 {p.debt > 0 && (
                   <View className="px-2 py-1 rounded-md bg-warning-light border border-warning/40">
                     <Text className="text-warning-dark text-[11px] font-bold">
-                      {t('documents.picker.debtTag')}: {formatNumber(p.debt, i18n.language)} {t('common.currency')}
+                      {t('documents.picker.debtTag')}: {formatMoneyMajor(p.debt, i18n.language)} {t('common.currency')}
                     </Text>
                   </View>
                 )}

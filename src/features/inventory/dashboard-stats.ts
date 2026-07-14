@@ -73,10 +73,16 @@ export function computeDashboardStats(): DashboardStats {
     }
   }
 
+  const profitMinor = revenueMinor - cogsMinor;
+
   return {
-    inventoryValue: Math.round(inventoryValueMinor / 100),
-    monthlyProfit: Math.round((revenueMinor - cogsMinor) / 100),
-    supplierDebt: Math.round(supplierDebtMinor / 100),
+    inventoryValue: Math.round(fromMinor(inventoryValueMinor)),
+    monthlyRevenue: Math.round(fromMinor(revenueMinor)),
+    monthlyProfit: Math.round(fromMinor(profitMinor)),
+    // No sales this month means there is no margin — not a margin of zero. A
+    // fabricated 0٪ sitting next to real numbers is worse than an empty tag.
+    monthlyMarginPct: revenueMinor === 0 ? null : Math.round((profitMinor / revenueMinor) * 100),
+    totalPayables: Math.round(fromMinor(payablesMinor)),
     docCount: posted.length,
     lowStockCount,
     computedAt: Date.now(),

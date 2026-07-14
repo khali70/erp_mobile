@@ -1,5 +1,5 @@
 import Database from 'better-sqlite3';
-import { EXPENSES_DDL } from './ddl';
+import { EXPENSES_DDL, TRANSACTIONS_DDL, TRANSACTIONS_INDEXES_DDL } from './ddl';
 
 // `runMigrations()` fires on EVERY app boot — there is no version table and no
 // "have I run yet?" flag. So the DDL is not merely expected to be idempotent: it
@@ -77,5 +77,87 @@ describe('the expenses migration is IDEMPOTENT', () => {
         'attachments',
       ]),
     );
+  });
+});
+
+// The CASH BOOK's SQL used to be hand-copied into migrate.ts AND test-db.ts —
+// two copies of the table whose CHECK constraints are the only thing making a
+// bad payment roll its document back. Now it is written once, here, so this
+// test covers the SQL the PHONE actually runs.
+describe('the transactions DDL', () => {
+  const boot = (sqlite: Database.Database) => {
+    sqlite.exec(TRANSACTIONS_DDL);
+    sqlite.exec(TRANSACTIONS_INDEXES_DDL);
+  };
+
+  it('is IDEMPOTENT — every boot re-runs it over the owner\'s cash book', () => {
+    const sqlite = new Database(':memory:');
+
+    boot(sqlite);
+    expect(() => boot(sqlite)).not.toThrow(); // the second boot
+
+    const tbls = sqlite
+      .prepare(`SELECT name FROM sqlite_master WHERE type='table' AND name='transactions'`)
+      .all();
+    expect(tbls).toHaveLength(1);
+  });
+
+  it('keeps the CHECK constraints that roll a bad payment back (TC-2.2)', () => {
+    const sqlite = new Database(':memory:');
+    boot(sqlite);
+
+    const insert = (direction: number, amount: number) =>
+      sqlite
+        .prepare(
+          `INSERT INTO transactions (id, created_at, updated_at, direction, amount, occurred_at, account)
+           VALUES ('x', 1, 1, ?, ?, 1, 'cash')`,
+        )
+        .run(direction, amount);
+
+    // The sign lives in `direction`; `amount` is a magnitude. Both are enforced
+    // in SQL, not merely in JS — that is what makes a bad payment insert fail
+    // INSIDE documentRepository.create()'s transaction and take the document
+    // and its lines down with it.
+    expect(() => insert(-1, -500)).toThrow(); // amount must be > 0
+    expect(() => insert(0, 500)).toThrow(); // direction must be ±1
+    expect(() => insert(-1, 500)).not.toThrow();
+  });
+
+  it('carries doc_id — the provenance column remove() cascades on — plus its index', () => {
+    const sqlite = new Database(':memory:');
+    boot(sqlite);
+
+    const cols = (
+      sqlite.prepare(`PRAGMA table_info(transactions)`).all() as { name: string }[]
+    ).map((c) => c.name);
+    expect(cols).toContain('doc_id');
+
+    // Without this index, cascading a document's money rows on delete scans the
+    // whole cash book.
+    const indexes = (
+      sqlite
+        .prepare(`SELECT name FROM sqlite_master WHERE type='index' AND tbl_name='transactions'`)
+        .all() as { name: string }[]
+    ).map((i) => i.name);
+    expect(indexes).toEqual(
+      expect.arrayContaining(['idx_tx_ref', 'idx_tx_occurred', 'idx_tx_account', 'idx_tx_doc']),
+    );
+  });
+
+  it('has NO allocation column — doc_id is provenance, and the walk never reads it', () => {
+    const sqlite = new Database(':memory:');
+    boot(sqlite);
+
+    const cols = (
+      sqlite.prepare(`PRAGMA table_info(transactions)`).all() as { name: string }[]
+    ).map((c) => c.name);
+
+    // The design in one assertion. A payment points at the SUPPLIER (ref_id) and
+    // the invoice-level breakdown is DERIVED by walking FIFO at read time. An
+    // `invoice_id` / `allocated_amount` here would be a second answer to a
+    // question the walk already answers, and the two would drift.
+    expect(cols).not.toContain('invoice_id');
+    expect(cols).not.toContain('allocated_amount');
+    expect(cols).not.toContain('settled');
   });
 });

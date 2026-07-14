@@ -43,7 +43,7 @@ export function SupplierBalanceCard({ balance, maskId, onSettle }: SupplierBalan
       </View>
 
       {balance.isCredit && (
-        <Text className="text-positive text-[11px] text-right">{t('debts.creditHint')}</Text>
+        <Text className="text-positive text-[11px]">{t('debts.creditHint')}</Text>
       )}
 
       <Pressable

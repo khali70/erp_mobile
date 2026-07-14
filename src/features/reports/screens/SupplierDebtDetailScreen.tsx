@@ -1,10 +1,11 @@
 import { useState } from 'react';
-import { View, FlatList } from 'react-native';
+import { View, FlatList, ActivityIndicator } from 'react-native';
 import { useNavigation, useRoute, type RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useTranslation } from 'react-i18next';
 import type { RootStackParamList } from '@/navigation/RootNavigator';
 import { ScreenHeader } from '@/components/ui/ScreenHeader';
+import colors from '@/theme/colors';
 import { SettleSheet } from '@/features/payments/components/SettleSheet';
 import { useSupplierDebtDetail } from '../hooks/useSupplierDebtDetail';
 import { presentBalance, presentPayment, presentSettlement } from '../presenters';
@@ -33,7 +34,7 @@ export function SupplierDebtDetailScreen() {
   const lang = i18n.language;
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const { supplierId, supplierName } = useRoute<DetailRoute>().params;
-  const { detail, reload } = useSupplierDebtDetail(supplierId);
+  const { detail, loading, error, reload } = useSupplierDebtDetail(supplierId);
   const [settleOpen, setSettleOpen] = useState(false);
 
   const balance = presentBalance(detail.owed, t, lang);
@@ -53,6 +54,13 @@ export function SupplierDebtDetailScreen() {
       />
 
       <View className="flex-1 px-4 pt-3.5">
+        {/* A balance of ٠ and "لا توجد فواتير" are ANSWERS. Neither is true before
+            the first read returns, and neither is true when it threw. */}
+        {loading ? (
+          <ActivityIndicator className="mt-8" color={colors.primary} />
+        ) : error ? (
+          <EmptyNote message={t('common.loadFailed')} />
+        ) : (
         <FlatList
           data={detail.invoices}
           keyExtractor={(s) => s.documentId}
@@ -80,6 +88,7 @@ export function SupplierDebtDetailScreen() {
           contentContainerClassName="gap-3 pb-24"
           showsVerticalScrollIndicator={false}
         />
+        )}
       </View>
 
       <SettleSheet

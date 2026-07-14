@@ -1,4 +1,4 @@
-import { View, Text } from 'react-native';
+import { View, Text, I18nManager } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import Feather from '@expo/vector-icons/Feather';
 import colors from '@/theme/colors';
@@ -9,6 +9,11 @@ interface TransferRouteRowProps {
   from: Account;
   to: Account;
 }
+
+// The arrow points FROM the source TO the destination — so it follows the writing
+// direction. Hardcoding arrow-left points it back at the source under LTR, which
+// says the money is moving the other way.
+const ARROW_ICON = I18nManager.isRTL ? 'arrow-left' : 'arrow-right';
 
 /**
  * "من النقدي ← إلى إنستاباي" — where the money is going, spelled out.
@@ -24,7 +29,7 @@ export function TransferRouteRow({ from, to }: TransferRouteRowProps) {
     <View className={`${ROW} items-center justify-between bg-background rounded-xl px-3 py-2.5`}>
       <View className={`${ROW} items-center gap-2`}>
         <Text className="text-xs font-bold text-muted">{t(`payments.accounts.${from}`)}</Text>
-        <Feather name="arrow-left" size={14} color={colors.primary} />
+        <Feather name={ARROW_ICON} size={14} color={colors.primary} />
         <Text className="text-xs font-bold text-ink">{t(`payments.accounts.${to}`)}</Text>
       </View>
       <Text className="text-ink text-sm font-semibold">{t('cashbook.form.route')}</Text>

@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Alert } from 'react-native';
 import { useTranslation } from 'react-i18next';
-import { fromMinor, toMinor } from '@/utils/money';
+import { toMajor, toMinor } from '@/utils/money';
+import { normalizeDigits, toLocaleDigits } from '@/utils/numerals';
 import { addDays } from '@/utils/dates';
 import { ingest, pickPhoto, removeAttachment } from '@/utils/attachments';
 import { transactionRepository } from '@/repositories/transaction-repository.client';
@@ -48,7 +49,7 @@ export function useSettlePayment({
   suggestedAmount,
   onSaved,
 }: UseSettlePaymentArgs) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const [draft, setDraft] = useState<SettleDraft>(emptyDraft);
   const [saving, setSaving] = useState(false);
 
@@ -58,8 +59,9 @@ export function useSettlePayment({
     if (!visible) return;
     setDraft({
       ...emptyDraft(),
-      // Minor → major exactly once, through fromMinor; never a hardcoded /100.
-      amount: suggestedAmount && suggestedAmount > 0 ? String(fromMinor(suggestedAmount)) : '',
+      // Minor → major exactly once, through toMajor: a fixed-decimal "25.20",
+      // never String(25.200000000000003) — and never a hardcoded /100.
+      amount: suggestedAmount && suggestedAmount > 0 ? toMajor(suggestedAmount) : '',
     });
   }, [visible, suggestedAmount]);
 
@@ -69,9 +71,23 @@ export function useSettlePayment({
     [],
   );
 
-  const setAmount = useCallback((amount: string) => set('amount', amount), [set]);
-  const setAccount = useCallback((account: Account) => set('account', account), [set]);
+  // `draft.amount` is CANONICAL (Latin digits, '.') so `toMinor` can parse it;
+  // `amountValue` is the same number shaped for the screen. An Arabic-Indic
+  // amount reaching toMinor would parse to 0 and the sheet would refuse to save
+  // with nothing on screen explaining why.
+  const setAmount = useCallback((amount: string) => set('amount', normalizeDigits(amount)), [set]);
   const setNote = useCallback((note: string) => set('note', note), [set]);
+
+  // Leaving InstaPay DROPS the proof: `submit` only ever writes it on an InstaPay
+  // payment, so keeping it would leave its bytes in attachments.db attached to
+  // nothing while the owner still believes he filed it.
+  const setAccount = useCallback((account: Account) => {
+    setDraft((prev) => {
+      if (account === 'instapay') return { ...prev, account };
+      prev.proof.forEach((a) => removeAttachment(a.id));
+      return { ...prev, account, proof: [] };
+    });
+  }, []);
 
   /** Nudge the payment date by whole days. Never past today: money cannot move
    *  tomorrow, and a future-dated payment would show cash the drawer lacks. */
@@ -135,6 +151,8 @@ export function useSettlePayment({
 
   return {
     draft,
+    /** `draft.amount`, shaped for display (٢٥٫٢٠). The draft itself stays canonical. */
+    amountValue: toLocaleDigits(draft.amount, i18n.language),
     setAmount,
     setAccount,
     setNote,

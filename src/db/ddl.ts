@@ -42,3 +42,49 @@ CREATE TABLE IF NOT EXISTS expenses (
 );
 CREATE INDEX IF NOT EXISTS idx_expenses_incurred ON expenses(incurred_at);
 `;
+
+/**
+ * THE CASH BOOK — every movement of money, in or out.
+ *
+ * The two CHECK constraints are the point, not decoration. `amount` is ALWAYS
+ * POSITIVE and the sign lives in `direction`; enforcing that at the SQL layer is
+ * what makes a bad payment write FAIL INSIDE `documentRepository.create()`'s
+ * transaction and roll the document and its lines back with it (TC-2.2). Copy
+ * this table by hand into a second file and the copy without the CHECKs is the
+ * one the phone will run.
+ *
+ * `doc_id` is PROVENANCE, NOT ALLOCATION: set only on rows born with a document,
+ * so `remove()` can take them down with it (see schema.ts). The FIFO walk ignores
+ * it entirely.
+ *
+ * TABLE and INDEXES are separate exports on purpose. On an upgraded install the
+ * table already exists WITHOUT `doc_id`, and `CREATE INDEX ... ON transactions(doc_id)`
+ * would throw "no such column" — so the boot path must run the table, then the
+ * ADD COLUMN back-fill, and only THEN the indexes. Fusing them back into one
+ * string re-breaks every phone that already has data on it.
+ */
+export const TRANSACTIONS_DDL = `
+CREATE TABLE IF NOT EXISTS transactions (
+  id TEXT PRIMARY KEY,
+  created_at INTEGER NOT NULL,
+  updated_at INTEGER NOT NULL,
+  deleted_at INTEGER,
+  direction INTEGER NOT NULL CHECK (direction IN (-1, 1)),
+  amount INTEGER NOT NULL CHECK (amount > 0),
+  occurred_at INTEGER NOT NULL,
+  account TEXT NOT NULL,
+  ref_kind TEXT,
+  ref_id TEXT,
+  doc_id TEXT,
+  note TEXT,
+  attachments TEXT
+);
+`;
+
+/** Run AFTER `TRANSACTIONS_DDL` + the `doc_id` back-fill. See above. */
+export const TRANSACTIONS_INDEXES_DDL = `
+CREATE INDEX IF NOT EXISTS idx_tx_ref ON transactions(ref_kind, ref_id);
+CREATE INDEX IF NOT EXISTS idx_tx_occurred ON transactions(occurred_at);
+CREATE INDEX IF NOT EXISTS idx_tx_account ON transactions(account);
+CREATE INDEX IF NOT EXISTS idx_tx_doc ON transactions(doc_id);
+`;

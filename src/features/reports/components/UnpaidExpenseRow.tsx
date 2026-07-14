@@ -24,10 +24,10 @@ export function UnpaidExpenseRow({ expense, onPress }: UnpaidExpenseRowProps) {
           <Feather name="file-text" size={16} color={colors.expense} />
         </View>
         <View className="gap-0.5 flex-1">
-          <Text className="text-sm font-semibold text-ink text-right" numberOfLines={1}>
+          <Text className="text-sm font-semibold text-ink" numberOfLines={1}>
             {expense.title}
           </Text>
-          <Text className="text-[11px] text-muted font-medium text-right" numberOfLines={1}>
+          <Text className="text-[11px] text-muted font-medium" numberOfLines={1}>
             {expense.subtitle}
           </Text>
         </View>

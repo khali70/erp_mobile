@@ -52,16 +52,18 @@ export function CashEntryRow({ entry }: CashEntryRowProps) {
       </View>
 
       <View className="flex-1 gap-0.5">
-        <Text className="text-sm font-bold text-ink text-right">{entry.title}</Text>
-        <Text className="text-[11px] text-muted text-right">{entry.subtitle}</Text>
+        <Text className="text-sm font-bold text-ink">{entry.title}</Text>
+        <Text className="text-[11px] text-muted">{entry.subtitle}</Text>
         {entry.note ? (
-          <Text className="text-[11px] text-muted text-right" numberOfLines={1}>
+          <Text className="text-[11px] text-muted" numberOfLines={1}>
             {entry.note}
           </Text>
         ) : null}
       </View>
 
-      <View className="items-start gap-1">
+      {/* items-end: the amount column hugs the row's trailing edge, like every
+          other money row in the app (SupplierDebtRow, UnpaidExpenseRow). */}
+      <View className="items-end gap-1">
         <MaskedValue
           id={`cashbook:entry:${entry.id}`}
           dotClassName="text-sm font-extrabold text-muted"
@@ -74,8 +76,11 @@ export function CashEntryRow({ entry }: CashEntryRowProps) {
 
         {entry.proof.length > 0 ? (
           <Pressable
+            // hitSlop, not a bigger box: a 44pt View here would stretch every row
+            // that happens to carry a proof and leave the list ragged. The touch
+            // target is 12pt of glyph + 16pt of slop on each side = 44pt.
             onPress={() => openAttachment(entry.proof[0])}
-            hitSlop={8}
+            hitSlop={16}
             accessibilityRole="button"
             accessibilityLabel={t('payments.proof')}
           >

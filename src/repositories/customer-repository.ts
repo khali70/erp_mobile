@@ -61,6 +61,9 @@ export function createCustomerRepository(db: CustomerDb, clock: () => number = n
 
     create(input: CreateCustomerInput): Customer {
       const ts = clock();
+      // `balance` is RETIRED and is not written here — the column keeps its DB
+      // default. A repo that writes a column its own schema calls "never
+      // written" is one refactor away from someone believing the column again.
       const row = {
         id: newId(),
         createdAt: ts,
@@ -68,11 +71,10 @@ export function createCustomerRepository(db: CustomerDb, clock: () => number = n
         deletedAt: null,
         name: input.name,
         phone: input.phone ?? null,
-        balance: 0,
         isSystem: 0, // only the seed may mint a sentinel
       };
       db.insert(schema.customers).values(row).run();
-      return row as Customer;
+      return { ...row, balance: 0 } as Customer;
     },
 
     archive(id: string): void {

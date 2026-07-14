@@ -3,6 +3,7 @@ import type { BaseSQLiteDatabase } from 'drizzle-orm/sqlite-core';
 import * as schema from '@/db/schema';
 import { newId, now } from '@/utils/id';
 import type { AttachmentMeta } from './document-repository';
+import { SETTLED_AMOUNT_SQL } from './transaction-repository';
 
 // Injectable so the same code runs on expo-sqlite (prod) and better-sqlite3
 // (tests). Any sync Drizzle SQLite db with our schema satisfies it.
@@ -104,8 +105,11 @@ function parseAttachments(raw: string | null): AttachmentMeta[] {
  * quietly lying to him, counting suppliers and nothing else.
  *
  *   owed(E) = expenses.total_amount
- *           − Σ transactions.amount  WHERE ref_kind='expense' AND ref_id=E
- *                                      AND deleted_at IS NULL
+ *           − Σ (−direction × transactions.amount)  WHERE ref_kind='expense' AND ref_id=E
+ *                                                     AND deleted_at IS NULL
+ *
+ * The payment side is SIGNED (see SETTLED_AMOUNT_SQL): money out settles the
+ * bill, money back in against it un-settles it.
  *
  * That is character-for-character the supplier rule (see debt-repository), which
  * is why paying the rent reuses the supplier's سداد sheet unchanged: same ref,
@@ -136,15 +140,20 @@ export function createExpenseRepository(db: ExpenseDb, clock: () => number = now
   }
 
   /**
-   * Σ live payments per expense, in ONE query — so a list of N expenses costs 2
+   * NET payments per expense, in ONE query — so a list of N expenses costs 2
    * queries, not 2N. Soft-deleted payments paid nothing and are excluded here,
    * which is half of why every figure in this file is safe.
+   *
+   * The sum is SIGNED — Σ(−direction × amount), not Σ|amount|. Money paid out
+   * (−1) settles the bill; money coming back in against it (+1 — the landlord
+   * refunds a month) un-settles it. A magnitude sum would treat the refund as a
+   * second payment and quietly mark the rent paid twice over.
    */
   function paidByExpense(): Map<string, number> {
     const rows = db
       .select({
         refId: schema.transactions.refId,
-        total: sql<number>`coalesce(sum(${schema.transactions.amount}), 0)`,
+        total: SETTLED_AMOUNT_SQL,
       })
       .from(schema.transactions)
       .where(and(eq(schema.transactions.refKind, 'expense'), isNull(schema.transactions.deletedAt)))
@@ -221,10 +230,10 @@ export function createExpenseRepository(db: ExpenseDb, clock: () => number = now
       return api.listWithDebt().filter((e) => e.remaining > 0);
     },
 
-    /** Σ live payments against ONE expense (always positive). */
+    /** NET paid against ONE expense: Σ(−direction × amount). See `paidByExpense`. */
     paidOn(id: string): number {
       const row = db
-        .select({ total: sql<number>`coalesce(sum(${schema.transactions.amount}), 0)` })
+        .select({ total: SETTLED_AMOUNT_SQL })
         .from(schema.transactions)
         .where(
           and(

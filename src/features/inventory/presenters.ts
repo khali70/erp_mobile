@@ -2,7 +2,7 @@ import type { TFunction } from 'i18next';
 import type { Category } from '@/db/schema';
 import type { InventoryItem } from './types';
 import { getStockStatus, type StockStatus } from '@/utils/stock';
-import { toArabicDigits } from '@/utils/numerals';
+import { formatMoneyMajor, toArabicDigits } from '@/utils/numerals';
 import { fromMinor } from '@/utils/money';
 
 /** Fully-resolved, display-ready shape consumed by <ItemRow>. */
@@ -45,6 +45,7 @@ export function resolveCategory(
 export function presentItem(
   item: InventoryItem,
   t: TFunction,
+  lang: string,
   categoryIndex?: Map<string, Category>,
 ): ItemRowViewModel {
   const status = getStockStatus(item.qty, item.lowStockThreshold);
@@ -53,9 +54,10 @@ export function presentItem(
   const suffixKey = STATUS_SUFFIX_KEY[status];
   const badgeLabel = suffixKey ? `${qty} ${unit} (${t(suffixKey)})` : `${qty} ${unit}`;
   const category = resolveCategory(item.category, categoryIndex, t);
-  // Whole-unit display. Goes through money.ts rather than a hardcoded /100 so a
+  // MONEY — piastres kept. A 12.50 price rounded to "١٣" is a price the shop does
+  // not charge. Goes through money.ts rather than a hardcoded /100 so a
   // non-2-exponent currency (KWD, JPY) doesn't silently render the wrong number.
-  const priceLabel = toArabicDigits(Math.round(fromMinor(item.salePriceMinor)));
+  const priceLabel = formatMoneyMajor(fromMinor(item.salePriceMinor), lang);
 
   return {
     id: item.id,

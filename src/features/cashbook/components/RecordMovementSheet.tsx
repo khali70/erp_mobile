@@ -39,6 +39,7 @@ export function RecordMovementSheet({ visible, onClose, onSaved }: RecordMovemen
   const { t } = useTranslation();
   const {
     draft,
+    amountValue,
     isTransfer,
     touchesInstapay,
     toAccount,
@@ -70,7 +71,7 @@ export function RecordMovementSheet({ visible, onClose, onSaved }: RecordMovemen
       >
         <MovementTypePicker value={draft.type} onChange={setType} />
 
-        <SettleAmountField value={draft.amount} onChange={setAmount} />
+        <SettleAmountField value={amountValue} onChange={setAmount} />
 
         {/* For a transfer the toggle picks the SOURCE pocket; the destination is
             the other one, and the route below says so in words. */}

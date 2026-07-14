@@ -31,14 +31,12 @@ export function SupplierDebtRow({ debt, onPress }: SupplierDebtRowProps) {
       <View className={`${ROW} items-center gap-3 flex-1`}>
         <PartyAvatar initial={debt.initial} />
         <View className="gap-0.5 flex-1">
-          <Text className="text-sm font-semibold text-ink text-right" numberOfLines={1}>
+          <Text className="text-sm font-semibold text-ink" numberOfLines={1}>
             {debt.name}
           </Text>
           <View className={`${ROW} items-center gap-1`}>
             <Feather name="phone" size={11} color={colors.muted} />
-            <Text className="text-[11px] text-muted font-medium text-right">
-              {debt.phoneLabel}
-            </Text>
+            <Text className="text-[11px] text-muted font-medium">{debt.phoneLabel}</Text>
           </View>
         </View>
       </View>

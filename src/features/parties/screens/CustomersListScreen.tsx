@@ -23,7 +23,7 @@ import type { Party, PartyDraft } from '../types';
  * All copy comes from i18n; styling is NativeWind `className` only.
  */
 export function CustomersListScreen() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const { customers, reload } = useCustomers();
   const { query, setQuery, filter, setFilter, filtered, reset } = usePartyFilter(customers);
@@ -120,7 +120,7 @@ export function CustomersListScreen() {
             {filtered.map((party) => (
               <PartyRow
                 key={party.id}
-                party={presentParty(party, t)}
+                party={presentParty(party, t, i18n.language)}
                 debtHint={t('customers.debtHint')}
                 onPress={() => openEdit(party)}
               />

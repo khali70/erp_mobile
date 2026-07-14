@@ -1,11 +1,11 @@
 import { View, Text } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { ROW } from '@/theme/rtl';
-import { formatNumber } from '@/utils/numerals';
+import { formatMoneyMajor, formatNumber } from '@/utils/numerals';
 
 interface DocSummaryCardProps {
   count: number;
-  /** Grand total in whole currency units. */
+  /** Grand total in MAJOR currency units — piastres included. */
   total: number;
 }
 
@@ -26,8 +26,9 @@ export function DocSummaryCard({ count, total }: DocSummaryCardProps) {
       </View>
 
       <View className={`${ROW} items-center justify-between pt-3 border-t border-primary/20`}>
+        {/* MONEY — never rounded. The count above is a count, and still is. */}
         <Text className="text-primary text-lg font-extrabold">
-          {formatNumber(total, lang)} <Text className="text-xs font-normal">{currency}</Text>
+          {formatMoneyMajor(total, lang)} <Text className="text-xs font-normal">{currency}</Text>
         </Text>
         <Text className="text-ink text-base font-extrabold">{t('documents.summary.total')}</Text>
       </View>

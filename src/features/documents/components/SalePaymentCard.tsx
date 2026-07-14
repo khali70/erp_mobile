@@ -10,13 +10,27 @@ import { SplitAmountRow } from './SplitAmountRow';
 interface SalePaymentCardProps {
   account: Account;
   onChangeAccount: (account: Account) => void;
-  split: boolean;
-  onChangeSplit: (split: boolean) => void;
-  /** The cash half, as typed (major units). Only used while `split` is on. */
-  cashValue: string;
-  onChangeCash: (value: string) => void;
-  /** The InstaPay half — always the remainder. Major units. */
-  instapayPart: number;
+  // /**
+  //  * @deprecated
+  //  */
+  // split: boolean;
+  // /**
+  //  * @deprecated
+  //  */
+  // onChangeSplit: (split: boolean) => void;
+  // /** The cash half, as typed (major units). Only used while `split` is on.
+  //  * @deprecated
+  //  */
+  // cashValue: string;
+  // /**
+  //  * @deprecated
+  //  */
+  // onChangeCash: (value: string) => void;
+  // /** The InstaPay half — always the remainder. Major units. */
+  // /**
+  //  * @deprecated
+  //  */
+  // instapayPart: number;
   /** True when any of the money came through InstaPay. */
   touchesInstapay: boolean;
   proof: AttachmentMeta[];
@@ -41,12 +55,6 @@ interface SalePaymentCardProps {
 export function SalePaymentCard({
   account,
   onChangeAccount,
-  split,
-  onChangeSplit,
-  cashValue,
-  onChangeCash,
-  instapayPart,
-  touchesInstapay,
   proof,
   onAddProof,
   onRemoveProof,
@@ -58,21 +66,14 @@ export function SalePaymentCard({
       <Text className="text-xs font-bold text-muted text-right">{t('payments.howPaid')}</Text>
 
       {/* One pocket: just say which. Split: the toggle below takes over. */}
-      {!split && <AccountToggle value={account} onChange={onChangeAccount} />}
+      <AccountToggle value={account} onChange={onChangeAccount} />
 
-      <SplitPaymentToggle value={split} onChange={onChangeSplit} />
 
-      {split && (
-        <SplitAmountRow
-          cashValue={cashValue}
-          onChangeCash={onChangeCash}
-          instapayPart={instapayPart}
-        />
-      )}
+      {/*note for llm don't add split amount payment feature */}
 
       {/* Cash needs no proof — the notes are in the drawer. An InstaPay transfer
           IS a screenshot, and it is the only evidence it ever happened. */}
-      {touchesInstapay && (
+      {account === 'instapay' && (
         <PaymentProofPicker proof={proof} onAdd={onAddProof} onRemove={onRemoveProof} />
       )}
     </View>

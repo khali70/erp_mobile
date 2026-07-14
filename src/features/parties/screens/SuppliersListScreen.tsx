@@ -15,6 +15,8 @@ import { presentParty } from '../presenters';
 import { PartyRow } from '../components/PartyRow';
 import { PartyFormSheet } from '../components/PartyFormSheet';
 import { supplierRepository } from '@/repositories/supplier-repository.client';
+import { SupplierHasDebtError } from '@/repositories/supplier-repository';
+import { formatMoney } from '@/utils/money';
 import type { Party, PartyDraft } from '../types';
 
 /**
@@ -23,7 +25,7 @@ import type { Party, PartyDraft } from '../types';
  * All copy comes from i18n; styling is NativeWind `className` only.
  */
 export function SuppliersListScreen() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const { suppliers, reload } = useSuppliers();
   const { query, setQuery, filter, setFilter, filtered, reset } = usePartyFilter(suppliers);
@@ -77,7 +79,25 @@ export function SuppliersListScreen() {
           text: t('common.delete'),
           style: 'destructive',
           onPress: () => {
-            supplierRepository.archive(editing.id);
+            try {
+              supplierRepository.archive(editing.id);
+            } catch (err) {
+              // A supplier the shop still owes cannot be archived: every payables
+              // figure filters deleted_at IS NULL, so removing him would silently
+              // subtract his debt from what the owner believes he owes — no
+              // warning, no trace. Say the amount out loud instead.
+              if (err instanceof SupplierHasDebtError) {
+                Alert.alert(
+                  t('suppliers.form.deleteBlockedTitle'),
+                  t('suppliers.form.deleteBlockedBody', {
+                    name: editing.name,
+                    amount: formatMoney(err.owed),
+                  }),
+                );
+                return;
+              }
+              throw err;
+            }
             reload();
             closeForm();
           },
@@ -123,7 +143,7 @@ export function SuppliersListScreen() {
             {filtered.map((party) => (
               <PartyRow
                 key={party.id}
-                party={presentParty(party, t)}
+                party={presentParty(party, t, i18n.language)}
                 debtHint={t('suppliers.debtHint')}
                 onPress={() => openEdit(party)}
               />

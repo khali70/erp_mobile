@@ -1,7 +1,7 @@
 import type { openDatabaseSync } from 'expo-sqlite';
 import { db, sqlite } from './client';
 import { initAttachmentsDb } from './attachments-client';
-import { EXPENSES_DDL } from './ddl';
+import { EXPENSES_DDL, TRANSACTIONS_DDL, TRANSACTIONS_INDEXES_DDL } from './ddl';
 import { backfillWalkInParties, seedSentinels, type SentinelDb } from './sentinels';
 
 // Forward-only bootstrap migration, run once at app boot.
@@ -86,25 +86,6 @@ export function runMigrations(): void {
       is_system INTEGER NOT NULL DEFAULT 0
     );
 
-    -- The CASH BOOK. Every movement of money, in or out. The amount column is
-    -- always POSITIVE and the sign lives in direction — both CHECK-enforced, so
-    -- a bad payment write fails at the SQL layer and rolls back whatever
-    -- transaction encloses it (a document + its lines, for a purchase payment).
-    CREATE TABLE IF NOT EXISTS transactions (
-      id TEXT PRIMARY KEY,
-      created_at INTEGER NOT NULL,
-      updated_at INTEGER NOT NULL,
-      deleted_at INTEGER,
-      direction INTEGER NOT NULL CHECK (direction IN (-1, 1)),
-      amount INTEGER NOT NULL CHECK (amount > 0),
-      occurred_at INTEGER NOT NULL,
-      account TEXT NOT NULL,
-      ref_kind TEXT,
-      ref_id TEXT,
-      note TEXT,
-      attachments TEXT
-    );
-
     CREATE TABLE IF NOT EXISTS categories (
       id TEXT PRIMARY KEY,
       created_at INTEGER NOT NULL,
@@ -127,15 +108,17 @@ export function runMigrations(): void {
 
     CREATE INDEX IF NOT EXISTS idx_lines_document ON document_lines(document_id);
     CREATE INDEX IF NOT EXISTS idx_lines_item ON document_lines(item_id);
-    CREATE INDEX IF NOT EXISTS idx_tx_ref ON transactions(ref_kind, ref_id);
-    CREATE INDEX IF NOT EXISTS idx_tx_occurred ON transactions(occurred_at);
-    CREATE INDEX IF NOT EXISTS idx_tx_account ON transactions(account);
   `);
 
-  // EXPENSES — rent is debt too. The DDL lives in ./ddl so this boot path and
-  // the test harness run the SAME SQL (a hand-copied second version would drift,
-  // and the drift would be invisible: green tests against a schema the phone
-  // does not have). IF NOT EXISTS throughout — this runs on every single boot.
+  // The CASH BOOK and EXPENSES. Their DDL lives in ./ddl so this boot path and
+  // the test harness run the SAME SQL (a hand-copied second version drifts, and
+  // the drift is invisible: green tests against a schema the phone does not
+  // have). IF NOT EXISTS throughout — this runs on every single boot.
+  //
+  // The transactions INDEXES are deliberately NOT run here: `idx_tx_doc` is on
+  // `doc_id`, which an upgraded install does not have until the back-fill below
+  // adds it. Table first, column second, indexes last.
+  sqlite.execSync(TRANSACTIONS_DDL);
   sqlite.execSync(EXPENSES_DDL);
 
   // Additive column back-fills for DBs created by an earlier schema.
@@ -176,6 +159,21 @@ export function runMigrations(): void {
   addColumnIfMissing(sqlite, 'expenses', 'party_name', 'TEXT');
   addColumnIfMissing(sqlite, 'expenses', 'note', 'TEXT');
   addColumnIfMissing(sqlite, 'expenses', 'attachments', 'TEXT');
+  // PROVENANCE on the cash book: which document, if any, this money row was born
+  // with. NOT an allocation link (see schema.ts). Nullable — a payment made later
+  // from the سداد sheet points at the supplier and carries no document.
+  addColumnIfMissing(sqlite, 'transactions', 'doc_id', 'TEXT');
+
+  // Indexes LAST — every column they touch exists by now, on a fresh install and
+  // an upgraded one alike.
+  //
+  // idx_docs_party is what stops `owed()` full-scanning `documents`. It is read
+  // on every focus of the debts screen and inside computeDashboardStats() on
+  // Home, once per supplier; without it the shop's slowest screen is its home.
+  sqlite.execSync(TRANSACTIONS_INDEXES_DDL);
+  sqlite.execSync(`
+    CREATE INDEX IF NOT EXISTS idx_docs_party ON documents(party_id, kind, status);
+  `);
 
   // Seed the sentinels and repoint legacy null-party documents at them. BOTH are
   // idempotent (INSERT OR IGNORE on a fixed id; the backfill is a no-op once no

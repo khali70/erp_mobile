@@ -1,13 +1,16 @@
 import type { TFunction } from 'i18next';
 import type { ExpenseDebt } from '@/repositories/expense-repository';
 import { fromMinor } from '@/utils/money';
-import { formatNumber } from '@/utils/numerals';
+import { formatMoneyMajor } from '@/utils/numerals';
 import { formatDate } from '@/utils/dates';
 import { metaFor } from './category-meta';
 
-/** Money → "٢٠٬٠٠٠ ج.م". The one place minor units become something readable. */
+/**
+ * Money → "٢٠٬٠٠٠٫٠٠ ج.م". The one place minor units become something readable.
+ * Keeps the piastres: money is never rounded to whole pounds anywhere.
+ */
 export function money(minor: number, t: TFunction, lang: string): string {
-  return `${formatNumber(fromMinor(Math.abs(minor)), lang)} ${t('common.currency')}`;
+  return `${formatMoneyMajor(fromMinor(Math.abs(minor)), lang)} ${t('common.currency')}`;
 }
 
 /** One expense row, ready to render. All formatting happens HERE, not in JSX. */

@@ -7,7 +7,7 @@
 import Database from 'better-sqlite3';
 import { drizzle } from 'drizzle-orm/better-sqlite3';
 import * as schema from '../schema';
-import { EXPENSES_DDL } from '../ddl';
+import { EXPENSES_DDL, TRANSACTIONS_DDL, TRANSACTIONS_INDEXES_DDL } from '../ddl';
 
 const DDL = `
 CREATE TABLE items (
@@ -102,28 +102,11 @@ CREATE TABLE customers (
   balance INTEGER NOT NULL DEFAULT 0,
   is_system INTEGER NOT NULL DEFAULT 0
 );
--- The CHECK constraints are the point, not decoration: they are what makes a
--- bad payment insert fail *inside* documentRepository.create()'s transaction,
--- rolling the document and its lines back with it (TC-2.2).
-CREATE TABLE transactions (
-  id TEXT PRIMARY KEY,
-  created_at INTEGER NOT NULL,
-  updated_at INTEGER NOT NULL,
-  deleted_at INTEGER,
-  direction INTEGER NOT NULL CHECK (direction IN (-1, 1)),
-  amount INTEGER NOT NULL CHECK (amount > 0),
-  occurred_at INTEGER NOT NULL,
-  account TEXT NOT NULL,
-  ref_kind TEXT,
-  ref_id TEXT,
-  note TEXT,
-  attachments TEXT
-);
 CREATE INDEX idx_lines_document ON document_lines(document_id);
 CREATE INDEX idx_lines_item ON document_lines(item_id);
-CREATE INDEX idx_tx_ref ON transactions(ref_kind, ref_id);
-CREATE INDEX idx_tx_occurred ON transactions(occurred_at);
-CREATE INDEX idx_tx_account ON transactions(account);
+-- The index that stops owed() full-scanning the documents table on every focus
+-- of the debts screen. Mirrored from migrate.ts — the phone runs this index.
+CREATE INDEX idx_docs_party ON documents(party_id, kind, status);
 `;
 
 export type TestDb = ReturnType<typeof drizzle<typeof schema>>;
@@ -133,9 +116,14 @@ export function makeTestDb(): TestDb {
   const sqlite = new Database(':memory:');
   sqlite.pragma('foreign_keys = ON');
   sqlite.exec(DDL);
-  // `expenses` is not hand-copied: it is the SAME string the app boots with
-  // (src/db/ddl.ts). Two copies of a table's SQL drift, and the drift is
-  // invisible — green tests against a schema the phone does not actually have.
+  // `transactions` and `expenses` are NOT hand-copied: they are the SAME strings
+  // the app boots with (src/db/ddl.ts). Two copies of a table's SQL drift, and
+  // the drift is invisible — green tests against a schema the phone does not
+  // have. The CHECK constraints on `transactions` are exactly the kind of thing
+  // a second copy quietly loses, and they are what makes a bad payment roll its
+  // document back (TC-2.2).
+  sqlite.exec(TRANSACTIONS_DDL);
+  sqlite.exec(TRANSACTIONS_INDEXES_DDL);
   sqlite.exec(EXPENSES_DDL);
   return drizzle(sqlite, { schema });
 }

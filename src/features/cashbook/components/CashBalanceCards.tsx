@@ -5,7 +5,7 @@ import colors from '@/theme/colors';
 import { ROW } from '@/theme/rtl';
 import { MaskedValue } from '@/components/ui/MaskedValue';
 import type { AccountTotals } from '@/repositories/transaction-repository';
-import { money } from '../presenters';
+import { signedMoney } from '../presenters';
 
 interface CashBalanceCardsProps {
   balances: AccountTotals;
@@ -51,12 +51,13 @@ export function CashBalanceCards({ balances }: CashBalanceCardsProps) {
               dotClassName="text-lg font-extrabold text-muted"
               dotCount={5}
             >
+              {/* SIGNED, always. An overdrawn pocket rendered as a magnitude is a
+                  positive number in red paint — the colour would be the only thing
+                  carrying the minus, and the figure itself would simply be wrong. */}
               <Text
-                className={`text-lg font-extrabold text-right ${
-                  p.value < 0 ? 'text-danger' : 'text-ink'
-                }`}
+                className={`text-lg font-extrabold ${p.value < 0 ? 'text-danger' : 'text-ink'}`}
               >
-                {money(p.value, t, lang)}
+                {signedMoney(p.value, t, lang)}
               </Text>
             </MaskedValue>
           </View>
@@ -64,7 +65,7 @@ export function CashBalanceCards({ balances }: CashBalanceCardsProps) {
       </View>
 
       <Text className="text-[11px] text-muted text-center">
-        {t('cashbook.totalOnHand', { amount: money(balances.total, t, lang) })}
+        {t('cashbook.totalOnHand', { amount: signedMoney(balances.total, t, lang) })}
       </Text>
     </View>
   );

@@ -5,7 +5,10 @@ import {
   type ItemRepository,
 } from './item-repository';
 import { createDocumentRepository } from './document-repository';
+import { seedSentinels, WALKIN_CUSTOMER_ID } from '@/db/sentinels';
 import type { TestDb } from '@/db/testing/test-db';
+
+const T0 = 1_760_000_000_000; // fixed clock — never Date.now()
 
 let db: TestDb;
 let repo: ItemRepository;
@@ -91,11 +94,16 @@ describe('itemRepository', () => {
   it('a discounted sale does not mutate the item list price', () => {
     const item = repo.create({ name: 'Jacket', salePrice: 25000, costPrice: 18000 });
     const docs = createDocumentRepository(db);
+    seedSentinels(db, T0);
     docs.create({ kind: 'incoming', status: 'posted', lines: [{ itemId: item.id, qty: 5 }] });
     docs.create({
       kind: 'outgoing',
       status: 'posted',
+      partyId: WALKIN_CUSTOMER_ID,
       lines: [{ itemId: item.id, qty: 1, unitPrice: 20000, listPrice: 25000 }],
+      // A posted sale is settled in full — there is no AR book to hold a
+      // remainder. The haggling is in the PRICE, not in what went unpaid.
+      payments: [{ amount: 20000, account: 'cash' }],
     });
     expect(repo.getById(item.id)!.salePrice).toBe(25000);
     expect(repo.getById(item.id)!.costPrice).toBe(18000);

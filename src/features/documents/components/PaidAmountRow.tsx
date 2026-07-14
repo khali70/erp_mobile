@@ -14,6 +14,9 @@ interface PaidAmountRowProps {
  *
  * Pre-filled with the FULL TOTAL: this shop rarely buys on debt, so the common
  * path must need zero extra input and paying less has to be a deliberate act.
+ *
+ * The value arrives DISPLAY-SHAPED (٢٥٫٢٠) and is handed back raw; the hook
+ * normalises it to canonical digits before anything parses it.
  */
 export function PaidAmountRow({ value, onChange }: PaidAmountRowProps) {
   const { t } = useTranslation();
@@ -24,7 +27,8 @@ export function PaidAmountRow({ value, onChange }: PaidAmountRowProps) {
         onChangeText={onChange}
         keyboardType="numeric"
         selectTextOnFocus
-        className="bg-background text-ink text-sm font-extrabold text-center px-3 py-2 rounded-xl border border-primary/40 min-w-[96px]"
+        // The screen's most important input: a 44pt target, not a 36pt one.
+        className="bg-background text-ink text-sm font-extrabold text-center px-3 py-3 rounded-xl border border-primary/40 min-w-[96px]"
         placeholderTextColor={colors.muted}
         accessibilityLabel={t('payments.paid')}
       />

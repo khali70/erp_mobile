@@ -5,7 +5,7 @@ import Feather from '@expo/vector-icons/Feather';
 import colors from '@/theme/colors';
 import { ROW } from '@/theme/rtl';
 import { BottomSheet } from '@/components/ui/BottomSheet';
-import { toArabicDigits } from '@/utils/numerals';
+import { formatMoneyMajor, toArabicDigits } from '@/utils/numerals';
 import { fromMinor } from '@/utils/money';
 import type { InventoryItem } from '@/features/inventory/types';
 
@@ -22,7 +22,8 @@ interface LineItemPickerProps {
  * Real items only (from the repository) so lines carry a valid `itemId`.
  */
 export function LineItemPicker({ visible, items, onClose, onSelect }: LineItemPickerProps) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const lang = i18n.language;
   const [query, setQuery] = useState('');
 
   const filtered = useMemo(() => {
@@ -88,7 +89,8 @@ export function LineItemPicker({ visible, items, onClose, onSelect }: LineItemPi
                     <Text className="text-ink text-sm font-extrabold text-right">{item.name}</Text>
                     <Text className="text-muted text-[11px] text-right mt-0.5">
                       {t('documents.itemPicker.onHand')}: {toArabicDigits(item.qty)} ·{' '}
-                      {toArabicDigits(fromMinor(item.salePriceMinor))} {t('common.currency')}
+                      {formatMoneyMajor(fromMinor(item.salePriceMinor), lang)}{' '}
+                      {t('common.currency')}
                     </Text>
                   </View>
                   <Feather name="plus-circle" size={22} color={colors.primary} />

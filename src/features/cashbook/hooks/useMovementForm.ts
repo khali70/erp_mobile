@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { Alert } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { toMinor } from '@/utils/money';
+import { normalizeDigits, toLocaleDigits } from '@/utils/numerals';
 import { addDays } from '@/utils/dates';
 import { ingest, pickPhoto, removeAttachment } from '@/utils/attachments';
 import { transactionRepository } from '@/repositories/transaction-repository.client';
@@ -49,7 +50,7 @@ const other = (account: Account): Account => (account === 'cash' ? 'instapay' : 
  * non-atomic pair would destroy it half the time.
  */
 export function useMovementForm({ visible, onSaved }: UseMovementFormArgs) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const [draft, setDraft] = useState<MovementDraft>(emptyDraft);
   const [saving, setSaving] = useState(false);
 
@@ -65,7 +66,10 @@ export function useMovementForm({ visible, onSaved }: UseMovementFormArgs) {
     [],
   );
 
-  const setAmount = useCallback((amount: string) => set('amount', amount), [set]);
+  // Canonical in, shaped out (`amountValue`): an Arabic-Indic amount reaching
+  // `toMinor` parses to 0, and the sheet would then refuse to save with nothing
+  // on screen saying why.
+  const setAmount = useCallback((amount: string) => set('amount', normalizeDigits(amount)), [set]);
   const setAccount = useCallback((account: Account) => set('account', account), [set]);
   const setDirection = useCallback((direction: TxDirection) => set('direction', direction), [set]);
   const setNote = useCallback((note: string) => set('note', note), [set]);
@@ -188,6 +192,8 @@ export function useMovementForm({ visible, onSaved }: UseMovementFormArgs) {
 
   return {
     draft,
+    /** `draft.amount`, shaped for display. The draft itself stays canonical. */
+    amountValue: toLocaleDigits(draft.amount, i18n.language),
     isTransfer,
     touchesInstapay,
     /** Where a transfer lands — shown as "من النقدي إلى إنستاباي". */

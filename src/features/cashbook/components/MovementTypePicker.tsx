@@ -28,9 +28,7 @@ export function MovementTypePicker({ value, onChange }: MovementTypePickerProps)
   const { t } = useTranslation();
   return (
     <View className="gap-1.5">
-      <Text className="text-xs font-semibold text-muted text-right">
-        {t('cashbook.form.type')}
-      </Text>
+      <Text className="text-xs font-semibold text-muted">{t('cashbook.form.type')}</Text>
       <View className={`${ROW} flex-wrap gap-2`}>
         {TYPES.map((type) => {
           const active = value === type.key;

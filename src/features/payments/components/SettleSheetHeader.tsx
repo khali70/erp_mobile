@@ -20,10 +20,8 @@ export function SettleSheetHeader({ title, subtitle, onClose }: SettleSheetHeade
       <View className={`${ROW} items-center gap-2.5`}>
         <Feather name="check-circle" size={20} color={colors['primary-200']} />
         <View className="gap-0.5">
-          <Text className="text-white font-bold text-base text-right">{title}</Text>
-          {subtitle ? (
-            <Text className="text-primary-100 text-xs text-right">{subtitle}</Text>
-          ) : null}
+          <Text className="text-white font-bold text-base">{title}</Text>
+          {subtitle ? <Text className="text-primary-100 text-xs">{subtitle}</Text> : null}
         </View>
       </View>
 

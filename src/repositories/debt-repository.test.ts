@@ -148,6 +148,51 @@ describe('TC-1 — buying merchandise on debt', () => {
     expect(debts.owed(ahmed)).toBe(0);
     expect(debts.payables().total).toBe(0);
   });
+
+  // TC-1.6 — the PARTIALLY-PAID delete. The invoice stops being an obligation
+  // the instant it is soft-deleted, so the money handed over WITH it must stop
+  // being a payment in the same instant. Leave that payment alive and the
+  // subtraction inverts: 0 invoiced − 2000 paid = −2000, and the owner is told
+  // "Ahmed owes YOU 2000" — a phantom credit against a man he never overpaid.
+  it('TC-1.6: deleting a PART-PAID purchase takes its payment with it — never a negative debt', () => {
+    const ahmed = addSupplier('Ahmed');
+    const id = purchase(ahmed, 6000, [{ amount: 2000, account: 'cash' }]);
+    expect(debts.owed(ahmed)).toBe(4000);
+
+    docs.remove(id);
+
+    expect(debts.owed(ahmed)).toBe(0); // NOT −2000
+    expect(debts.payables().total).toBe(0);
+    expect(debts.list()).toEqual([]);
+    expect(debts.detail(ahmed)).toEqual({ owed: 0, invoices: [], payments: [], credit: 0 });
+    // The money never left the drawer either: the payment row is soft-deleted,
+    // not merely ignored by the debt figure.
+    expect(txs.cashByAccount('cash')).toBe(0);
+    expect(txs.listByRef('supplier', ahmed)).toEqual([]);
+    expect(txCount()).toBe(1); // the row still EXISTS — archived, never hard-deleted
+  });
+
+  // The other half of the same rule, and the reason `doc_id` is PROVENANCE and
+  // not allocation: a payment made LATER, from the سداد sheet, points at the
+  // SUPPLIER and carries no doc_id. That money really did move at the supplier
+  // level, and deleting an invoice cannot un-move it.
+  it('TC-1.6: a STANDALONE settle payment SURVIVES the deletion of an invoice', () => {
+    const ahmed = addSupplier('Ahmed');
+    const id = purchase(ahmed, 6000, [{ amount: 2000, account: 'cash' }]);
+    pay(ahmed, 1000, { at: T0 + 3 * DAY }); // paid later, from the debts screen
+
+    expect(debts.owed(ahmed)).toBe(3000);
+
+    docs.remove(id);
+
+    // The invoice (6000) and its at-save payment (2000) both vanish. The 1000
+    // paid on account does not — it is now a credit, which is the truth.
+    expect(debts.owed(ahmed)).toBe(-1000);
+    expect(debts.detail(ahmed).credit).toBe(1000);
+    expect(debts.payables().total).toBe(0); // a credit is not a payable
+    expect(txs.listByRef('supplier', ahmed).map((r) => r.amount)).toEqual([1000]);
+    expect(txs.cashByAccount('cash')).toBe(-1000);
+  });
 });
 
 describe('TC-2 — paying part of the money', () => {
@@ -246,6 +291,34 @@ describe('TC-2 — paying part of the money', () => {
 
     expect(debts.owed(ahmed)).toBe(0);
     expect(debts.payables().total).toBe(0);
+  });
+
+  // The direction of a money row is DATA, not an assumption the caller may make.
+  // Σ|amount| over ref_kind='supplier' cannot tell a payment from a refund, and
+  // gets a refund exactly backwards: the money Ahmed hands BACK would pay down
+  // the very debt it re-creates. Nothing writes a +1 supplier row today — the
+  // sign is encoded so that the day something does, the figure moves correctly
+  // on its own instead of silently inverting.
+  it('a +1 row against a supplier is money coming BACK — it RAISES the debt, never lowers it', () => {
+    const ahmed = addSupplier('Ahmed');
+    purchase(ahmed, 6000, [{ amount: 6000, account: 'cash' }]);
+    expect(debts.owed(ahmed)).toBe(0);
+
+    // Ahmed refunds 2000 (a returned crate): money comes back IN, and the shop
+    // is once again 2000 short of having paid for what it kept.
+    txs.create({
+      direction: 1,
+      amount: 2000,
+      occurredAt: T0 + DAY,
+      account: 'cash',
+      refKind: 'supplier',
+      refId: ahmed,
+    });
+
+    expect(debts.owed(ahmed)).toBe(2000); // NOT −2000, and not 0
+    expect(debts.owedBySupplier().get(ahmed)).toBe(2000); // the grouped path agrees
+    expect(debts.payables().total).toBe(2000);
+    expect(txs.cashByAccount('cash')).toBe(-4000); // the drawer is only 4000 down
   });
 
   it('a SOFT-DELETED payment stops counting — the debt comes back', () => {
@@ -398,6 +471,48 @@ describe('TC-5.4 — invoice-level FIFO breakdown (derived, never stored)', () =
     const walked = debts.settlements(ahmed);
     expect(walked.map((s) => s.docDate)).toEqual([T0, T0 + 3 * DAY]);
     expect(walked.map((s) => s.status)).toEqual(['settled', 'unpaid']);
+  });
+
+  // SQLite sorts NULL FIRST. Ordering by the raw `doc_date` column while
+  // RETURNING `doc_date ?? created_at` made the sort key and the returned key two
+  // different facts: a legacy undated row sorted as the OLDEST invoice the
+  // supplier has, whatever its real age, so FIFO drank his money into it and the
+  // debts list aged from it. The SQL now sorts by the very expression it returns.
+  it('a legacy NULL doc_date invoice sorts by its CREATED_AT, not first', () => {
+    const ahmed = addSupplier('Ahmed');
+    purchase(ahmed, 1000, [], { docDate: T0, itemId: 'A' }); // genuinely the oldest
+
+    // An undated row, WRITTEN LATER (an import, or a legacy install). Straight to
+    // the table — the repository always sets a date.
+    db.insert(schema.documents)
+      .values({
+        id: 'legacy-undated',
+        createdAt: T0 + 10 * DAY, // ten days NEWER than the invoice above
+        updatedAt: T0 + 10 * DAY,
+        deletedAt: null,
+        kind: 'in',
+        direction: 1,
+        status: 'posted',
+        docNo: 'IN-000098',
+        docDate: null, // ← no date at all
+        totalAmount: 1000,
+        postedAt: T0 + 10 * DAY,
+        partyId: ahmed,
+        note: null,
+        attachments: null,
+      })
+      .run();
+
+    pay(ahmed, 1000);
+
+    const walked = debts.settlements(ahmed);
+    // The DATED invoice is older and drinks the money first. Sorted on the raw
+    // column, the undated row would have gone first (NULL sorts first) and the
+    // owner would see his oldest real invoice reported as still unpaid.
+    expect(walked.map((s) => s.docDate)).toEqual([T0, T0 + 10 * DAY]);
+    expect(walked.map((s) => s.status)).toEqual(['settled', 'unpaid']);
+    // The aging on the debts list reads the SAME key it sorted by.
+    expect(debtsAt(T0 + 10 * DAY).list()[0].oldestUnpaidAt).toBe(T0 + 10 * DAY);
   });
 
   it('an unpaid invoice reads "unpaid", never "partial" — 0 paid is not a payment', () => {
