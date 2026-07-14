@@ -2,12 +2,22 @@ import { itemRepository } from '@/repositories/item-repository.client';
 import { documentRepository } from '@/repositories/document-repository.client';
 import { debtRepository } from '@/repositories/debt-repository.client';
 import { getStockStatus } from '@/utils/stock';
+import { fromMinor } from '@/utils/money';
 
-/** Dashboard KPI figures. Money fields are MAJOR units (already /100). */
+/** Dashboard KPI figures. Money fields are MAJOR units. */
 export interface DashboardStats {
   inventoryValue: number; // Σ on-hand × cost
+  monthlyRevenue: number; // this-month sales revenue
   monthlyProfit: number; // this-month sales revenue − COGS
-  supplierDebt: number; // Σ positive supplier balances (payable)
+  /** Net margin as a whole percent of revenue. null when there were no sales. */
+  monthlyMarginPct: number | null;
+  /**
+   * TOTAL PAYABLES: supplier debt + unpaid bills. Renamed from `supplierDebt`,
+   * because that is no longer what it holds — RENT IS DEBT TOO, and a field name
+   * that says "supplier" invites the next reader to re-narrow the very figure
+   * this epic widened.
+   */
+  totalPayables: number;
   docCount: number; // posted documents
   lowStockCount: number; // items at/below threshold (low + out)
   computedAt: number; // epoch ms of computation
