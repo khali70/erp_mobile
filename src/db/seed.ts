@@ -41,21 +41,33 @@ interface SeedSpec {
   category: string;
   unit: string;
   priceMajor: number;
+  /**
+   * What the shop PAID for it. Deliberately per-item.
+   *
+   * This used to be `price * COST_RATIO` with a single 0.6 for every item — so
+   * every item carried an identical 40% margin, and the month's margin KPI
+   * computed 40٪ and could never compute anything else. A number that looks
+   * derived but is structurally incapable of moving is worse than an obviously
+   * fake one: it survives review, because it looks like it is working.
+   *
+   * Real margins are uneven — a jacket is not a t-shirt is not a pair of shoes.
+   */
+  costMajor: number;
   qty: number;
   lowStockThreshold: number;
 }
 
+// prettier-ignore
 const SPECS: readonly SeedSpec[] = [
-  { nameKey: 'item1', category: 'tshirts', unit: 'piece', priceMajor: 250, qty: 24, lowStockThreshold: 10 },
-  { nameKey: 'item2', category: 'jackets', unit: 'piece', priceMajor: 650, qty: 6, lowStockThreshold: 8 },
-  { nameKey: 'item3', category: 'shoes', unit: 'pair', priceMajor: 1200, qty: 0, lowStockThreshold: 4 },
-  { nameKey: 'item4', category: 'pants', unit: 'piece', priceMajor: 550, qty: 18, lowStockThreshold: 6 },
-  { nameKey: 'item5', category: 'shirts', unit: 'piece', priceMajor: 480, qty: 3, lowStockThreshold: 5 },
-  { nameKey: 'item6', category: 'accessories', unit: 'piece', priceMajor: 180, qty: 40, lowStockThreshold: 10 },
+  { nameKey: 'item1', category: 'tshirts',     unit: 'piece', priceMajor: 250,  costMajor: 160, qty: 24, lowStockThreshold: 10 }, // 36%
+  { nameKey: 'item2', category: 'jackets',     unit: 'piece', priceMajor: 650,  costMajor: 455, qty: 6,  lowStockThreshold: 8 },  // 30%
+  { nameKey: 'item3', category: 'shoes',       unit: 'pair',  priceMajor: 1200, costMajor: 780, qty: 0,  lowStockThreshold: 4 },  // 35%
+  { nameKey: 'item4', category: 'pants',       unit: 'piece', priceMajor: 550,  costMajor: 330, qty: 18, lowStockThreshold: 6 },  // 40%
+  { nameKey: 'item5', category: 'shirts',      unit: 'piece', priceMajor: 480,  costMajor: 336, qty: 3,  lowStockThreshold: 5 },  // 30%
+  { nameKey: 'item6', category: 'accessories', unit: 'piece', priceMajor: 180,  costMajor: 99,  qty: 40, lowStockThreshold: 10 }, // 45%
 ];
 
 const MINOR_PER_MAJOR = 100;
-const COST_RATIO = 0.6; // demo margin heuristic
 
 export function seedDemoDataIfEmpty(): void {
   if (itemRepository.count() > 0) return;
@@ -63,7 +75,7 @@ export function seedDemoDataIfEmpty(): void {
   const ts = now();
   for (const spec of SPECS) {
     const id = newId();
-    const costMinor = Math.round(spec.priceMajor * COST_RATIO) * MINOR_PER_MAJOR;
+    const costMinor = spec.costMajor * MINOR_PER_MAJOR;
     db.insert(schema.items)
       .values({
         id,
