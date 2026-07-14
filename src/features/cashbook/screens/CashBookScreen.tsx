@@ -4,7 +4,9 @@ import { useNavigation } from '@react-navigation/native';
 import { useTranslation } from 'react-i18next';
 import { ScreenHeader } from '@/components/ui/ScreenHeader';
 import colors from '@/theme/colors';
+import { useArchiveTransaction } from '@/features/payments/hooks/useArchiveTransaction';
 import { useCashBook } from '../hooks/useCashBook';
+import { legIdsOf } from '../ledger';
 import { presentDay, presentEntry, type LedgerDayViewModel } from '../presenters';
 import type { LedgerEntry } from '../types';
 import { CashBalanceCards } from '../components/CashBalanceCards';
@@ -38,6 +40,9 @@ export function CashBookScreen() {
   const lang = i18n.language;
 
   const { days, balances, salesToday, isEmpty, loading, error, reload } = useCashBook();
+  // Long-press a row to take a mistake back. A TRANSFER goes as a pair — its two
+  // legs are one event, and half a transfer is money the drawer lost to nowhere.
+  const { confirmArchive } = useArchiveTransaction(reload);
   const [recordOpen, setRecordOpen] = useState(false);
   const today = Date.now();
 
@@ -74,7 +79,12 @@ export function CashBookScreen() {
           </View>
         }
         renderSectionHeader={({ section }) => <CashDayHeader day={section.day} />}
-        renderItem={({ item }) => <CashEntryRow entry={presentEntry(item, t, lang)} />}
+        renderItem={({ item }) => (
+          <CashEntryRow
+            entry={presentEntry(item, t, lang)}
+            onLongPress={() => confirmArchive(legIdsOf(item))}
+          />
+        )}
         // "No movements yet" is an ANSWER. Before the first read returns there is
         // no answer, and a repository throw is not one either.
         ListEmptyComponent={

@@ -60,6 +60,9 @@ export function RecordMovementSheet({ visible, onClose, onSaved }: RecordMovemen
       <SettleSheetHeader
         title={t('cashbook.form.title')}
         subtitle={t('cashbook.form.subtitle')}
+        // NOT the سداد check-circle: nothing is being settled here. A drawing is
+        // money leaving, and a check mark over it says the opposite.
+        icon="edit-3"
         onClose={onClose}
       />
 
@@ -74,8 +77,13 @@ export function RecordMovementSheet({ visible, onClose, onSaved }: RecordMovemen
         <SettleAmountField value={amountValue} onChange={setAmount} />
 
         {/* For a transfer the toggle picks the SOURCE pocket; the destination is
-            the other one, and the route below says so in words. */}
-        <AccountToggle value={draft.account} onChange={setAccount} />
+            the other one, and the route below says so in words. The label says
+            which end it is — "الحساب" alone would leave him guessing. */}
+        <AccountToggle
+          value={draft.account}
+          onChange={setAccount}
+          label={isTransfer ? t('cashbook.form.fromAccount') : undefined}
+        />
         {isTransfer && <TransferRouteRow from={draft.account} to={toAccount} />}
 
         {/* Only the escape hatch has to be told which way the money went. */}

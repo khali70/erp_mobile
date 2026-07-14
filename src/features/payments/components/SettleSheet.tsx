@@ -18,6 +18,8 @@ interface SettleSheetProps {
   subtitle?: string;
   /** Pre-fills المبلغ (minor units) — normally the whole outstanding balance. */
   suggestedAmount?: number;
+  /** WHO is being paid — named back to him in the confirmation ("دفعت ٤٬٠٠٠ لأحمد"). */
+  payeeName: string;
   onClose: () => void;
   /** Fired after the single cash-book row is written; reload your data here. */
   onSaved: () => void;
@@ -45,6 +47,7 @@ export function SettleSheet({
   title,
   subtitle,
   suggestedAmount,
+  payeeName,
   onClose,
   onSaved,
 }: SettleSheetProps) {
@@ -60,7 +63,7 @@ export function SettleSheet({
     removeProof,
     canSave,
     submit,
-  } = useSettlePayment({ target, visible, suggestedAmount, onSaved });
+  } = useSettlePayment({ target, visible, suggestedAmount, payeeName, onSaved });
 
   return (
     <BottomSheet visible={visible} onClose={onClose} className="overflow-hidden">

@@ -8,7 +8,7 @@ import {
 import { createSupplierRepository } from '@/repositories/supplier-repository';
 import { createDebtRepository } from '@/repositories/debt-repository';
 import { endOfDay, startOfDay } from '@/utils/dates';
-import { toLedgerDays, toLedgerEntries } from './ledger';
+import { legIdsOf, toLedgerDays, toLedgerEntries } from './ledger';
 
 // Fixed clock, never Date.now(). Built from LOCAL calendar parts on purpose:
 // the shop is in Egypt and its day starts when the shop opens, not when UTC
@@ -297,5 +297,113 @@ describe('the ledger — one book, every movement, and a transfer that reads as 
       { amount: 800, from: 'instapay', to: 'cash' }, // newest first
       { amount: 5000, from: 'cash', to: 'instapay' },
     ]);
+  });
+});
+
+/**
+ * THE ERASER — taking a mistake back out of an append-only book.
+ *
+ * The ledger is append-only, and it must be: money that moved cannot be made not
+ * to have moved. But a mistyped 50,000 drawing, or a سداد recorded twice, is not
+ * money that moved — it is a typo, and with no way to remove it, it corrupts the
+ * derived debt AND the drawer balance permanently. The day the app's cash figure
+ * stops matching the notes in the drawer is the day the owner stops trusting the
+ * app, so the eraser is not a nicety: it is what keeps the whole book honest.
+ */
+describe('correcting a mistake — archive, and every derived figure walks back', () => {
+  it('archiving ONE leg of a transfer archives BOTH — half a transfer is money lost to nowhere', () => {
+    txs.createMany([
+      { direction: -1, amount: 5000, occurredAt: D, account: 'cash', refKind: 'transfer' },
+      { direction: 1, amount: 5000, occurredAt: D, account: 'instapay', refKind: 'transfer' },
+    ]);
+
+    const [transfer] = toLedgerEntries(txs.listForCashBook());
+    // ONE row on screen, TWO rows underneath. The pairing is the ledger's, and
+    // the delete path reads it rather than re-deriving it.
+    const legs = legIdsOf(transfer);
+    expect(legs).toHaveLength(2);
+    expect(legs).toEqual([transfer.id, transfer.pairedId]);
+
+    txs.archiveMany(legs);
+
+    // BOTH pockets are back where they started. Archive only the leg the owner
+    // happened to long-press and the drawer stays −5000 while InstaPay keeps a
+    // +5000 that came from nowhere — the two pockets never balance again.
+    expect(txs.balances()).toEqual({ cash: 0, instapay: 0, total: 0 });
+    expect(txs.listForCashBook()).toHaveLength(0);
+    expect(toLedgerEntries(txs.listForCashBook())).toHaveLength(0);
+  });
+
+  it('archiving a supplier payment raises owed() back up by EXACTLY that amount', () => {
+    const ahmed = suppliers.create({ name: 'Ahmed' }).id;
+    docs.create({
+      kind: 'incoming',
+      status: 'posted',
+      partyId: ahmed,
+      docDate: D,
+      lines: [{ itemId: 'X', qty: 1, unitPrice: 10000 }],
+    });
+    expect(debts.owed(ahmed)).toBe(10000);
+
+    // He pays 4000 — and then it turns out he typed it twice.
+    const paymentId = txs.create({
+      direction: -1,
+      amount: 4000,
+      occurredAt: D,
+      account: 'cash',
+      refKind: 'supplier',
+      refId: ahmed,
+    });
+    expect(debts.owed(ahmed)).toBe(6000);
+    expect(txs.balances().cash).toBe(-4000);
+
+    txs.archiveMany([paymentId]);
+
+    // Debt is `invoices − payments`, so removing the payment is the ONLY thing
+    // that can put the debt back — and it puts back exactly 4000, no more.
+    expect(debts.owed(ahmed)).toBe(10000);
+    // ...and the drawer, which the same row also emptied, is whole again too.
+    // One archive, both figures, nothing kept in step by hand.
+    expect(txs.balances().cash).toBe(0);
+    expect(debts.detail(ahmed).payments).toHaveLength(0);
+  });
+
+  it('the FIFO walk re-derives from scratch: an archived payment un-settles the invoice it covered', () => {
+    const ahmed = suppliers.create({ name: 'Ahmed' }).id;
+    docs.create({
+      kind: 'incoming',
+      status: 'posted',
+      partyId: ahmed,
+      docDate: D,
+      lines: [{ itemId: 'X', qty: 1, unitPrice: 2500 }],
+    });
+
+    const paymentId = txs.create({
+      direction: -1,
+      amount: 2500,
+      occurredAt: D,
+      account: 'cash',
+      refKind: 'supplier',
+      refId: ahmed,
+    });
+    expect(debts.settlements(ahmed)[0].status).toBe('settled');
+
+    txs.archiveMany([paymentId]);
+
+    // Nothing was "un-marked": there is no `settled` flag to unset. The walk is
+    // re-run against the live rows, and the invoice is unpaid again because the
+    // money it drank from is gone.
+    const [invoice] = debts.settlements(ahmed);
+    expect(invoice.status).toBe('unpaid');
+    expect(invoice.remaining).toBe(2500);
+  });
+
+  it('archiveMany([]) writes nothing — an empty correction is not a correction', () => {
+    txs.create({ direction: -1, amount: 200, occurredAt: D, account: 'cash', refKind: 'owner' });
+
+    txs.archiveMany([]);
+
+    expect(txs.balances().cash).toBe(-200);
+    expect(txs.listForCashBook()).toHaveLength(1);
   });
 });

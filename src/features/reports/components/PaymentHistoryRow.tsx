@@ -1,4 +1,5 @@
 import { View, Text, Pressable } from 'react-native';
+import { useTranslation } from 'react-i18next';
 import Feather from '@expo/vector-icons/Feather';
 import colors from '@/theme/colors';
 import { ROW } from '@/theme/rtl';
@@ -7,6 +8,8 @@ import type { PaymentViewModel } from '../presenters';
 
 interface PaymentHistoryRowProps {
   payment: PaymentViewModel;
+  /** Long-press to archive a payment that never happened (a typo, a duplicate). */
+  onLongPress: () => void;
 }
 
 /**
@@ -21,10 +24,22 @@ interface PaymentHistoryRowProps {
  * The proof chip is tappable — an InstaPay transfer IS a screenshot, and this is
  * where the owner produces it when the supplier says the money never arrived.
  * Cash rows have none, by design: the money was handed over and both men saw it.
+ *
+ * LONG-PRESS ARCHIVES IT. A سداد entered twice, or with a zero too many, walks
+ * the supplier's derived debt straight off the truth — and since debt is
+ * `invoices − payments`, the ONLY way to put it back is to take the wrong
+ * payment out. Confirmed first: it is destructive, and it is money.
  */
-export function PaymentHistoryRow({ payment }: PaymentHistoryRowProps) {
+export function PaymentHistoryRow({ payment, onLongPress }: PaymentHistoryRowProps) {
+  const { t } = useTranslation();
   return (
-    <View className="bg-surface rounded-[18px] p-3.5 border border-border gap-2">
+    <Pressable
+      className="bg-surface rounded-[18px] p-3.5 border border-border gap-2"
+      onLongPress={onLongPress}
+      accessibilityRole="button"
+      accessibilityLabel={`${payment.amountLabel} · ${payment.dateLabel}`}
+      accessibilityHint={t('payments.delete.title')}
+    >
       <View className={`${ROW} items-center justify-between`}>
         <View className={`${ROW} items-center gap-3 flex-1`}>
           <View className="w-8 h-8 rounded-xl items-center justify-center bg-danger-light">
@@ -56,6 +71,6 @@ export function PaymentHistoryRow({ payment }: PaymentHistoryRowProps) {
           </Text>
         </Pressable>
       ))}
-    </View>
+    </Pressable>
   );
 }

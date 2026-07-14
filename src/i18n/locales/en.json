@@ -355,9 +355,21 @@
       "instapay": "InstaPay"
     },
     "proof": "Payment proof",
-    "addProof": "Photo",
+    "addProof": "Snap the transfer screenshot",
     "proofHint": "Attach the InstaPay transfer screenshot",
-    "remaining": "Remaining (debt)",
+    "remaining": "You still owe",
+    "paidInFull": "Paid in full",
+    "saved": {
+      "title": "Saved",
+      "withRemaining": "Paid {{paid}} to {{name}}. You still owe {{remaining}}.",
+      "cleared": "Paid {{paid}} to {{name}}. Nothing left to pay."
+    },
+    "delete": {
+      "title": "Delete this movement?",
+      "body": "The money goes back to where it was.",
+      "confirm": "Delete",
+      "errorTitle": "Could not delete the movement"
+    },
     "errors": {
       "negative": "The paid amount cannot be negative.",
       "exceedsTotal": "Paid exceeds the invoice total. To pay more than is owed, use the debts screen.",
@@ -378,27 +390,34 @@
     "splitHint": "The rest is recorded on InstaPay — a sale is always settled in full."
   },
   "debts": {
-    "title": "Supplier debts",
-    "owed": "Owed",
+    "title": "What you owe",
+    "owed": "You owe",
     "credit": "Credit to you",
     "settle": "Settle",
-    "empty": "You owe nobody. 🎉",
-    "totalOwed": "Total owed",
+    "emptyTitle": "You owe nobody 🎉",
+    "emptyBody": "Every invoice and every bill is paid off. The moment you buy on credit or log an unpaid bill, it shows up here.",
+    "totalOwed": "Total you owe",
     "supplierCount": "{{n}} suppliers",
+    "supplierCount_zero": "No suppliers",
+    "supplierCount_one": "{{n}} supplier",
+    "supplierCount_two": "{{n}} suppliers",
+    "supplierCount_few": "{{n}} suppliers",
+    "supplierCount_many": "{{n}} suppliers",
+    "supplierCount_other": "{{n}} suppliers",
     "age": "{{days}} days old",
     "ageToday": "Today",
     "invoices": "Invoices",
     "noInvoices": "No invoices for this supplier.",
     "noDocNo": "No number",
     "payments": "Payments",
-    "noPayments": "No payments recorded yet.",
+    "noPayments": "No payments yet.",
     "remainingOf": "{{amount}} left",
     "settleTo": "Pay {{name}}",
     "creditHint": "You paid more than you owed — the supplier holds this for you.",
     "status": {
-      "settled": "Settled in full",
+      "settled": "Paid in full",
       "partial": "Partly paid",
-      "unpaid": "Unpaid"
+      "unpaid": "Not paid yet"
     },
     "unpaidExpenses": "Unpaid bills & expenses",
     "outOfTotal": "of {{amount}}"
@@ -417,9 +436,9 @@
       "other": "Other"
     },
     "form": {
-      "statement": "Expense description",
+      "statement": "What was it spent on?",
       "statementPlaceholder": "e.g. shelf repair, electricity meter top-up...",
-      "category": "Category",
+      "category": "Type",
       "amount": "Expense amount (EGP)",
       "attachment": "Attach file (optional)",
       "attachmentHint": "Invoice or receipt photo",
@@ -446,7 +465,7 @@
   },
   "cashbook": {
     "title": "Cash book",
-    "totalOnHand": "Across both pockets: {{amount}}",
+    "totalOnHand": "Money in total: {{amount}}",
     "salesToday": "Today's sales",
     "transferRoute": "From {{from}} to {{to}}",
     "kinds": {
@@ -454,7 +473,7 @@
       "expense": "Bill payment",
       "sale": "Sale",
       "drawing": "Owner drawing",
-      "injection": "Owner injection",
+      "injection": "Money from the owner's pocket",
       "transfer": "Transfer between accounts",
       "other": "Other movement",
       "unknown": "Unclassified movement"
@@ -463,27 +482,60 @@
       "title": "No money has moved yet",
       "body": "Every sale, payment, drawing and transfer lands here — so you can count the drawer and check the app agrees."
     },
+    "saved": {
+      "title": "Saved",
+      "in": "{{amount}} came into {{account}}.",
+      "out": "{{amount}} went out of {{account}}.",
+      "transfer": "Moved {{amount}} from {{from}} to {{to}}."
+    },
     "form": {
       "title": "Record a movement",
       "subtitle": "Drawing, injection or transfer",
       "type": "Movement type",
       "types": {
         "drawing": "Owner drawing",
-        "injection": "Owner injection",
+        "injection": "Money from the owner's pocket",
         "transfer": "Transfer",
         "other": "Other"
       },
       "direction": "Direction",
       "directions": {
-        "in": "In",
-        "out": "Out"
+        "in": "Money in",
+        "out": "Money out"
       },
-      "route": "Transfer",
+      "route": "From / to",
+      "fromAccount": "Out of which account?",
       "notePlaceholder": "Why the money moved (optional)",
       "save": "Record movement"
     },
     "errors": {
       "title": "Could not record the movement"
+    }
+  },
+  "reports": {
+    "title": "Reports",
+    "soon": "Soon",
+    "items": {
+      "cashbook": {
+        "title": "Cash book",
+        "subtitle": "Every movement of money — the drawer and the app agree"
+      },
+      "debtsBySupplier": {
+        "title": "What you owe",
+        "subtitle": "Suppliers and the bills that are not paid yet"
+      },
+      "expenses": {
+        "title": "Expenses",
+        "subtitle": "Rent, electricity and everything else"
+      },
+      "profitLoss": {
+        "title": "Profit & loss",
+        "subtitle": "What is left after the expenses"
+      },
+      "debtsByCustomer": {
+        "title": "Customer debts",
+        "subtitle": "What customers owe you"
+      }
     }
   },
   "settings": {

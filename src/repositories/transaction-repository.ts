@@ -368,6 +368,22 @@ export function createTransactionRepository(db: TxDb, clock: () => number = now)
         .where(eq(schema.transactions.id, id))
         .run();
     },
+
+    /**
+     * Soft-delete SEVERAL movements ATOMICALLY — all of them or none.
+     *
+     * This exists for the TRANSFER, which is a PAIR of rows (out of one pocket,
+     * into the other). Deleting one leg alone would leave an orphan half: the
+     * drawer would have lost 5,000 that arrived nowhere, and the two pockets
+     * would never balance again. `createMany` writes the pair in one step for
+     * exactly this reason, and it can only be un-written the same way.
+     */
+    archiveMany(ids: string[]): void {
+      if (ids.length === 0) return;
+      db.transaction(() => {
+        for (const id of ids) api.archive(id);
+      });
+    },
   };
 
   return api;

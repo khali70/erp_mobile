@@ -8,6 +8,14 @@ import type { Account } from '@/repositories/transaction-repository';
 interface AccountToggleProps {
   value: Account;
   onChange: (account: Account) => void;
+  /**
+   * What the pocket MEANS here. Defaults to "الحساب".
+   *
+   * For a TRANSFER the same toggle picks the SOURCE pocket, and labelling that
+   * "الحساب" says nothing about which of the two ends it is — the owner is left
+   * to guess whether he is naming where the money leaves or where it lands.
+   */
+  label?: string;
 }
 
 const OPTIONS: { key: Account; icon: 'dollar-sign' | 'smartphone' }[] = [
@@ -23,7 +31,7 @@ const OPTIONS: { key: Account; icon: 'dollar-sign' | 'smartphone' }[] = [
  * payment that doesn't say which pocket can never be checked against either, so
  * this is never optional.
  */
-export function AccountToggle({ value, onChange }: AccountToggleProps) {
+export function AccountToggle({ value, onChange, label }: AccountToggleProps) {
   const { t } = useTranslation();
   return (
     <View className={`${ROW} items-center justify-between`}>
@@ -57,7 +65,7 @@ export function AccountToggle({ value, onChange }: AccountToggleProps) {
           );
         })}
       </View>
-      <Text className="text-ink text-sm font-semibold">{t('payments.account')}</Text>
+      <Text className="text-ink text-sm font-semibold">{label ?? t('payments.account')}</Text>
     </View>
   );
 }

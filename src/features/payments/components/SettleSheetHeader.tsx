@@ -9,16 +9,29 @@ interface SettleSheetHeaderProps {
   title: string;
   /** Optional line under it, e.g. the outstanding balance. */
   subtitle?: string;
+  /**
+   * The glyph beside the title. Defaults to the سداد check-circle.
+   *
+   * It is a PROP because this header is reused by تسجيل حركة, where a check-circle
+   * says "settled" over a sheet that settles nothing — a drawing or a transfer is
+   * not a payment, and the icon was quietly claiming it was.
+   */
+  icon?: keyof typeof Feather.glyphMap;
   onClose: () => void;
 }
 
 /** Teal head of the سداد sheet: who is being paid, and a way out. */
-export function SettleSheetHeader({ title, subtitle, onClose }: SettleSheetHeaderProps) {
+export function SettleSheetHeader({
+  title,
+  subtitle,
+  icon = 'check-circle',
+  onClose,
+}: SettleSheetHeaderProps) {
   const { t } = useTranslation();
   return (
     <View className={`bg-primary px-5 py-4 ${ROW} items-center justify-between`}>
       <View className={`${ROW} items-center gap-2.5`}>
-        <Feather name="check-circle" size={20} color={colors['primary-200']} />
+        <Feather name={icon} size={20} color={colors['primary-200']} />
         <View className="gap-0.5">
           <Text className="text-white font-bold text-base">{title}</Text>
           {subtitle ? <Text className="text-primary-100 text-xs">{subtitle}</Text> : null}

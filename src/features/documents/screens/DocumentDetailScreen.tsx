@@ -9,7 +9,10 @@ import { ROW } from '@/theme/rtl';
 import type { RootStackParamList } from '@/navigation/RootNavigator';
 import { ScreenHeader } from '@/components/ui/ScreenHeader';
 import { toArabicDigits } from '@/utils/numerals';
+import { presentSettlement } from '@/features/reports/presenters';
 import { useDocumentDetail } from '../hooks/useDocumentDetail';
+import { useDocumentSettlement } from '../hooks/useDocumentSettlement';
+import { DocumentSettlementCard } from '../components/DocumentSettlementCard';
 import { openAttachment } from '@/utils/attachments';
 
 /**
@@ -18,10 +21,17 @@ import { openAttachment } from '@/utils/attachments';
  * useDocumentDetail. Opened by tapping a row in the documents list.
  */
 export function DocumentDetailScreen() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const { params } = useRoute<RouteProp<RootStackParamList, 'DocumentDetail'>>();
   const { detail } = useDocumentDetail(params.documentId);
+  // "هل دفعت الفاتورة دي؟" — DERIVED from the supplier's book, and null for a
+  // sale or a walk-in purchase, where the question does not arise.
+  const { settlement } = useDocumentSettlement(
+    params.documentId,
+    detail?.kind ?? null,
+    detail?.partyId ?? null,
+  );
 
   if (!detail) {
     return (
@@ -90,6 +100,13 @@ export function DocumentDetailScreen() {
             </Text>
           </View>
         </View>
+
+        {/* WHAT WAS PAID ON IT — the question the owner opened the invoice to
+            answer. Purchases from a real supplier only: a sale is settled in full
+            at the counter, and a walk-in purchase carries no debt to anybody. */}
+        {settlement ? (
+          <DocumentSettlementCard settlement={presentSettlement(settlement, t, i18n.language)} />
+        ) : null}
 
         {/* Counterparty (supplier / customer) */}
         {detail.partyLabel ? (

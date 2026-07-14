@@ -7,6 +7,7 @@ import type { RootStackParamList } from '@/navigation/RootNavigator';
 import { ScreenHeader } from '@/components/ui/ScreenHeader';
 import colors from '@/theme/colors';
 import { SettleSheet } from '@/features/payments/components/SettleSheet';
+import { useArchiveTransaction } from '@/features/payments/hooks/useArchiveTransaction';
 import { useSupplierDebtDetail } from '../hooks/useSupplierDebtDetail';
 import { presentBalance, presentPayment, presentSettlement } from '../presenters';
 import { SupplierDebtDetailHeader } from '../components/SupplierDebtDetailHeader';
@@ -35,6 +36,9 @@ export function SupplierDebtDetailScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const { supplierId, supplierName } = useRoute<DetailRoute>().params;
   const { detail, loading, error, reload } = useSupplierDebtDetail(supplierId);
+  // Debt is `invoices − payments`. A payment entered twice can therefore ONLY be
+  // undone by taking it back out — and until it is, the debt below is wrong.
+  const { confirmArchive } = useArchiveTransaction(reload);
   const [settleOpen, setSettleOpen] = useState(false);
 
   const balance = presentBalance(detail.owed, t, lang);
@@ -83,6 +87,9 @@ export function SupplierDebtDetailScreen() {
           ListFooterComponent={
             <PaymentHistorySection
               payments={detail.payments.map((p) => presentPayment(p, t, lang))}
+              // A supplier payment is ONE row (never a transfer's pair), so its
+              // own id is the whole of it.
+              onLongPressPayment={(paymentId) => confirmArchive([paymentId])}
             />
           }
           contentContainerClassName="gap-3 pb-24"
@@ -99,6 +106,8 @@ export function SupplierDebtDetailScreen() {
         target={{ refKind: 'supplier', refId: supplierId }}
         title={t('debts.settleTo', { name: supplierName })}
         subtitle={detail.owed > 0 ? `${balance.title}: ${balance.amountLabel}` : undefined}
+        // Named back to him on save: "دفعت ٤٬٠٠٠ ج.م لـ أحمد. باقي عليك ١٬٠٠٠ ج.م."
+        payeeName={supplierName}
         // Pre-fill the whole outstanding balance: he usually came to settle up.
         // Zero when he is already in credit — paying more is allowed, but it
         // should not be the number the app suggests.

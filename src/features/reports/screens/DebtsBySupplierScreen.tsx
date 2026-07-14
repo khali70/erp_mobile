@@ -68,7 +68,14 @@ export function DebtsBySupplierScreen() {
               debts.length > 0 ? (
                 <DebtsTotalCard
                   totalLabel={money(totalOwed)}
-                  countLabel={t('debts.supplierCount', { n: formatNumber(debts.length, lang) })}
+                  // TWO numbers, deliberately. `count` is the RAW integer i18next
+                  // needs to pick the Arabic plural form (٥ مورد → ٥ موردين);
+                  // `n` is the same figure SHAPED for the screen. Handing it only
+                  // the shaped string would make every count read "مورد".
+                  countLabel={t('debts.supplierCount', {
+                    count: debts.length,
+                    n: formatNumber(debts.length, lang),
+                  })}
                 />
               ) : null
             }

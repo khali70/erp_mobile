@@ -43,6 +43,14 @@ export interface DocumentDetailViewModel {
   docLabel: string;
   dateLabel: string;
   kindLabel: string;
+  /**
+   * WHO the document is with — the id, not just the name.
+   *
+   * The name is for reading; the id is what the settlement is derived FROM. "Did
+   * I pay IN-000012?" is a question about this supplier's whole book (invoices
+   * minus payments, walked FIFO), and it cannot be asked without him.
+   */
+  partyId: string | null;
   partyLabel: string | null;
   noteLabel: string | null;
   attachments: AttachmentMeta[];
@@ -71,6 +79,7 @@ interface DetailDocInput {
   docDate: number | null;
   createdAt: number;
   totalAmount: number;
+  partyId: string | null;
   partyName: string | null;
   note: string | null;
   attachments: AttachmentMeta[];
@@ -99,6 +108,7 @@ export function presentDocumentDetail(
     docLabel: doc.docNo ?? t('documents.untitled'),
     dateLabel: formatDay(when, lang),
     kindLabel: kind === 'in' ? t('documents.kind.incoming') : t('documents.kind.outgoing'),
+    partyId: doc.partyId,
     partyLabel: doc.partyName && doc.partyName.trim() ? doc.partyName : null,
     noteLabel: doc.note && doc.note.trim() ? doc.note : null,
     attachments: doc.attachments,

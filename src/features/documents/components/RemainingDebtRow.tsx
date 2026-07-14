@@ -1,5 +1,7 @@
 import { View, Text } from 'react-native';
 import { useTranslation } from 'react-i18next';
+import Feather from '@expo/vector-icons/Feather';
+import colors from '@/theme/colors';
 import { ROW } from '@/theme/rtl';
 import { formatMoneyMajor } from '@/utils/numerals';
 
@@ -9,20 +11,30 @@ interface RemainingDebtRowProps {
 }
 
 /**
- * المتبقي (دين) — what the owner still owes after this payment.
+ * باقي عليك — what the owner still owes after this payment.
  *
- * Shown ONLY when it is greater than zero. A permanent "٠ ج.م" line would train
- * the eye to skip the row, and this is the one number on the screen that means
- * he now owes somebody money.
+ * TWO STATES, NOT ONE. It used to render NOTHING when the purchase was paid in
+ * full, and absence is a terrible way to say "you owe nothing": an empty space
+ * is equally consistent with the app having failed to notice the payment at all.
+ * Paid-in-full is an ANSWER, and it is now said out loud, in green.
  *
- * DANGER, not warning: `warning` is the receivables colour (money owed TO the
- * shop) and `danger` is payables (the shop owes). A supplier remainder is a
- * PAYABLE, and it is painted danger on every other screen that shows one —
- * SupplierDebtRow, DebtsTotalCard, UnpaidExpenseRow.
+ * DANGER, not warning, for the remainder: `warning` is the receivables colour
+ * (money owed TO the shop) and `danger` is payables (the shop owes). A supplier
+ * remainder is a PAYABLE, and it is painted danger on every other screen that
+ * shows one — SupplierDebtRow, DebtsTotalCard, UnpaidExpenseRow.
  */
 export function RemainingDebtRow({ remaining }: RemainingDebtRowProps) {
   const { t, i18n } = useTranslation();
-  if (remaining <= 0) return null;
+
+  if (remaining <= 0) {
+    return (
+      <View className={`${ROW} items-center gap-2 pt-3 border-t border-border`}>
+        <Feather name="check-circle" size={16} color={colors.positive} />
+        <Text className="text-positive text-sm font-extrabold">{t('payments.paidInFull')}</Text>
+      </View>
+    );
+  }
+
   return (
     <View className={`${ROW} items-center justify-between pt-3 border-t border-danger/30`}>
       <Text className="text-danger text-base font-extrabold">

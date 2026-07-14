@@ -30,7 +30,14 @@ export function useDocumentDetail(documentId: string) {
     }));
     setDetail(
       presentDocumentDetail(
-        { ...doc, partyName: doc.partyName, attachments: doc.attachments, lines },
+        {
+          ...doc,
+          // The id, not only the name: the settlement is derived FROM the party.
+          partyId: doc.partyId,
+          partyName: doc.partyName,
+          attachments: doc.attachments,
+          lines,
+        },
         t,
         i18n.language,
       ),

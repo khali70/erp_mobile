@@ -9,6 +9,8 @@ import type { LedgerEntryViewModel, LedgerTone } from '../presenters';
 
 interface CashEntryRowProps {
   entry: LedgerEntryViewModel;
+  /** Long-press to correct a mistake — a mistyped movement is not a fact of business. */
+  onLongPress: () => void;
 }
 
 /** Money in is green, money out is red — and a transfer is NEITHER. */
@@ -39,12 +41,23 @@ const TONE_ICON: Record<LedgerTone, string> = {
  *
  * A transfer renders as ONE row (نقدي ← إنستاباي) with no + or −, because it is
  * the same money in another pocket — not a loss and not a gain.
+ *
+ * LONG-PRESS DELETES IT (after a confirm). Deliberately not a swipe and not a
+ * button: correcting a movement is rare and destructive, and it must be hard to
+ * do by accident while scrolling — but it has to be possible, or a single typo
+ * corrupts the drawer balance forever.
  */
-export function CashEntryRow({ entry }: CashEntryRowProps) {
+export function CashEntryRow({ entry, onLongPress }: CashEntryRowProps) {
   const { t } = useTranslation();
 
   return (
-    <View className={`${ROW} items-center gap-3 bg-surface rounded-2xl p-3.5 border border-border`}>
+    <Pressable
+      className={`${ROW} items-center gap-3 bg-surface rounded-2xl p-3.5 border border-border`}
+      onLongPress={onLongPress}
+      accessibilityRole="button"
+      accessibilityLabel={`${entry.title} · ${entry.amountLabel}`}
+      accessibilityHint={t('payments.delete.title')}
+    >
       <View
         className={`w-9 h-9 rounded-full items-center justify-center ${TONE_CHIP[entry.tone]}`}
       >
@@ -88,6 +101,6 @@ export function CashEntryRow({ entry }: CashEntryRowProps) {
           </Pressable>
         ) : null}
       </View>
-    </View>
+    </Pressable>
   );
 }

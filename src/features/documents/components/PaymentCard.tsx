@@ -1,4 +1,5 @@
-import { View } from 'react-native';
+import { View, Text } from 'react-native';
+import { useTranslation } from 'react-i18next';
 import type { AttachmentMeta } from '@/repositories/document-repository';
 import type { Account } from '@/repositories/transaction-repository';
 import { PaidAmountRow } from './PaidAmountRow';
@@ -36,8 +37,14 @@ export function PaymentCard({
   onRemoveProof,
   remaining,
 }: PaymentCardProps) {
+  const { t } = useTranslation();
   return (
     <View className="bg-surface rounded-2xl p-4 border border-border gap-3">
+      {/* Titled like every other card on the screen — and like SalePaymentCard,
+          its opposite number. An untitled block of money fields leaves the owner
+          to infer what he is being asked. */}
+      <Text className="text-xs font-bold text-muted text-right">{t('payments.howPaid')}</Text>
+
       <PaidAmountRow value={paidValue} onChange={onChangePaid} />
       <AccountToggle value={account} onChange={onChangeAccount} />
 

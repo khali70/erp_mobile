@@ -31,6 +31,9 @@ function parseAttachments(raw: string | null): AttachmentMeta[] {
 function entryFrom(row: TransactionRow): LedgerEntry {
   return {
     id: row.id,
+    // A lone row stands for itself — including an ORPHAN transfer leg, which has
+    // no partner to take with it.
+    pairedId: null,
     kind: kindOf(row.refKind),
     occurredAt: row.occurredAt,
     amount: row.amount,
@@ -47,6 +50,9 @@ function entryFrom(row: TransactionRow): LedgerEntry {
 function transferFrom(out: TransactionRow, into: TransactionRow): LedgerEntry {
   return {
     id: out.id,
+    // Both legs, carried on the entry that folded them — so that deleting the
+    // transfer can delete the whole of it (`legIdsOf`).
+    pairedId: into.id,
     kind: 'transfer',
     occurredAt: out.occurredAt,
     amount: out.amount,
@@ -112,6 +118,21 @@ export function toLedgerEntries(rows: TransactionRow[]): LedgerEntry[] {
   }
 
   return entries.sort((a, b) => b.occurredAt - a.occurredAt);
+}
+
+/**
+ * EVERY `transactions` ROW ONE ENTRY STANDS FOR — a transfer is TWO, everything
+ * else is one.
+ *
+ * The unit the owner sees is the unit he deletes. He long-presses ONE row that
+ * says "من النقدي إلى إنستاباي" and expects that transfer to be gone; archiving
+ * only the leg he happened to touch would leave the other half behind, money
+ * that left a pocket it never left and arrived in one it never reached. The
+ * pairing is `toLedgerEntries`' answer, read straight off the entry — never
+ * re-derived by a caller, which is how the two could drift apart.
+ */
+export function legIdsOf(entry: LedgerEntry): string[] {
+  return entry.pairedId ? [entry.id, entry.pairedId] : [entry.id];
 }
 
 /**

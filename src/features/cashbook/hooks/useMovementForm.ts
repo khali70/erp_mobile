@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Alert } from 'react-native';
 import { useTranslation } from 'react-i18next';
-import { toMinor } from '@/utils/money';
-import { normalizeDigits, toLocaleDigits } from '@/utils/numerals';
+import { fromMinor, toMinor } from '@/utils/money';
+import { formatMoneyMajor, normalizeDigits, toLocaleDigits } from '@/utils/numerals';
 import { addDays } from '@/utils/dates';
 import { ingest, pickPhoto, removeAttachment } from '@/utils/attachments';
 import { transactionRepository } from '@/repositories/transaction-repository.client';
@@ -171,6 +171,36 @@ export function useMovementForm({ visible, onSaved }: UseMovementFormArgs) {
     [],
   );
 
+  /**
+   * WHAT JUST HAPPENED, IN NUMBERS — "طلعت ٢٠٠٫٠٠ ج.م من نقدي."
+   *
+   * The sheet used to just vanish on save. A movement the owner cannot see
+   * confirmed is a movement he will re-enter "to be safe" — and a double-entered
+   * drawing is exactly the drift between the app and the drawer that this whole
+   * feature exists to prevent. Money goes through `formatMoneyMajor`, never raw
+   * minor units: "طلعت 20000" is not a sentence about 200 pounds.
+   */
+  const confirmationFor = useCallback(
+    (d: MovementDraft, rows: CreateTransactionInput[]): string => {
+      const amount = `${formatMoneyMajor(fromMinor(amountMinor), i18n.language)} ${t('common.currency')}`;
+      if (d.type === 'transfer') {
+        return t('cashbook.saved.transfer', {
+          amount,
+          from: t(`payments.accounts.${d.account}`),
+          to: t(`payments.accounts.${other(d.account)}`),
+        });
+      }
+      const account = t(`payments.accounts.${d.account}`);
+      // Read the sign off the ROW that was actually written, never off the draft:
+      // `rowsFor` is what decides a drawing is −1, and two places deciding the
+      // same thing is one place too many.
+      return rows[0].direction === 1
+        ? t('cashbook.saved.in', { amount, account })
+        : t('cashbook.saved.out', { amount, account });
+    },
+    [amountMinor, i18n.language, t],
+  );
+
   const submit = useCallback(() => {
     if (saving) return;
     // The sign lives in `direction`; zero and negative are not movements, they
@@ -181,14 +211,17 @@ export function useMovementForm({ visible, onSaved }: UseMovementFormArgs) {
     }
     setSaving(true);
     try {
-      transactionRepository.createMany(rowsFor(draft, amountMinor));
-      onSaved();
+      const rows = rowsFor(draft, amountMinor);
+      transactionRepository.createMany(rows);
+      Alert.alert(t('cashbook.saved.title'), confirmationFor(draft, rows), [
+        { text: t('documents.ok'), onPress: onSaved },
+      ]);
     } catch (err) {
       Alert.alert(t('cashbook.errors.title'), String((err as Error)?.message ?? err));
     } finally {
       setSaving(false);
     }
-  }, [amountMinor, draft, onSaved, rowsFor, saving, t]);
+  }, [amountMinor, confirmationFor, draft, onSaved, rowsFor, saving, t]);
 
   return {
     draft,

@@ -7,6 +7,8 @@ import type { PaymentViewModel } from '../presenters';
 
 interface PaymentHistorySectionProps {
   payments: PaymentViewModel[];
+  /** Long-press on a row — the only way to take a mistyped سداد back out of the debt. */
+  onLongPressPayment: (paymentId: string) => void;
 }
 
 /**
@@ -20,7 +22,10 @@ interface PaymentHistorySectionProps {
  * screen's FlatList, and a supplier's payment history is bounded by how often he
  * has actually been paid.
  */
-export function PaymentHistorySection({ payments }: PaymentHistorySectionProps) {
+export function PaymentHistorySection({
+  payments,
+  onLongPressPayment,
+}: PaymentHistorySectionProps) {
   const { t } = useTranslation();
   return (
     <View className="gap-3 mt-2">
@@ -29,7 +34,13 @@ export function PaymentHistorySection({ payments }: PaymentHistorySectionProps) 
       {payments.length === 0 ? (
         <EmptyNote message={t('debts.noPayments')} />
       ) : (
-        payments.map((p) => <PaymentHistoryRow key={p.id} payment={p} />)
+        payments.map((p) => (
+          <PaymentHistoryRow
+            key={p.id}
+            payment={p}
+            onLongPress={() => onLongPressPayment(p.id)}
+          />
+        ))
       )}
     </View>
   );

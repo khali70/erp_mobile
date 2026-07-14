@@ -30,6 +30,16 @@ export type LedgerKind =
 export interface LedgerEntry {
   /** The row's id — for a transfer, the id of its OUT leg. */
   id: string;
+  /**
+   * The OTHER leg of a transfer (the IN row); null for every other movement.
+   *
+   * A transfer is ONE entry made of TWO rows, and the pair is the unit of
+   * DELETION as much as of creation: archive the out leg alone and the drawer
+   * has lost money that arrived nowhere, leaving the two pockets permanently
+   * unbalanced. The pairing is done once, here in the ledger — nothing
+   * downstream should ever have to re-derive it (`legIdsOf`).
+   */
+  pairedId: string | null;
   kind: LedgerKind;
   occurredAt: number;
   /** Minor units, always positive. The sign lives in `direction`. */

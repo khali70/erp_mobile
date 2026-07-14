@@ -112,6 +112,9 @@ export function ExpensesScreen() {
           // Pre-fill what is still owed on THIS bill, not its full total — the
           // rent that is half paid should suggest the half that is left.
           suggestedAmount={settling.suggestedAmount}
+          // A bill is paid TO something the owner named ("إيجار المحل") — the
+          // confirmation says it back to him with the figures.
+          payeeName={settling.title}
           onClose={() => setSettling(null)}
           onSaved={handleSettled}
         />

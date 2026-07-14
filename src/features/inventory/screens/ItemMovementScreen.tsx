@@ -58,7 +58,7 @@ export function ItemMovementScreen() {
                 key={`${entry.documentId}-${i}`}
                 row={presentMovement(entry, unitLabel, t, i18n.language)}
                 balanceLabel={t('inventory.movement.balance')}
-                onPress={() => navigation.navigate('Documents')}
+                onPress={() => navigation.navigate('DocumentDetail', { documentId: entry.documentId })}
               />
             ))}
           </ScrollView>

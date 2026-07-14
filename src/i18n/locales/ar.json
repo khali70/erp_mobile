@@ -355,9 +355,21 @@
       "instapay": "إنستاباي"
     },
     "proof": "إثبات الدفع",
-    "addProof": "صورة",
+    "addProof": "صوّر لقطة التحويل",
     "proofHint": "أرفق لقطة شاشة تحويل إنستاباي",
-    "remaining": "المتبقي (دين)",
+    "remaining": "باقي عليك",
+    "paidInFull": "مدفوعة بالكامل",
+    "saved": {
+      "title": "تمام، اتسجلت",
+      "withRemaining": "دفعت {{paid}} لـ {{name}}. باقي عليك {{remaining}}.",
+      "cleared": "دفعت {{paid}} لـ {{name}}. خلاص، مفيش عليه حاجة."
+    },
+    "delete": {
+      "title": "تمسح الحركة دي؟",
+      "body": "هتترجع الفلوس زي ما كانت.",
+      "confirm": "امسح",
+      "errorTitle": "تعذّر مسح الحركة"
+    },
     "errors": {
       "negative": "المبلغ المدفوع لا يمكن أن يكون بالسالب.",
       "exceedsTotal": "المدفوع أكبر من إجمالي الفاتورة. لدفع أكثر من المستحق، استخدم شاشة الديون.",
@@ -378,33 +390,40 @@
     "splitHint": "باقي المبلغ يُسجَّل على إنستاباي — البيع يُسدَّد بالكامل دائمًا."
   },
   "debts": {
-    "title": "ديون الموردين",
-    "owed": "المستحق",
+    "title": "اللي عليّا",
+    "owed": "اللي عليك",
     "credit": "رصيد لك",
     "settle": "سداد",
-    "empty": "لا توجد ديون على المحل. 🎉",
-    "totalOwed": "إجمالي المستحق",
+    "emptyTitle": "مفيش عليك حاجة 🎉",
+    "emptyBody": "كل فاتورة وكل مصروف اتدفعوا بالكامل. أول ما تشتري بالأجل أو تسجّل مصروف مش مدفوع، هيبان هنا.",
+    "totalOwed": "إجمالي اللي عليك",
     "supplierCount": "{{n}} مورد",
-    "age": "منذ {{days}} يوم",
+    "supplierCount_zero": "مفيش موردين",
+    "supplierCount_one": "مورد واحد",
+    "supplierCount_two": "موردين اتنين",
+    "supplierCount_few": "{{n}} موردين",
+    "supplierCount_many": "{{n}} مورد",
+    "supplierCount_other": "{{n}} مورد",
+    "age": "بقاله {{days}} يوم",
     "ageToday": "اليوم",
     "invoices": "الفواتير",
     "noInvoices": "لا توجد فواتير لهذا المورد.",
     "noDocNo": "بدون رقم",
     "payments": "المدفوعات",
-    "noPayments": "لم تُسجَّل أي مدفوعات بعد.",
+    "noPayments": "لسه مفيش مدفوعات.",
     "remainingOf": "باقي {{amount}}",
     "settleTo": "سداد لـ {{name}}",
     "creditHint": "دفعت أكثر من المستحق — هذا المبلغ لك عند المورد.",
     "status": {
-      "settled": "سُدّدت بالكامل",
+      "settled": "اتدفعت بالكامل",
       "partial": "سداد جزئي",
-      "unpaid": "لم تُسدَّد"
+      "unpaid": "لسه ما اتدفعتش"
     },
     "unpaidExpenses": "فواتير ومصروفات غير مسددة",
     "outOfTotal": "من أصل {{amount}}"
   },
   "expenses": {
-    "title": "النفقات والمصروفات",
+    "title": "المصروفات",
     "currentMonth": "نفقات {{month}} الحالية",
     "lastMonth": "الشهر الماضي",
     "add": "تسجيل نفقة جديدة",
@@ -417,9 +436,9 @@
       "other": "أخرى"
     },
     "form": {
-      "statement": "بيان النفقة / المصروف",
+      "statement": "المصروف على إيه؟",
       "statementPlaceholder": "مثال: صيانة رفوف، شحن عداد الكهرباء...",
-      "category": "الفئة المصنفة",
+      "category": "النوع",
       "amount": "قيمة المصروف (ج.م)",
       "attachment": "إرفاق ملف (اختياري)",
       "attachmentHint": "صورة الفاتورة أو الإيصال",
@@ -446,7 +465,7 @@
   },
   "cashbook": {
     "title": "دفتر النقدية",
-    "totalOnHand": "الإجمالي في الجيبين: {{amount}}",
+    "totalOnHand": "إجمالي الفلوس: {{amount}}",
     "salesToday": "مبيعات اليوم",
     "transferRoute": "من {{from}} إلى {{to}}",
     "kinds": {
@@ -454,7 +473,7 @@
       "expense": "سداد مصروف",
       "sale": "بيع",
       "drawing": "سحب شخصي",
-      "injection": "إيداع من المالك",
+      "injection": "فلوس من جيب المالك",
       "transfer": "تحويل بين الحسابات",
       "other": "حركة أخرى",
       "unknown": "حركة غير مصنّفة"
@@ -463,27 +482,60 @@
       "title": "لم تتحرك أي أموال بعد",
       "body": "كل بيع ودفع وسحب وتحويل سيظهر هنا، ويمكنك مطابقة الدرج بالتطبيق."
     },
+    "saved": {
+      "title": "تمام، اتسجلت",
+      "in": "دخلت {{amount}} في {{account}}.",
+      "out": "طلعت {{amount}} من {{account}}.",
+      "transfer": "حوّلت {{amount}} من {{from}} لـ {{to}}."
+    },
     "form": {
       "title": "تسجيل حركة",
       "subtitle": "سحب أو إيداع أو تحويل",
       "type": "نوع الحركة",
       "types": {
         "drawing": "سحب شخصي",
-        "injection": "إيداع من المالك",
+        "injection": "فلوس من جيب المالك",
         "transfer": "تحويل",
         "other": "أخرى"
       },
       "direction": "الاتجاه",
       "directions": {
-        "in": "داخل",
-        "out": "خارج"
+        "in": "فلوس داخلة",
+        "out": "فلوس خارجة"
       },
-      "route": "التحويل",
+      "route": "من / إلى",
+      "fromAccount": "من أي حساب؟",
       "notePlaceholder": "سبب الحركة (اختياري)",
       "save": "تسجيل الحركة"
     },
     "errors": {
       "title": "خطأ في تسجيل الحركة"
+    }
+  },
+  "reports": {
+    "title": "التقارير",
+    "soon": "قريبًا",
+    "items": {
+      "cashbook": {
+        "title": "دفتر النقدية",
+        "subtitle": "كل حركة فلوس، والدرج مطابق للتطبيق"
+      },
+      "debtsBySupplier": {
+        "title": "اللي عليّا",
+        "subtitle": "الموردين والفواتير اللي لسه ما اتدفعتش"
+      },
+      "expenses": {
+        "title": "المصروفات",
+        "subtitle": "الإيجار والكهربا وأي مصروف تاني"
+      },
+      "profitLoss": {
+        "title": "الأرباح والخسائر",
+        "subtitle": "المكسب بعد ما تشيل المصروفات"
+      },
+      "debtsByCustomer": {
+        "title": "ديون الزبائن",
+        "subtitle": "اللي لك عند الزبائن"
+      }
     }
   },
   "settings": {
