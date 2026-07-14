@@ -4,6 +4,7 @@ import type {
   InvoiceSettlement,
   SupplierDebt,
 } from '@/repositories/debt-repository';
+import type { ExpenseDebt } from '@/repositories/expense-repository';
 import { fromMinor } from '@/utils/money';
 import { formatNumber } from '@/utils/numerals';
 import { formatDate } from '@/utils/dates';
@@ -101,6 +102,48 @@ export function presentPayment(p: DebtPayment, t: TFunction, lang: string): Paym
     accountLabel: t(`payments.accounts.${p.account}`),
     note: p.note,
     proof: p.attachments,
+  };
+}
+
+/**
+ * An unpaid bill, shown on the DEBTS screen next to the suppliers.
+ *
+ * It belongs there because the owner's real question is "WHAT DO I OWE", and the
+ * suppliers are only one slice of the answer. Rent with no goods and no invoice
+ * is an obligation exactly like a purchase on credit — and a debts screen that
+ * omits it is answering a narrower question than the one he asked.
+ */
+export interface UnpaidExpenseViewModel {
+  id: string;
+  title: string;
+  /** "٧ يوليو · إيجار · الحاج مصطفى" */
+  subtitle: string;
+  /** What is STILL owed on it — not what it cost. */
+  remainingLabel: string;
+  /** True once part of it has been paid ("سداد جزئي"). */
+  partial: boolean;
+  partialLabel: string | null;
+}
+
+export function presentUnpaidExpense(
+  e: ExpenseDebt,
+  t: TFunction,
+  lang: string,
+): UnpaidExpenseViewModel {
+  const categoryLabel = e.category ? t(`expenses.filters.${e.category}`) : null;
+  return {
+    id: e.id,
+    title: e.title,
+    subtitle: [formatDate(e.incurredAt, lang), categoryLabel, e.partyName]
+      .filter(Boolean)
+      .join(' · '),
+    remainingLabel: money(e.remaining, t, lang),
+    partial: e.status === 'partial',
+    // "من أصل ٢٠٬٠٠٠" — the bill was bigger; some of it is already paid.
+    partialLabel:
+      e.status === 'partial'
+        ? t('debts.outOfTotal', { amount: money(e.totalAmount, t, lang) })
+        : null,
   };
 }
 

@@ -5,6 +5,7 @@ import { createTransactionRepository } from './transaction-repository';
 import { createSupplierRepository } from './supplier-repository';
 import { createCustomerRepository } from './customer-repository';
 import { createDebtRepository, walkFifo } from './debt-repository';
+import { createExpenseRepository } from './expense-repository';
 import * as schema from '@/db/schema';
 
 // FIXED clock. Never Date.now() — a test that depends on the wall clock will
@@ -18,6 +19,7 @@ let docs: ReturnType<typeof createDocumentRepository>;
 let txs: ReturnType<typeof createTransactionRepository>;
 let suppliers: ReturnType<typeof createSupplierRepository>;
 let debts: ReturnType<typeof createDebtRepository>;
+let expenses: ReturnType<typeof createExpenseRepository>;
 
 beforeEach(() => {
   db = makeTestDb();
@@ -25,6 +27,7 @@ beforeEach(() => {
   txs = createTransactionRepository(db, () => T0);
   suppliers = createSupplierRepository(db, () => T0);
   debts = createDebtRepository(db);
+  expenses = createExpenseRepository(db, () => T0);
   seedSentinels(db, T0);
 });
 
@@ -534,11 +537,120 @@ describe('TC-5.7 — AP and AR are two books, and are never auto-netted', () => 
 });
 
 describe('payables breakdown', () => {
-  it('is structured so expenses can be added later without a consumer rewrite', () => {
+  it('reports 0 expenses when the shop has none — the breakdown shape never changes', () => {
     const ahmed = addSupplier('Ahmed');
     purchase(ahmed, 5500);
 
-    // Epic 3 fills in `expenses` (rent is debt too); today it is honestly 0.
     expect(debts.payables()).toEqual({ suppliers: 5500, expenses: 0, total: 5500 });
+  });
+});
+
+describe('TC-5.2 — total payables includes EXPENSES, not just suppliers', () => {
+  // THE POINT OF EPIC 3. Rent is debt too: debt comes from OBLIGATIONS, and a
+  // purchase invoice is only one thing that creates one. Until this passed, the
+  // Home KPI counted suppliers and nothing else — an owner with 20,000 of unpaid
+  // rent saw none of it, and the number he trusted was wrong in the direction
+  // that feels like good news.
+  it('supplier debt 5500 + unpaid rent 20000 === 25500, not 5500', () => {
+    const ahmed = addSupplier('Ahmed');
+    purchase(ahmed, 5500);
+
+    expenses.create({
+      title: 'إيجار المحل',
+      category: 'rent',
+      totalAmount: 20000,
+      incurredAt: T0,
+      partyName: 'الحاج مصطفى', // free text — NOT a supplier, and not in that list
+    });
+
+    expect(debts.payables()).toEqual({ suppliers: 5500, expenses: 20000, total: 25500 });
+  });
+
+  it('TC-5.3: a part-paid rent still carries its remainder into the KPI', () => {
+    const ahmed = addSupplier('Ahmed');
+    purchase(ahmed, 5500);
+    const rent = expenses.create({ title: 'إيجار', totalAmount: 20000, incurredAt: T0 }).id;
+
+    // The SAME سداد sheet that pays a supplier, pointed at an expense instead.
+    txs.create({
+      direction: -1,
+      amount: 5000,
+      occurredAt: T0 + 2 * DAY,
+      account: 'cash',
+      refKind: 'expense',
+      refId: rent,
+    });
+
+    expect(debts.payables()).toEqual({ suppliers: 5500, expenses: 15000, total: 20500 });
+    expect(debts.unpaidExpenses().map((e) => [e.title, e.remaining])).toEqual([['إيجار', 15000]]);
+  });
+
+  it('an expense paid IN FULL leaves the KPI reading supplier debt alone', () => {
+    const ahmed = addSupplier('Ahmed');
+    purchase(ahmed, 5500);
+    const rent = expenses.create({ title: 'إيجار', totalAmount: 20000, incurredAt: T0 }).id;
+
+    txs.create({
+      direction: -1,
+      amount: 20000,
+      occurredAt: T0,
+      account: 'cash',
+      refKind: 'expense',
+      refId: rent,
+    });
+
+    expect(debts.payables()).toEqual({ suppliers: 5500, expenses: 0, total: 5500 });
+    expect(debts.unpaidExpenses()).toEqual([]);
+  });
+
+  it('an OVER-PAID expense does not silently shrink the payables KPI', () => {
+    const ahmed = addSupplier('Ahmed');
+    purchase(ahmed, 5500);
+    const rent = expenses.create({ title: 'إيجار', totalAmount: 20000, incurredAt: T0 }).id;
+
+    txs.create({
+      direction: -1,
+      amount: 25000, // 5000 more than the rent
+      occurredAt: T0,
+      account: 'cash',
+      refKind: 'expense',
+      refId: rent,
+    });
+
+    // Netting the 5000 credit in would report 500 owed to suppliers when 5500 is.
+    // An over-payment is a receivable, not a discount on everything else.
+    expect(debts.payables()).toEqual({ suppliers: 5500, expenses: 0, total: 5500 });
+  });
+
+  it('a SOFT-DELETED expense vanishes from the KPI entirely', () => {
+    const ahmed = addSupplier('Ahmed');
+    purchase(ahmed, 5500);
+    const rent = expenses.create({ title: 'إيجار', totalAmount: 20000, incurredAt: T0 }).id;
+    expect(debts.payables().total).toBe(25500);
+
+    expenses.archive(rent);
+
+    expect(debts.payables()).toEqual({ suppliers: 5500, expenses: 0, total: 5500 });
+    expect(debts.unpaidExpenses()).toEqual([]);
+  });
+
+  it('an expense payment never touches supplier debt — different refs, different books', () => {
+    const ahmed = addSupplier('Ahmed');
+    purchase(ahmed, 5500);
+    const rent = expenses.create({ title: 'إيجار', totalAmount: 20000, incurredAt: T0 }).id;
+
+    txs.create({
+      direction: -1,
+      amount: 20000,
+      occurredAt: T0,
+      account: 'cash',
+      refKind: 'expense',
+      refId: rent,
+    });
+
+    // Paying the landlord must not pay down Ahmed. `ref_kind` is what keeps the
+    // two books apart, and it is the only thing that does.
+    expect(debts.owed(ahmed)).toBe(5500);
+    expect(txs.cashByAccount('cash')).toBe(-20000); // ...but the drawer really did empty
   });
 });

@@ -33,7 +33,7 @@
         "tag": "Due to collect"
       },
       "payable": {
-        "label": "You owe (suppliers)",
+        "label": "You owe (suppliers & bills)",
         "tag": "Due to pay (tap for details)"
       },
       "hidden": "Figure hidden"
@@ -391,7 +391,9 @@
       "settled": "Settled in full",
       "partial": "Partly paid",
       "unpaid": "Unpaid"
-    }
+    },
+    "unpaidExpenses": "Unpaid bills & expenses",
+    "outOfTotal": "of {{amount}}"
   },
   "expenses": {
     "title": "Expenses",
@@ -414,7 +416,24 @@
       "attachment": "Attach file (optional)",
       "attachmentHint": "Invoice or receipt photo",
       "attach": "Attach",
-      "save": "Save expense"
+      "save": "Save expense",
+      "party": "Paid to (optional)",
+      "partyPlaceholder": "e.g. the landlord, the electricity company",
+      "date": "Expense date"
+    },
+    "empty": "No expenses recorded yet.",
+    "emptyFiltered": "No expenses in this category.",
+    "unpaidTotal": "Unpaid: {{amount}}",
+    "settleFor": "Pay {{title}}",
+    "status": {
+      "paid": "Paid",
+      "partial": "Partly paid",
+      "unpaid": "Unpaid"
+    },
+    "errors": {
+      "title": "Expense error",
+      "titleRequired": "Describe what the expense was for.",
+      "amountRequired": "Enter an amount greater than zero."
     }
   },
   "settings": {

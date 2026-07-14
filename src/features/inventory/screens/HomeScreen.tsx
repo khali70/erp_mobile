@@ -123,11 +123,15 @@ export function HomeScreen() {
           {/* No customer receivable (AR) KPI by design: sales are cash, paid in
               full — the shop carries debt only WITH suppliers (AP), never for
               customers. See docs/plan screens rule. */}
+          {/* WHAT THE OWNER ACTUALLY OWES: suppliers AND unpaid bills. Rent is
+              debt too — it is an obligation with no goods and no invoice, and
+              while this KPI counted only suppliers it under-reported the one
+              number the owner checks. */}
           <KpiCard
-            valueId="kpi:supplierDebt"
+            valueId="kpi:totalPayables"
             dotClass="bg-danger"
             label={t('dashboard.kpi.payable.label')}
-            valueText={num(stats?.supplierDebt ?? 0)}
+            valueText={num(stats?.totalPayables ?? 0)}
             currency={currency}
             tagText={t('dashboard.kpi.payable.tag')}
             tagTextClass="text-danger"

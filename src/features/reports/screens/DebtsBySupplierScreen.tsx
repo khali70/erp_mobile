@@ -7,27 +7,33 @@ import { ScreenHeader } from '@/components/ui/ScreenHeader';
 import { fromMinor } from '@/utils/money';
 import { formatNumber } from '@/utils/numerals';
 import { useSupplierDebts } from '../hooks/useSupplierDebts';
-import { presentSupplierDebt } from '../presenters';
+import { presentSupplierDebt, presentUnpaidExpense } from '../presenters';
 import { SupplierDebtRow } from '../components/SupplierDebtRow';
 import { DebtsEmptyState } from '../components/DebtsEmptyState';
 import { DebtsTotalCard } from '../components/DebtsTotalCard';
+import { UnpaidExpensesSection } from '../components/UnpaidExpensesSection';
 
 /**
- * ديون الموردين — WHO THE SHOP OWES, WORST FIRST.
+ * WHAT THE SHOP OWES, WORST FIRST — suppliers, and the bills that are debt too.
  *
- * Every figure here is DERIVED: posted purchase invoices minus payments, walked
- * FIFO for the aging. Nothing is stored, so nothing can drift. A fully-paid
- * supplier is simply absent, and the sentinel walk-in party can never appear — a
- * debt to "بدون مورد" is a debt to nobody, which the owner could neither pay nor
- * reconcile.
+ * Every figure here is DERIVED: posted purchase invoices minus payments (walked
+ * FIFO for the aging), and each bill's total minus the payments pointing at it.
+ * Nothing is stored, so nothing can drift. A fully-paid supplier is simply
+ * absent, and the sentinel walk-in party can never appear — a debt to "بدون مورد"
+ * is a debt to nobody, which the owner could neither pay nor reconcile.
  *
- * Composition only: the hook reads, the presenter formats, the rows render.
+ * The unpaid-bills section is here because the owner's real question is "what do
+ * I owe", and the suppliers are only one slice of the answer.
+ *
+ * Composition only: the hook reads, the presenters format, the rows render.
  */
 export function DebtsBySupplierScreen() {
   const { t, i18n } = useTranslation();
   const lang = i18n.language;
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
-  const { debts, totalOwed } = useSupplierDebts();
+  const { debts, unpaidExpenses, totalOwed, expensesOwed, isEmpty } = useSupplierDebts();
+
+  const money = (minor: number) => `${formatNumber(fromMinor(minor), lang)} ${t('common.currency')}`;
 
   return (
     <View className="flex-1 bg-background">
@@ -38,7 +44,7 @@ export function DebtsBySupplierScreen() {
       />
 
       <View className="flex-1 px-4 pt-3.5">
-        {debts.length === 0 ? (
+        {isEmpty ? (
           <DebtsEmptyState />
         ) : (
           <FlatList
@@ -46,7 +52,7 @@ export function DebtsBySupplierScreen() {
             keyExtractor={(d) => d.id}
             ListHeaderComponent={
               <DebtsTotalCard
-                totalLabel={`${formatNumber(fromMinor(totalOwed), lang)} ${t('common.currency')}`}
+                totalLabel={money(totalOwed)}
                 countLabel={t('debts.supplierCount', { n: formatNumber(debts.length, lang) })}
               />
             }
@@ -61,6 +67,15 @@ export function DebtsBySupplierScreen() {
                 }
               />
             )}
+            ListFooterComponent={
+              <UnpaidExpensesSection
+                expenses={unpaidExpenses.map((e) => presentUnpaidExpense(e, t, lang))}
+                totalLabel={money(expensesOwed)}
+                // Bills are paid on the expenses screen, with the same سداد sheet
+                // that pays a supplier.
+                onPressExpense={() => navigation.navigate('Expenses')}
+              />
+            }
             contentContainerClassName="gap-3 pb-24"
             showsVerticalScrollIndicator={false}
           />

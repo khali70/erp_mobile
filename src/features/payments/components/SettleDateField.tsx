@@ -10,6 +10,8 @@ interface SettleDateFieldProps {
   value: number;
   /** Step the date by whole days (−1 / +1). Capped at today by the caller. */
   onShift: (days: number) => void;
+  /** Overrides "التاريخ" — the expenses form calls it "تاريخ النفقة". */
+  label?: string;
 }
 
 /**
@@ -21,7 +23,7 @@ interface SettleDateFieldProps {
  * a day or two, and the shop has no date-picker dependency to spend on it.
  * Forward is capped at today by the hook — money cannot move tomorrow.
  */
-export function SettleDateField({ value, onShift }: SettleDateFieldProps) {
+export function SettleDateField({ value, onShift, label }: SettleDateFieldProps) {
   const { t, i18n } = useTranslation();
   const today = isSameDay(value, Date.now());
   return (
@@ -59,7 +61,7 @@ export function SettleDateField({ value, onShift }: SettleDateFieldProps) {
         </Pressable>
       </View>
 
-      <Text className="text-ink text-sm font-semibold">{t('payments.date')}</Text>
+      <Text className="text-ink text-sm font-semibold">{label ?? t('payments.date')}</Text>
     </View>
   );
 }

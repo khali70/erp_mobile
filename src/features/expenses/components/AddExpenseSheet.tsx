@@ -1,151 +1,124 @@
-import { useState } from 'react';
-import { View, Text, Pressable, TextInput, ScrollView } from 'react-native';
+import { ScrollView, Text, Pressable, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
-import Feather from '@expo/vector-icons/Feather';
-import colors from '@/theme/colors';
-import { ROW } from '@/theme/rtl';
 import { BottomSheet } from '@/components/ui/BottomSheet';
-import { CATEGORY_META, type Expense, type ExpenseCategory } from '../data';
-
-const CATEGORIES: ExpenseCategory[] = ['rent', 'salaries', 'utilities', 'transport', 'other'];
-let seq = 0;
+import { LabeledInput } from '@/components/ui/LabeledInput';
+import { SettleDateField } from '@/features/payments/components/SettleDateField';
+import { ROW } from '@/theme/rtl';
+import { useExpenseForm } from '../hooks/useExpenseForm';
+import { AddExpenseSheetHeader } from './AddExpenseSheetHeader';
+import { ExpenseCategoryPicker } from './ExpenseCategoryPicker';
+import { ExpenseAttachmentField } from './ExpenseAttachmentField';
 
 interface AddExpenseSheetProps {
   visible: boolean;
   onClose: () => void;
-  onSave: (expense: Expense) => void;
+  /** Fired after the expense row is committed — reload the list here. */
+  onSaved: () => void;
 }
 
 /**
- * "تسجيل نفقة جديدة" bottom sheet: statement, category select, amount, and a
- * file-attachment input (invoice/receipt photo) per the design annotation.
- * Attachment is a stub until expo-document-picker is wired.
+ * تسجيل نفقة جديدة — and it PERSISTS now.
+ *
+ * This sheet used to push an object into a `useState` array over `DEMO_EXPENSES`:
+ * the owner's rent survived exactly as long as the screen did. It now writes a
+ * real row, which is what lets that rent be paid down later, and what lets it
+ * count toward what he owes.
+ *
+ * `الجهة` is FREE TEXT (the landlord, the electricity company) — deliberately not
+ * a supplier picker. A landlord in the Suppliers list is a man the owner has
+ * never bought a box from, sitting in the list he buys from.
  */
-export function AddExpenseSheet({ visible, onClose, onSave }: AddExpenseSheetProps) {
+export function AddExpenseSheet({ visible, onClose, onSaved }: AddExpenseSheetProps) {
   const { t } = useTranslation();
-  const [statement, setStatement] = useState('');
-  const [category, setCategory] = useState<ExpenseCategory>('rent');
-  const [amount, setAmount] = useState('');
-  const [attached, setAttached] = useState(false);
-
-  const reset = () => {
-    setStatement('');
-    setCategory('rent');
-    setAmount('');
-    setAttached(false);
-  };
-  const close = () => {
-    reset();
-    onClose();
-  };
-  const save = () => {
-    const value = Number.parseInt(amount || '0', 10) || 0;
-    onSave({ id: `n${seq++}`, statement: statement.trim(), category, amount: value, day: 7 });
-    close();
-  };
+  const {
+    draft,
+    setTitle,
+    setCategory,
+    setAmount,
+    setPartyName,
+    setNote,
+    shiftDate,
+    addAttachment,
+    removeAttachmentAt,
+    canSave,
+    submit,
+  } = useExpenseForm({ visible, onSaved });
 
   return (
-    <BottomSheet visible={visible} onClose={close} className="overflow-hidden">
-          {/* teal header */}
-          <View className={`${ROW} items-center justify-between bg-primary px-4 py-4`}>
-            <Pressable
-              className="w-9 h-9 rounded-full bg-white/20 items-center justify-center"
-              onPress={close}
-              accessibilityRole="button"
-              accessibilityLabel={t('common.cancel')}
-            >
-              <Feather name="x" size={18} color={colors.surface} />
-            </Pressable>
-            <View className={`${ROW} items-center gap-2`}>
-              <Text className="text-white text-base font-extrabold">{t('expenses.add')}</Text>
-              <Feather name="plus" size={18} color={colors.surface} />
-            </View>
-          </View>
+    <BottomSheet visible={visible} onClose={onClose} className="overflow-hidden">
+      <AddExpenseSheetHeader onClose={onClose} />
 
-          <ScrollView contentContainerClassName="p-4 gap-4" showsVerticalScrollIndicator={false}>
-            {/* statement */}
-            <View className="gap-1.5">
-              <Text className="text-xs font-semibold text-muted text-right">{t('expenses.form.statement')}</Text>
-              <TextInput
-                className="bg-background text-ink px-3.5 py-3 rounded-xl border border-primary/40 text-sm text-right"
-                value={statement}
-                onChangeText={setStatement}
-                placeholder={t('expenses.form.statementPlaceholder')}
-                placeholderTextColor={colors['slate-400']}
-              />
-            </View>
+      <ScrollView
+        className="flex-1"
+        contentContainerClassName="p-5 gap-4 pb-8"
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+      >
+        <LabeledInput
+          label={t('expenses.form.statement')}
+          value={draft.title}
+          onChangeText={setTitle}
+          placeholder={t('expenses.form.statementPlaceholder')}
+        />
 
-            {/* category select */}
-            <View className="gap-1.5">
-              <Text className="text-xs font-semibold text-muted text-right">{t('expenses.form.category')}</Text>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerClassName="gap-2 flex-row-reverse">
-                {CATEGORIES.map((c) => {
-                  const active = c === category;
-                  const meta = CATEGORY_META[c];
-                  return (
-                    <Pressable
-                      key={c}
-                      className={`${ROW} items-center gap-1.5 px-3.5 py-2.5 rounded-xl border ${
-                        active ? 'bg-primary border-transparent' : 'bg-background border-border'
-                      }`}
-                      onPress={() => setCategory(c)}
-                    >
-                      <Feather name={meta.icon} size={14} color={active ? colors.surface : meta.color} />
-                      <Text className={`text-xs font-bold ${active ? 'text-white' : 'text-muted'}`}>
-                        {t(`expenses.filters.${c}`)}
-                      </Text>
-                    </Pressable>
-                  );
-                })}
-              </ScrollView>
-            </View>
+        <ExpenseCategoryPicker value={draft.category} onChange={setCategory} />
 
-            {/* amount */}
-            <View className="gap-1.5">
-              <Text className="text-xs font-semibold text-muted text-right">{t('expenses.form.amount')}</Text>
-              <TextInput
-                className="bg-background text-ink px-3.5 py-3 rounded-xl border border-border text-sm text-right"
-                value={amount}
-                onChangeText={(v) => setAmount(v.replace(/[^0-9]/g, ''))}
-                placeholder="0"
-                placeholderTextColor={colors['slate-400']}
-                keyboardType="number-pad"
-              />
-            </View>
+        <LabeledInput
+          label={t('expenses.form.amount')}
+          value={draft.amount}
+          onChangeText={setAmount}
+          placeholder="0"
+          keyboardType="decimal-pad"
+        />
 
-            {/* attachment (annotation: add file attachment input) */}
-            <View className="gap-1.5">
-              <Text className="text-xs font-semibold text-muted text-right">{t('expenses.form.attachment')}</Text>
-              <Pressable
-                className={`${ROW} items-center justify-center gap-2 py-3.5 rounded-xl border border-dashed ${
-                  attached ? 'border-positive bg-positive-light' : 'border-primary/40 bg-background'
-                }`}
-                onPress={() => setAttached((v) => !v)}
-              >
-                <Feather
-                  name={attached ? 'check-circle' : 'paperclip'}
-                  size={16}
-                  color={attached ? colors.positive : colors.primary}
-                />
-                <Text className={`text-sm font-bold ${attached ? 'text-positive' : 'text-primary'}`}>
-                  {attached ? t('expenses.form.attachmentHint') : t('expenses.form.attach')}
-                </Text>
-              </Pressable>
-              {!attached && (
-                <Text className="text-muted text-[11px] text-right">{t('expenses.form.attachmentHint')}</Text>
-              )}
-            </View>
+        <LabeledInput
+          label={t('expenses.form.party')}
+          value={draft.partyName}
+          onChangeText={setPartyName}
+          placeholder={t('expenses.form.partyPlaceholder')}
+        />
 
-            {/* actions */}
-            <View className={`${ROW} gap-3 pt-1 pb-4`}>
-              <Pressable className="flex-1 items-center py-3.5 rounded-xl bg-background border border-border" onPress={close}>
-                <Text className="text-ink text-sm font-bold">{t('common.cancel')}</Text>
-              </Pressable>
-              <Pressable className="flex-1 items-center py-3.5 rounded-xl bg-primary" onPress={save}>
-                <Text className="text-white text-sm font-bold">{t('expenses.form.save')}</Text>
-              </Pressable>
-            </View>
-          </ScrollView>
+        <SettleDateField
+          value={draft.incurredAt}
+          onShift={shiftDate}
+          label={t('expenses.form.date')}
+        />
+
+        <ExpenseAttachmentField
+          attachments={draft.attachments}
+          onAdd={addAttachment}
+          onRemove={removeAttachmentAt}
+        />
+
+        <LabeledInput
+          label={t('payments.note')}
+          value={draft.note}
+          onChangeText={setNote}
+          placeholder={t('payments.notePlaceholder')}
+          multiline
+        />
+
+        <View className={`${ROW} gap-3 pt-1`}>
+          <Pressable
+            className="flex-1 items-center py-3.5 rounded-2xl bg-background border border-border"
+            onPress={onClose}
+            accessibilityRole="button"
+          >
+            <Text className="text-ink text-sm font-bold">{t('common.cancel')}</Text>
+          </Pressable>
+
+          <Pressable
+            className={`flex-1 items-center py-3.5 rounded-2xl ${canSave ? 'bg-primary' : 'bg-border'}`}
+            disabled={!canSave}
+            onPress={submit}
+            accessibilityRole="button"
+          >
+            <Text className={`text-sm font-bold ${canSave ? 'text-white' : 'text-muted'}`}>
+              {t('expenses.form.save')}
+            </Text>
+          </Pressable>
+        </View>
+      </ScrollView>
     </BottomSheet>
   );
 }

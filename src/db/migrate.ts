@@ -1,6 +1,7 @@
 import type { openDatabaseSync } from 'expo-sqlite';
 import { db, sqlite } from './client';
 import { initAttachmentsDb } from './attachments-client';
+import { EXPENSES_DDL } from './ddl';
 import { backfillWalkInParties, seedSentinels, type SentinelDb } from './sentinels';
 
 // Forward-only bootstrap migration, run once at app boot.
@@ -131,6 +132,12 @@ export function runMigrations(): void {
     CREATE INDEX IF NOT EXISTS idx_tx_account ON transactions(account);
   `);
 
+  // EXPENSES — rent is debt too. The DDL lives in ./ddl so this boot path and
+  // the test harness run the SAME SQL (a hand-copied second version would drift,
+  // and the drift would be invisible: green tests against a schema the phone
+  // does not have). IF NOT EXISTS throughout — this runs on every single boot.
+  sqlite.execSync(EXPENSES_DDL);
+
   // Additive column back-fills for DBs created by an earlier schema.
   // SQLite has no "ADD COLUMN IF NOT EXISTS"; a duplicate add throws — ignore it.
   addColumnIfMissing(sqlite, 'items', 'category', 'TEXT');
@@ -159,6 +166,16 @@ export function runMigrations(): void {
   // Sentinel (null-object) parties — walk-in absorbers, so party_id is never null.
   addColumnIfMissing(sqlite, 'suppliers', 'is_system', 'INTEGER NOT NULL DEFAULT 0');
   addColumnIfMissing(sqlite, 'customers', 'is_system', 'INTEGER NOT NULL DEFAULT 0');
+  // Expenses: the optional columns, for an install whose `expenses` table was
+  // created by an earlier, narrower version of the DDL above. NOT NULL columns
+  // are absent from this list on purpose — SQLite cannot ADD one without a
+  // default, and every one of them is already in the CREATE. Note there is no
+  // `paid` column here and there never will be: an expense's debt is derived
+  // (total_amount − its transactions), exactly as a supplier's is.
+  addColumnIfMissing(sqlite, 'expenses', 'category', 'TEXT');
+  addColumnIfMissing(sqlite, 'expenses', 'party_name', 'TEXT');
+  addColumnIfMissing(sqlite, 'expenses', 'note', 'TEXT');
+  addColumnIfMissing(sqlite, 'expenses', 'attachments', 'TEXT');
 
   // Seed the sentinels and repoint legacy null-party documents at them. BOTH are
   // idempotent (INSERT OR IGNORE on a fixed id; the backfill is a no-op once no

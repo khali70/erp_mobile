@@ -64,3 +64,32 @@ export function formatDate(
     return fallbackDay(d, lang);
   }
 }
+
+/**
+ * The month's NAME, localised ("يوليو" / "July").
+ *
+ * Via Intl, never a hardcoded string: the expenses screen used to render the
+ * literal Arabic "يوليو" as an i18n defaultValue, which was both untranslatable
+ * and wrong for eleven months of the year. The numeric month is the fallback.
+ */
+export function formatMonth(ms: number, lang: string): string {
+  const d = new Date(ms);
+  if (!hasIntl) return String(d.getMonth() + 1);
+  try {
+    return new Intl.DateTimeFormat(localeFor(lang), { month: 'long' }).format(d);
+  } catch {
+    return String(d.getMonth() + 1);
+  }
+}
+
+/** Epoch ms of the first instant of `ms`'s month, in the shop's LOCAL timezone. */
+export function startOfMonth(ms: number): number {
+  const d = new Date(ms);
+  return new Date(d.getFullYear(), d.getMonth(), 1).getTime();
+}
+
+/** Epoch ms of the first instant of the month `delta` months from `ms`'s. */
+export function shiftMonth(ms: number, delta: number): number {
+  const d = new Date(ms);
+  return new Date(d.getFullYear(), d.getMonth() + delta, 1).getTime();
+}

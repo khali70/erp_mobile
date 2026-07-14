@@ -7,6 +7,7 @@
 import Database from 'better-sqlite3';
 import { drizzle } from 'drizzle-orm/better-sqlite3';
 import * as schema from '../schema';
+import { EXPENSES_DDL } from '../ddl';
 
 const DDL = `
 CREATE TABLE items (
@@ -132,5 +133,9 @@ export function makeTestDb(): TestDb {
   const sqlite = new Database(':memory:');
   sqlite.pragma('foreign_keys = ON');
   sqlite.exec(DDL);
+  // `expenses` is not hand-copied: it is the SAME string the app boots with
+  // (src/db/ddl.ts). Two copies of a table's SQL drift, and the drift is
+  // invisible — green tests against a schema the phone does not actually have.
+  sqlite.exec(EXPENSES_DDL);
   return drizzle(sqlite, { schema });
 }

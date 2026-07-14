@@ -168,6 +168,39 @@ export const transactions = sqliteTable('transactions', {
   attachments: text('attachments'), // JSON metadata — PROOF OF MONEY
 });
 
+// EXPENSES — rent, electricity, salaries, repairs. Real obligations, not a
+// mock list (they were `DEMO_EXPENSES` until Epic 3).
+//
+// RENT IS DEBT TOO. Debt is not derived from purchase invoices alone — it comes
+// from OBLIGATIONS, and a purchase invoice is only one thing that creates one.
+// An expense creates one with no goods, no lines and no document at all.
+//
+// There is deliberately NO `paid` column, no `settled` flag and no cached
+// balance. An expense's debt is:
+//
+//   owed(E) = expenses.total_amount
+//           − Σ transactions.amount WHERE ref_kind='expense' AND ref_id=E
+//                                     AND deleted_at IS NULL
+//
+// — the SAME rule that derives supplier debt. One concept, not two. A stored
+// paid-flag would be a second source of truth for a number the transactions
+// already answer, and the day the two disagree the owner cannot tell which lies.
+//
+// `party_name` is FREE TEXT, not a supplier FK: the landlord sells the shop
+// nothing, and must not pollute the Suppliers list (or the supplier debt book).
+//
+// `attachments` is the bill/receipt photo — JSON metadata, bytes in attachments.db.
+export const expenses = sqliteTable('expenses', {
+  ...standard,
+  title: text('title').notNull(),
+  category: text('category'), // 'rent' | 'salaries' | 'utilities' | 'transport' | 'other' | null
+  totalAmount: integer('total_amount').notNull(), // minor units, always positive
+  incurredAt: integer('incurred_at').notNull(), // when the obligation arose
+  partyName: text('party_name'), // free text — the landlord is NOT a supplier
+  note: text('note'),
+  attachments: text('attachments'),
+});
+
 export type Item = typeof items.$inferSelect;
 export type NewItem = typeof items.$inferInsert;
 export type Category = typeof categories.$inferSelect;
@@ -177,3 +210,5 @@ export type Customer = typeof customers.$inferSelect;
 export type Supplier = typeof suppliers.$inferSelect;
 export type DocumentLine = typeof documentLines.$inferSelect;
 export type Transaction = typeof transactions.$inferSelect;
+export type ExpenseRow = typeof expenses.$inferSelect;
+export type NewExpenseRow = typeof expenses.$inferInsert;

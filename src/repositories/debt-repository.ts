@@ -4,6 +4,7 @@ import * as schema from '@/db/schema';
 import { now } from '@/utils/id';
 import type { AttachmentMeta } from './document-repository';
 import type { Account } from './transaction-repository';
+import { createExpenseRepository, type ExpenseDebt } from './expense-repository';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export type DebtDb = BaseSQLiteDatabase<'sync', any, typeof schema>;
@@ -127,6 +128,11 @@ export function walkFifo(invoices: DebtInvoice[], paidTotal: number): InvoiceSet
  * is a test that flakes at midnight.
  */
 export function createDebtRepository(db: DebtDb, clock: () => number = now) {
+  // Expenses are debt too, and their debt is derived by the SAME subtraction as
+  // a supplier's. Composed here rather than re-implemented, so there is exactly
+  // one definition of "what is still owed on an expense" in the codebase.
+  const expenses = createExpenseRepository(db, clock);
+
   /** Σ posted, live purchase invoices billed to this supplier. */
   function invoicedTo(supplierId: string): number {
     const row = db
@@ -343,24 +349,39 @@ export function createDebtRepository(db: DebtDb, clock: () => number = now) {
       return { owed, invoices, payments, credit: Math.max(0, -owed) };
     },
 
+    /** Every expense still owing, most recently incurred first. */
+    unpaidExpenses(): ExpenseDebt[] {
+      return expenses.listUnpaid();
+    },
+
     /**
-     * TOTAL PAYABLES — the Home KPI.
+     * TOTAL PAYABLES — the Home KPI, and now the WHOLE truth.
      *
-     * Only POSITIVE debts are summed: a supplier in credit is a receivable, not
-     * a payable, and netting him against the others would understate what the
-     * owner actually has to pay out. Sentinels are excluded by `realSuppliers()`.
+     * RENT IS DEBT TOO. Until Epic 3 this counted suppliers and nothing else, so
+     * an owner with 20,000 of unpaid rent saw none of it: the number on his home
+     * screen was not merely incomplete, it was confidently wrong, and wrong in
+     * the direction that feels like good news. Debt comes from OBLIGATIONS, and a
+     * purchase invoice is only one thing that creates one.
      *
-     * Returned as a BREAKDOWN rather than a bare number so Epic 3 can add unpaid
-     * expenses (rent is debt too) by filling in `expenses` — no consumer rewrite,
-     * no changed call sites. Until then it is honestly 0.
+     * Only POSITIVE debts are summed, on BOTH sides. A supplier in credit is a
+     * receivable, not a payable, and so is an over-paid expense — netting either
+     * one in would silently SHRINK what the owner believes he owes everybody
+     * else, understating the very figure he is checking.
+     *
+     * The BREAKDOWN shape is unchanged from Epic 1, which is why not one consumer
+     * (`dashboard-stats.ts` included) needed touching to start telling the truth.
      */
     payables(): { suppliers: number; expenses: number; total: number } {
       let suppliersTotal = 0;
       for (const amount of api.owedBySupplier().values()) {
         if (amount > 0) suppliersTotal += amount;
       }
-      const expenses = 0; // Epic 3: Σ owed(E) over unpaid expenses.
-      return { suppliers: suppliersTotal, expenses, total: suppliersTotal + expenses };
+      const expensesTotal = expenses.payableTotal();
+      return {
+        suppliers: suppliersTotal,
+        expenses: expensesTotal,
+        total: suppliersTotal + expensesTotal,
+      };
     },
   };
 

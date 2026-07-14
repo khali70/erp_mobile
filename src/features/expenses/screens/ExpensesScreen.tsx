@@ -1,46 +1,53 @@
-import { useMemo, useState } from 'react';
-import { View, Text, Pressable, ScrollView } from 'react-native';
+import { useCallback, useState } from 'react';
+import { View, Text, Pressable, FlatList } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { useTranslation } from 'react-i18next';
 import { ScreenHeader } from '@/components/ui/ScreenHeader';
-import { FilterChips, type FilterOption } from '@/components/ui/FilterChips';
-import { formatNumber } from '@/utils/numerals';
+import { SettleSheet } from '@/features/payments/components/SettleSheet';
+import { formatMonth } from '@/utils/dates';
+import { useExpenses } from '../hooks/useExpenses';
+import { money, presentExpense, type ExpenseViewModel } from '../presenters';
+import { ExpensesTotalCard } from '../components/ExpensesTotalCard';
+import { ExpenseFilterChips } from '../components/ExpenseFilterChips';
 import { ExpenseRow } from '../components/ExpenseRow';
+import { ExpensesEmptyState } from '../components/ExpensesEmptyState';
 import { AddExpenseSheet } from '../components/AddExpenseSheet';
-import { DEMO_EXPENSES, type Expense, type ExpenseCategory } from '../data';
-
-type Filter = 'all' | ExpenseCategory;
-const LAST_MONTH_TOTAL = 4600;
 
 /**
- * النفقات والمصروفات — expenses list. Red month-total card, category filter
- * chips, expense rows, and an add-expense bottom sheet (with attachment input).
- * NativeWind only; copy via i18n; demo data until the expense repo lands.
+ * النفقات والمصروفات — RENT IS DEBT TOO.
+ *
+ * These rows were `DEMO_EXPENSES` until this epic: a mock list that died with the
+ * screen. They are real obligations now, and the owner pays them down with the
+ * SAME سداد sheet that pays a supplier — `{ refKind: 'expense', refId }` instead
+ * of `{ refKind: 'supplier', refId }`, one cash-book row, no fork of the sheet.
+ *
+ * That is the point of the whole epic: an unpaid bill is debt in exactly the same
+ * sense an unpaid invoice is, so it is derived by the same subtraction, paid by
+ * the same sheet, and counted in the same payables KPI — which, until now, was
+ * quietly leaving all of it out.
+ *
+ * Composition only: the hook reads, the presenter formats, the sheets write.
  */
 export function ExpensesScreen() {
   const navigation = useNavigation();
   const { t, i18n } = useTranslation();
   const lang = i18n.language;
-  const currency = t('common.currency');
 
-  const [expenses, setExpenses] = useState<Expense[]>(DEMO_EXPENSES);
-  const [filter, setFilter] = useState<Filter>('all');
-  const [sheetOpen, setSheetOpen] = useState(false);
+  const { expenses, filter, setFilter, monthTotal, lastMonthTotal, unpaidTotal, reload } =
+    useExpenses();
 
-  const total = useMemo(() => expenses.reduce((s, e) => s + e.amount, 0), [expenses]);
-  const visible = useMemo(
-    () => (filter === 'all' ? expenses : expenses.filter((e) => e.category === filter)),
-    [expenses, filter],
-  );
+  const [addOpen, setAddOpen] = useState(false);
+  const [settling, setSettling] = useState<ExpenseViewModel | null>(null);
 
-  const filterOptions: FilterOption<Filter>[] = [
-    { key: 'all', label: t('expenses.filters.all'), activeClass: 'bg-primary' },
-    { key: 'rent', label: t('expenses.filters.rent'), activeClass: 'bg-primary' },
-    { key: 'salaries', label: t('expenses.filters.salaries'), activeClass: 'bg-primary' },
-    { key: 'utilities', label: t('expenses.filters.utilities'), activeClass: 'bg-primary' },
-    { key: 'transport', label: t('expenses.filters.transport'), activeClass: 'bg-primary' },
-    { key: 'other', label: t('expenses.filters.other'), activeClass: 'bg-primary' },
-  ];
+  const handleAdded = useCallback(() => {
+    setAddOpen(false);
+    reload();
+  }, [reload]);
+
+  const handleSettled = useCallback(() => {
+    setSettling(null);
+    reload(); // re-derive; nothing is cached, so nothing can be stale
+  }, [reload]);
 
   return (
     <View className="flex-1 bg-background">
@@ -48,40 +55,39 @@ export function ExpensesScreen() {
         title={t('expenses.title')}
         onBack={() => navigation.goBack()}
         backLabel={t('common.back')}
-        action={{ icon: 'plus', onPress: () => setSheetOpen(true), accessibilityLabel: t('expenses.add') }}
+        action={{
+          icon: 'plus',
+          onPress: () => setAddOpen(true),
+          accessibilityLabel: t('expenses.add'),
+        }}
       />
 
-      <ScrollView contentContainerClassName="px-4 py-4 pb-8 gap-4" showsVerticalScrollIndicator={false}>
-        {/* month total */}
-        <View className="bg-surface rounded-2xl p-5 border border-border items-center gap-1">
-          <Text className="text-danger text-3xl font-extrabold">
-            {formatNumber(total, lang)} <Text className="text-lg">{currency}</Text>
-          </Text>
-          <Text className="text-muted text-sm font-semibold">
-            {t('expenses.currentMonth', { month: t('expenses.monthName', { defaultValue: 'يوليو' }) })}
-          </Text>
-          <Text className="text-slate-400 text-xs">
-            {t('expenses.lastMonth')}: {formatNumber(LAST_MONTH_TOTAL, lang)} {currency}
-          </Text>
-        </View>
+      <FlatList
+        data={expenses}
+        keyExtractor={(e) => e.id}
+        ListHeaderComponent={
+          <View className="gap-4 pb-1">
+            <ExpensesTotalCard
+              monthLabel={money(monthTotal, t, lang)}
+              monthName={formatMonth(Date.now(), lang)}
+              lastMonthLabel={money(lastMonthTotal, t, lang)}
+              unpaidLabel={unpaidTotal > 0 ? money(unpaidTotal, t, lang) : null}
+            />
+            <ExpenseFilterChips value={filter} onChange={setFilter} />
+          </View>
+        }
+        renderItem={({ item }) => {
+          const vm = presentExpense(item, t, lang);
+          return <ExpenseRow expense={vm} onSettle={() => setSettling(vm)} />;
+        }}
+        ListEmptyComponent={<ExpensesEmptyState filtered={filter !== 'all'} />}
+        contentContainerClassName="px-4 py-4 pb-24 gap-3"
+        showsVerticalScrollIndicator={false}
+      />
 
-        {/* filters */}
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerClassName="flex-row-reverse">
-          <FilterChips options={filterOptions} value={filter} onChange={(k) => setFilter(k)} />
-        </ScrollView>
-
-        {/* rows */}
-        <View className="gap-3">
-          {visible.map((e) => (
-            <ExpenseRow key={e.id} expense={e} />
-          ))}
-        </View>
-      </ScrollView>
-
-      {/* floating add */}
       <Pressable
         className={`absolute bottom-6 ${lang === 'ar' ? 'left-6' : 'right-6'} w-14 h-14 rounded-full bg-primary items-center justify-center shadow-lg`}
-        onPress={() => setSheetOpen(true)}
+        onPress={() => setAddOpen(true)}
         accessibilityRole="button"
         accessibilityLabel={t('expenses.add')}
       >
@@ -89,10 +95,27 @@ export function ExpensesScreen() {
       </Pressable>
 
       <AddExpenseSheet
-        visible={sheetOpen}
-        onClose={() => setSheetOpen(false)}
-        onSave={(exp) => setExpenses((prev) => [exp, ...prev])}
+        visible={addOpen}
+        onClose={() => setAddOpen(false)}
+        onSaved={handleAdded}
       />
+
+      {settling ? (
+        <SettleSheet
+          visible
+          // THE reusable sheet, unchanged. It was parameterised over the ref in
+          // Epic 2 precisely so paying the rent would need no new code — only a
+          // different `refKind`.
+          target={{ refKind: 'expense', refId: settling.id }}
+          title={t('expenses.settleFor', { title: settling.title })}
+          subtitle={settling.remainingLabel ?? undefined}
+          // Pre-fill what is still owed on THIS bill, not its full total — the
+          // rent that is half paid should suggest the half that is left.
+          suggestedAmount={settling.suggestedAmount}
+          onClose={() => setSettling(null)}
+          onSaved={handleSettled}
+        />
+      ) : null}
     </View>
   );
 }
