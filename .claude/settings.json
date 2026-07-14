@@ -3,5 +3,8 @@
     "allow": [
       "mcp__lean-ctx__ctx_glob"
     ]
+  },
+  "worktree": {
+    "bgIsolation": "none"
   }
 }
