@@ -10,7 +10,7 @@ import type { RootStackParamList } from '@/navigation/RootNavigator';
 import { ScreenHeader } from '@/components/ui/ScreenHeader';
 import { toArabicDigits } from '@/utils/numerals';
 import { useDocumentDetail } from '../hooks/useDocumentDetail';
-import { openAttachment } from '../utils/attachments';
+import { openAttachment } from '@/utils/attachments';
 
 /**
  * تفاصيل المستند — one document with its lines and a report roll-up

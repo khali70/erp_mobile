@@ -2,8 +2,8 @@ import { View } from 'react-native';
 import type { AttachmentMeta } from '@/repositories/document-repository';
 import type { Account } from '@/repositories/transaction-repository';
 import { PaidAmountRow } from './PaidAmountRow';
-import { AccountToggle } from './AccountToggle';
-import { PaymentProofPicker } from './PaymentProofPicker';
+import { AccountToggle } from '@/features/payments/components/AccountToggle';
+import { PaymentProofPicker } from '@/features/payments/components/PaymentProofPicker';
 import { RemainingDebtRow } from './RemainingDebtRow';
 
 interface PaymentCardProps {

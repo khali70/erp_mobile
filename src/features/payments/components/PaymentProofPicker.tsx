@@ -4,7 +4,7 @@ import Feather from '@expo/vector-icons/Feather';
 import colors from '@/theme/colors';
 import { ROW } from '@/theme/rtl';
 import type { AttachmentMeta } from '@/repositories/document-repository';
-import { openAttachment } from '../utils/attachments';
+import { openAttachment } from '@/utils/attachments';
 
 interface PaymentProofPickerProps {
   proof: AttachmentMeta[];

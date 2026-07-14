@@ -3,7 +3,8 @@ import { seedSentinels, WALKIN_SUPPLIER_ID } from '@/db/sentinels';
 import { createDocumentRepository, InvalidPaymentError } from './document-repository';
 import { createTransactionRepository } from './transaction-repository';
 import { createSupplierRepository } from './supplier-repository';
-import { createDebtRepository } from './debt-repository';
+import { createCustomerRepository } from './customer-repository';
+import { createDebtRepository, walkFifo } from './debt-repository';
 import * as schema from '@/db/schema';
 
 // FIXED clock. Never Date.now() — a test that depends on the wall clock will
@@ -27,7 +28,26 @@ beforeEach(() => {
   seedSentinels(db, T0);
 });
 
-const addSupplier = (name: string) => suppliers.create({ name }).id;
+const addSupplier = (name: string, phone: string | null = null) =>
+  suppliers.create({ name, phone }).id;
+
+/** A debt repo whose "now" is a FIXED point in the future — for aging only. */
+const debtsAt = (at: number) => createDebtRepository(db, () => at);
+
+/** A standalone payment, days after the invoice closed (the سداد sheet's write). */
+const pay = (
+  supplierId: string,
+  amount: number,
+  opts: { at?: number; account?: 'cash' | 'instapay' } = {},
+) =>
+  txs.create({
+    direction: -1,
+    amount,
+    occurredAt: opts.at ?? T0,
+    account: opts.account ?? 'cash',
+    refKind: 'supplier',
+    refId: supplierId,
+  });
 
 /** A posted purchase of `total` minor units from `partyId`, optionally part-paid. */
 function purchase(
@@ -269,6 +289,247 @@ describe('TC-9.3 — the sentinel is excluded from every debt figure', () => {
     expect(debts.owed(WALKIN_SUPPLIER_ID)).toBe(0);
     expect(debts.owedBySupplier().has(WALKIN_SUPPLIER_ID)).toBe(false);
     expect(debts.payables().total).toBe(4000); // Ahmed only
+
+    // ...and the debts LIST honours it too. Two independent guards, because the
+    // failure mode is a row the owner can neither act on nor reconcile: he
+    // cannot go and pay "بدون مورد".
+    expect(debts.list().map((r) => r.id)).toEqual([ahmed]);
+    expect(debts.settlements(WALKIN_SUPPLIER_ID)).toEqual([]);
+    expect(debts.detail(WALKIN_SUPPLIER_ID)).toEqual({
+      owed: 0,
+      invoices: [],
+      payments: [],
+      credit: 0,
+    });
+  });
+});
+
+describe('TC-5.1 — the debts list: who I owe, worst first', () => {
+  it('contains exactly the suppliers with owed > 0, sorted by amount DESCENDING', () => {
+    const ahmed = addSupplier('Ahmed', '0100');
+    const mahmoud = addSupplier('Mahmoud', '0111');
+    const sayed = addSupplier('Sayed');
+
+    purchase(ahmed, 4000);
+    purchase(mahmoud, 3000, [{ amount: 3000, account: 'cash' }]); // fully paid
+    purchase(sayed, 1500);
+
+    const rows = debts.list();
+
+    // Mahmoud is settled. He is not a debt, and a screen whose whole job is
+    // "who do I pay next" must not list a man the shop owes nothing.
+    expect(rows.map((r) => r.name)).toEqual(['Ahmed', 'Sayed']);
+    expect(rows.map((r) => r.owed)).toEqual([4000, 1500]);
+    expect(rows[0]).toMatchObject({ id: ahmed, phone: '0100' });
+  });
+
+  it('TC-2.3: a supplier paid off later DISAPPEARS from the list', () => {
+    const ahmed = addSupplier('Ahmed');
+    purchase(ahmed, 6000, [{ amount: 2000, account: 'cash' }]);
+    expect(debts.list().map((r) => r.name)).toEqual(['Ahmed']);
+
+    pay(ahmed, 4000, { at: T0 + 10 * DAY }); // ten days after the invoice closed
+
+    expect(debts.owed(ahmed)).toBe(0);
+    expect(debts.list()).toEqual([]); // nothing left to pay → nothing to show
+  });
+
+  it('a supplier in CREDIT is not a debt and is not listed as one', () => {
+    const ahmed = addSupplier('Ahmed');
+    purchase(ahmed, 2500);
+    pay(ahmed, 4000);
+
+    expect(debts.owed(ahmed)).toBe(-1500);
+    expect(debts.list()).toEqual([]); // a receivable is not a payable
+  });
+
+  it('a DRAFT invoice puts nobody on the list', () => {
+    const ahmed = addSupplier('Ahmed');
+    docs.create({
+      kind: 'incoming',
+      status: 'draft',
+      partyId: ahmed,
+      docDate: T0,
+      lines: [{ itemId: 'X', qty: 1, unitPrice: 5000 }],
+    });
+    expect(debts.list()).toEqual([]);
+  });
+});
+
+describe('TC-5.4 — invoice-level FIFO breakdown (derived, never stored)', () => {
+  // The most important test in the epic. There are NO allocation rows in this
+  // database; the breakdown is a read-time walk of invoices oldest-first against
+  // the pool of what the supplier has been paid.
+  it('one 4000 payment settles invoice A (2500) in full and leaves B partial (1500 of 2500)', () => {
+    const ahmed = addSupplier('Ahmed');
+    purchase(ahmed, 2500, [], { docDate: T0 }); // A — older
+    purchase(ahmed, 2500, [], { docDate: T0 + 2 * DAY }); // B — newer
+
+    pay(ahmed, 4000, { at: T0 + 5 * DAY });
+
+    const [a, b] = debts.settlements(ahmed);
+
+    expect(a).toMatchObject({ total: 2500, paid: 2500, remaining: 0, status: 'settled' });
+    expect(b).toMatchObject({ total: 2500, paid: 1500, remaining: 1000, status: 'partial' });
+    expect(debts.owed(ahmed)).toBe(1000);
+
+    // The walk can never disagree with the total: Σ remaining IS the debt.
+    expect(a.remaining + b.remaining).toBe(debts.owed(ahmed));
+
+    // ...and it stored nothing to disagree WITH. No allocation table, no
+    // paid_amount column, no settled flag — one payment row, and that is all.
+    const rows = db.select().from(schema.transactions).all();
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({ refKind: 'supplier', refId: ahmed, amount: 4000 });
+  });
+
+  it('is oldest-first by doc date — entry order only breaks a same-day tie', () => {
+    const ahmed = addSupplier('Ahmed');
+    // Entered newest-first, deliberately: the walk must follow the DATES, not
+    // the order the rows happen to sit in the table.
+    purchase(ahmed, 1000, [], { docDate: T0 + 3 * DAY, itemId: 'B' });
+    purchase(ahmed, 1000, [], { docDate: T0, itemId: 'A' });
+
+    pay(ahmed, 1000);
+
+    const walked = debts.settlements(ahmed);
+    expect(walked.map((s) => s.docDate)).toEqual([T0, T0 + 3 * DAY]);
+    expect(walked.map((s) => s.status)).toEqual(['settled', 'unpaid']);
+  });
+
+  it('an unpaid invoice reads "unpaid", never "partial" — 0 paid is not a payment', () => {
+    const ahmed = addSupplier('Ahmed');
+    purchase(ahmed, 3000);
+    expect(debts.settlements(ahmed)[0]).toMatchObject({
+      paid: 0,
+      remaining: 3000,
+      status: 'unpaid',
+    });
+  });
+
+  it('detail() carries the payment history alongside the walk', () => {
+    const ahmed = addSupplier('Ahmed');
+    purchase(ahmed, 6000, [{ amount: 2000, account: 'cash' }]);
+    pay(ahmed, 1000, { at: T0 + 3 * DAY, account: 'instapay' });
+
+    const detail = debts.detail(ahmed);
+
+    expect(detail.owed).toBe(3000);
+    expect(detail.invoices).toHaveLength(1);
+    expect(detail.invoices[0]).toMatchObject({ paid: 3000, remaining: 3000, status: 'partial' });
+    // Oldest money first, and each row says which pocket it came out of.
+    expect(detail.payments.map((p) => [p.amount, p.account])).toEqual([
+      [2000, 'cash'],
+      [1000, 'instapay'],
+    ]);
+    expect(detail.payments.every((p) => p.attachments.length === 0)).toBe(true);
+    expect(detail.credit).toBe(0);
+  });
+
+  it('walkFifo is pure integer arithmetic and never over-pays an invoice', () => {
+    const walked = walkFifo(
+      [
+        { documentId: 'a', docNo: 'IN-000012', docDate: T0, total: 2500 },
+        { documentId: 'b', docNo: 'IN-000014', docDate: T0 + DAY, total: 2500 },
+      ],
+      99999, // pool far larger than the invoices — the surplus is a credit, not a
+    ); //     bigger "paid" on the last invoice.
+    expect(walked.map((s) => s.paid)).toEqual([2500, 2500]);
+    expect(walked.every((s) => Number.isInteger(s.paid) && Number.isInteger(s.remaining))).toBe(
+      true,
+    );
+  });
+});
+
+describe('TC-5.5 — aging, on an INJECTED clock', () => {
+  it("reports the age of the OLDEST UNPAID invoice, in whole days", () => {
+    const ahmed = addSupplier('Ahmed');
+    const at45 = T0 - 45 * DAY;
+    purchase(ahmed, 4000, [], { docDate: at45 });
+    purchase(ahmed, 1000, [], { docDate: T0 - 3 * DAY });
+
+    // "now" is T0, injected — never Date.now(), which would make this test flake
+    // and would make it flake FIRST, before anything else in the suite.
+    const [row] = debtsAt(T0).list();
+
+    expect(row.ageDays).toBe(45);
+    expect(row.oldestUnpaidAt).toBe(at45);
+  });
+
+  it('ages from the oldest invoice the money has NOT reached, not the oldest invoice', () => {
+    const ahmed = addSupplier('Ahmed');
+    purchase(ahmed, 4000, [], { docDate: T0 - 45 * DAY }); // FIFO settles this one
+    purchase(ahmed, 1000, [], { docDate: T0 - 10 * DAY });
+    pay(ahmed, 4000);
+
+    // The 45-day-old invoice is paid. The debt on the books is 10 days old, and
+    // saying "45" would have the owner apologising for a debt he already settled.
+    const [row] = debtsAt(T0).list();
+    expect(row.owed).toBe(1000);
+    expect(row.ageDays).toBe(10);
+  });
+
+  it('a debt raised today is 0 days old, never negative', () => {
+    const ahmed = addSupplier('Ahmed');
+    purchase(ahmed, 4000, [], { docDate: T0 + 2 * DAY }); // future-dated, even
+    expect(debtsAt(T0).list()[0].ageDays).toBe(0);
+  });
+});
+
+describe('TC-5.6 — on-account payment: the credit absorbs the next invoice', () => {
+  it('paying 5000 with no invoices gives a 5000 credit, which a later 3000 invoice eats into', () => {
+    const ahmed = addSupplier('Ahmed');
+
+    pay(ahmed, 5000); // a deposit — nothing invoiced yet
+
+    expect(debts.owed(ahmed)).toBe(-5000); // he owes YOU 5000
+    expect(debts.detail(ahmed).credit).toBe(5000);
+    expect(debts.list()).toEqual([]); // a credit is not a debt
+
+    purchase(ahmed, 3000, [], { docDate: T0 + 5 * DAY });
+
+    // No allocation logic ran. The credit absorbed the invoice because the debt
+    // is a subtraction, and there was nothing else it could have done.
+    expect(debts.owed(ahmed)).toBe(-2000);
+    expect(debts.settlements(ahmed)[0]).toMatchObject({ paid: 3000, status: 'settled' });
+    expect(debts.list()).toEqual([]);
+  });
+
+  it('TC-2.5: overpaying an existing debt turns it into a credit — no throw, no clamp', () => {
+    const ahmed = addSupplier('Ahmed');
+    purchase(ahmed, 2500);
+
+    expect(() => pay(ahmed, 4000, { at: T0 + DAY })).not.toThrow();
+
+    expect(debts.owed(ahmed)).toBe(-1500); // NOT clamped to 0
+    expect(debts.detail(ahmed).credit).toBe(1500);
+    expect(debts.payables().total).toBe(0);
+  });
+});
+
+describe('TC-5.7 — AP and AR are two books, and are never auto-netted', () => {
+  it('a supplier who is also a customer still shows the full 6000 payable', () => {
+    const ahmed = addSupplier('Ahmed', '0100');
+    purchase(ahmed, 6000);
+
+    // The same man, on the other side of the shop: same name, same phone, a
+    // different party in a different book.
+    const customers = createCustomerRepository(db, () => T0);
+    const ahmedCustomer = customers.create({ name: 'Ahmed', phone: '0100' });
+    docs.create({
+      kind: 'outgoing',
+      status: 'posted',
+      partyId: ahmedCustomer.id,
+      docDate: T0,
+      lines: [{ itemId: 'X', qty: 1, unitPrice: 10000 }],
+      payments: [{ amount: 10000, account: 'cash' }],
+    });
+
+    // Netting him to -4000 would be silently inventing an offset the two of them
+    // never agreed to — and an argument nobody could later reconstruct.
+    expect(debts.owed(ahmed)).toBe(6000);
+    expect(debts.list()[0]).toMatchObject({ name: 'Ahmed', owed: 6000 });
+    expect(debts.payables().total).toBe(6000);
   });
 });
 

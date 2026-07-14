@@ -254,8 +254,6 @@
     "summary": {
       "count": "Item count",
       "countValue": "{{n}} items",
-      "paidCash": "Paid in cash",
-      "remaining": "Remaining (debt)",
       "total": "Total"
     },
     "save": "Save document",
@@ -359,15 +357,41 @@
     "errors": {
       "negative": "The paid amount cannot be negative.",
       "exceedsTotal": "Paid exceeds the invoice total. To pay more than is owed, use the debts screen.",
-      "walkInMustBePaid": "A direct cash purchase (no supplier) must be paid in full — it cannot carry debt."
-    }
+      "walkInMustBePaid": "A direct cash purchase (no supplier) must be paid in full — it cannot carry debt.",
+      "title": "Payment error",
+      "amountRequired": "Enter an amount greater than zero."
+    },
+    "amount": "Amount",
+    "date": "Date",
+    "today": "Today",
+    "dayEarlier": "A day earlier",
+    "dayLater": "A day later",
+    "note": "Note",
+    "notePlaceholder": "Extra details (optional)"
   },
   "debts": {
     "title": "Supplier debts",
     "owed": "Owed",
     "credit": "Credit to you",
     "settle": "Settle",
-    "empty": "You owe nobody. 🎉"
+    "empty": "You owe nobody. 🎉",
+    "totalOwed": "Total owed",
+    "supplierCount": "{{n}} suppliers",
+    "age": "{{days}} days old",
+    "ageToday": "Today",
+    "invoices": "Invoices",
+    "noInvoices": "No invoices for this supplier.",
+    "noDocNo": "No number",
+    "payments": "Payments",
+    "noPayments": "No payments recorded yet.",
+    "remainingOf": "{{amount}} left",
+    "settleTo": "Pay {{name}}",
+    "creditHint": "You paid more than you owed — the supplier holds this for you.",
+    "status": {
+      "settled": "Settled in full",
+      "partial": "Partly paid",
+      "unpaid": "Unpaid"
+    }
   },
   "expenses": {
     "title": "Expenses",

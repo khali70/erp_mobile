@@ -6,6 +6,29 @@
 
 const ARABIC_INDIC = ['٠', '١', '٢', '٣', '٤', '٥', '٦', '٧', '٨', '٩'] as const;
 
+const DAY_MS = 86_400_000;
+
+/** Shift an epoch-ms timestamp by whole days (negative = back in time). */
+export function addDays(ms: number, days: number): number {
+  return ms + days * DAY_MS;
+}
+
+/** True when two epoch-ms timestamps fall on the same calendar day, locally. */
+export function isSameDay(a: number, b: number): boolean {
+  const x = new Date(a);
+  const y = new Date(b);
+  return (
+    x.getFullYear() === y.getFullYear() &&
+    x.getMonth() === y.getMonth() &&
+    x.getDate() === y.getDate()
+  );
+}
+
+/** Whole days between two epoch-ms timestamps. Floors; never negative. */
+export function daysBetween(from: number, to: number): number {
+  return Math.max(0, Math.floor((to - from) / DAY_MS));
+}
+
 /** Map an app language to a BCP-47 locale for Intl. */
 function localeFor(lang: string): string {
   return lang === 'ar' ? 'ar-EG' : 'en-GB';

@@ -20,7 +20,7 @@ import { WALKIN_CUSTOMER_ID, WALKIN_SUPPLIER_ID } from '@/db/sentinels';
 import { attachmentRepository } from '@/repositories/attachment-repository';
 import { itemRepository } from '@/repositories/item-repository.client';
 import { tagRepository } from '@/repositories/tag-repository.client';
-import { pickPhoto, pickFile, ingest, removeAttachment as removeAttachmentFile } from '../utils/attachments';
+import { pickPhoto, pickFile, ingest, removeAttachment as removeAttachmentFile } from '@/utils/attachments';
 import type { InventoryItem } from '@/features/inventory/types';
 import { useDocDraft } from './useDocDraft';
 import { useParties } from './useParties';

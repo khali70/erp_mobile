@@ -1,9 +1,101 @@
-import { and, eq, isNull, sql } from 'drizzle-orm';
+import { and, asc, eq, isNull, sql } from 'drizzle-orm';
 import type { BaseSQLiteDatabase } from 'drizzle-orm/sqlite-core';
 import * as schema from '@/db/schema';
+import { now } from '@/utils/id';
+import type { AttachmentMeta } from './document-repository';
+import type { Account } from './transaction-repository';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export type DebtDb = BaseSQLiteDatabase<'sync', any, typeof schema>;
+
+const DAY_MS = 86_400_000;
+
+/** One purchase invoice, as the FIFO walk consumes it. Money = minor units. */
+export interface DebtInvoice {
+  documentId: string;
+  docNo: string | null;
+  docDate: number;
+  total: number;
+}
+
+/** How much of ONE invoice the supplier's payments turn out to have covered. */
+export interface InvoiceSettlement extends DebtInvoice {
+  /** Minor units of this invoice covered by the FIFO walk. */
+  paid: number;
+  /** total − paid. Zero ⇒ settled. */
+  remaining: number;
+  status: 'settled' | 'partial' | 'unpaid';
+}
+
+/** One payment made to a supplier — the other half of his ledger. */
+export interface DebtPayment {
+  id: string;
+  amount: number;
+  occurredAt: number;
+  account: Account;
+  note: string | null;
+  /** PROOF OF MONEY — the InstaPay screenshot, if there is one. */
+  attachments: AttachmentMeta[];
+}
+
+/** A row of the debts-by-supplier list. Only ever built for `owed > 0`. */
+export interface SupplierDebt {
+  id: string;
+  name: string;
+  phone: string | null;
+  /** Minor units, always > 0 in this list. */
+  owed: number;
+  /** docDate of the oldest invoice the payments have NOT fully covered. */
+  oldestUnpaidAt: number;
+  /** Whole days between `oldestUnpaidAt` and the INJECTED clock. Never negative. */
+  ageDays: number;
+}
+
+/** Everything the supplier-detail screen shows. `owed < 0` ⇒ credit (رصيد لك). */
+export interface SupplierDebtDetail {
+  owed: number;
+  invoices: InvoiceSettlement[];
+  payments: DebtPayment[];
+  /** Money paid beyond every invoice — the credit the supplier is holding. */
+  credit: number;
+}
+
+/**
+ * THE FIFO WALK — invoice-level settlement, DERIVED at read time.
+ *
+ * There are NO allocation rows in this database and there must never be any: no
+ * `payment_allocations` table, no `paid_amount` column, no `settled` flag. A
+ * payment points at the SUPPLIER, not at an invoice — that single decision is
+ * what collapses the entire allocation problem, and this function is what buys
+ * back the invoice-level detail it seemed to cost.
+ *
+ * The invoices arrive OLDEST FIRST and each one drinks from the pool of what the
+ * supplier has been paid, until the pool runs dry. Walking payments oldest-first
+ * would give the identical answer — a payment is fungible money against one
+ * supplier's book, so only the TOTAL can matter — which is precisely why the
+ * pool is a single number here.
+ *
+ * It is deterministic BECAUSE there is no manual invoice-picking anywhere in the
+ * UI. No user action can contradict it, so it can never disagree with `owed()`:
+ * Σ remaining === owed whenever owed > 0.
+ *
+ * All figures are INTEGER minor units, so the walk is exact integer arithmetic —
+ * no float ever rounds a piastre out of existence.
+ */
+export function walkFifo(invoices: DebtInvoice[], paidTotal: number): InvoiceSettlement[] {
+  let pool = Math.max(0, paidTotal);
+  return invoices.map((inv) => {
+    const paid = Math.min(pool, inv.total);
+    pool -= paid;
+    const remaining = inv.total - paid;
+    return {
+      ...inv,
+      paid,
+      remaining,
+      status: remaining === 0 ? 'settled' : paid === 0 ? 'unpaid' : 'partial',
+    };
+  });
+}
 
 /**
  * DERIVED SUPPLIER DEBT (accounts payable).
@@ -29,8 +121,12 @@ export type DebtDb = BaseSQLiteDatabase<'sync', any, typeof schema>;
  *
  * All figures are INTEGER minor units. Negative owed = CREDIT (the supplier owes
  * you — رصيد لك). That is a legitimate state, never an error, and never clamped.
+ *
+ * `clock` is INJECTED — aging ("this debt is 45 days old") is the one figure here
+ * that depends on the present moment, and a `Date.now()` buried in a repository
+ * is a test that flakes at midnight.
  */
-export function createDebtRepository(db: DebtDb) {
+export function createDebtRepository(db: DebtDb, clock: () => number = now) {
   /** Σ posted, live purchase invoices billed to this supplier. */
   function invoicedTo(supplierId: string): number {
     const row = db
@@ -77,6 +173,88 @@ export function createDebtRepository(db: DebtDb) {
       .all();
   }
 
+  /**
+   * This supplier's posted, live purchase invoices, OLDEST FIRST — the order the
+   * FIFO walk depends on. `created_at` breaks a same-day tie, because two
+   * invoices dated the same morning still have an order the owner would
+   * recognise: the one he entered first.
+   */
+  function invoicesOf(supplierId: string): DebtInvoice[] {
+    return db
+      .select({
+        documentId: schema.documents.id,
+        docNo: schema.documents.docNo,
+        docDate: schema.documents.docDate,
+        total: schema.documents.totalAmount,
+        createdAt: schema.documents.createdAt,
+      })
+      .from(schema.documents)
+      .where(
+        and(
+          eq(schema.documents.kind, 'in'),
+          eq(schema.documents.partyId, supplierId),
+          eq(schema.documents.status, 'posted'),
+          isNull(schema.documents.deletedAt),
+        ),
+      )
+      .orderBy(asc(schema.documents.docDate), asc(schema.documents.createdAt))
+      .all()
+      .map((r) => ({
+        documentId: r.documentId,
+        docNo: r.docNo,
+        // docDate is nullable in the schema; a document with no date is as old as
+        // its row, and the walk needs a number to age against either way.
+        docDate: r.docDate ?? r.createdAt,
+        total: r.total,
+      }));
+  }
+
+  /** This supplier's live payments, oldest money first (his payment history). */
+  function paymentsOf(supplierId: string): DebtPayment[] {
+    return db
+      .select({
+        id: schema.transactions.id,
+        amount: schema.transactions.amount,
+        occurredAt: schema.transactions.occurredAt,
+        account: schema.transactions.account,
+        note: schema.transactions.note,
+        attachments: schema.transactions.attachments,
+      })
+      .from(schema.transactions)
+      .where(
+        and(
+          eq(schema.transactions.refKind, 'supplier'),
+          eq(schema.transactions.refId, supplierId),
+          isNull(schema.transactions.deletedAt),
+        ),
+      )
+      .orderBy(asc(schema.transactions.occurredAt), asc(schema.transactions.createdAt))
+      .all()
+      .map((r) => ({
+        id: r.id,
+        amount: r.amount,
+        occurredAt: r.occurredAt,
+        account: r.account as Account,
+        note: r.note,
+        attachments: parseAttachments(r.attachments),
+      }));
+  }
+
+  function parseAttachments(raw: string | null): AttachmentMeta[] {
+    if (!raw) return [];
+    try {
+      const parsed = JSON.parse(raw);
+      return Array.isArray(parsed) ? (parsed as AttachmentMeta[]) : [];
+    } catch {
+      return [];
+    }
+  }
+
+  /** Whole days from `since` to the injected now. Floors; never negative. */
+  function ageInDays(since: number): number {
+    return Math.max(0, Math.floor((clock() - since) / DAY_MS));
+  }
+
   function isSentinel(supplierId: string): boolean {
     const row = db
       .select({ isSystem: schema.suppliers.isSystem })
@@ -109,6 +287,60 @@ export function createDebtRepository(db: DebtDb) {
       const owed = new Map<string, number>();
       for (const s of realSuppliers()) owed.set(s.id, api.owed(s.id));
       return owed;
+    },
+
+    /**
+     * The DERIVED invoice-level breakdown for one supplier — what the owner sees
+     * as "IN-000012 · سُدّدت بالكامل". He never sees the word "allocation",
+     * because there is nothing to allocate: see `walkFifo`.
+     *
+     * A sentinel walks nothing. Its debt is defined as 0 (guard #3), so a
+     * per-invoice breakdown of it would contradict its own total.
+     */
+    settlements(supplierId: string): InvoiceSettlement[] {
+      if (isSentinel(supplierId)) return [];
+      return walkFifo(invoicesOf(supplierId), paidTo(supplierId));
+    },
+
+    /**
+     * THE DEBTS LIST — every supplier the shop actually owes, WORST FIRST.
+     *
+     * Only `owed > 0`. A fully-paid supplier is not a debt and does not belong on
+     * a screen whose whole job is "who do I pay next"; a supplier in CREDIT is a
+     * receivable, and putting him here would read as if the shop owed him money.
+     * Both are still reachable from the suppliers list, where they belong.
+     *
+     * Sentinels cannot appear: `realSuppliers()` filters them out and `owed()`
+     * reports 0 for them anyway — two independent guards, because the failure
+     * mode ("بدون مورد owes you 500") is a debt to nobody (TC-9.3).
+     */
+    list(): SupplierDebt[] {
+      const rows: SupplierDebt[] = [];
+      for (const s of realSuppliers()) {
+        const settlements = walkFifo(invoicesOf(s.id), paidTo(s.id));
+        const owed = settlements.reduce((sum, x) => sum + x.remaining, 0);
+        if (owed <= 0) continue;
+        // The oldest invoice the money has NOT yet reached. It exists whenever
+        // owed > 0 — that is the same statement, read from the other end.
+        const oldest = settlements.find((x) => x.remaining > 0)!;
+        rows.push({
+          id: s.id,
+          name: s.name,
+          phone: s.phone,
+          owed,
+          oldestUnpaidAt: oldest.docDate,
+          ageDays: ageInDays(oldest.docDate),
+        });
+      }
+      return rows.sort((a, b) => b.owed - a.owed);
+    },
+
+    /** One supplier's whole book: invoices (settled by the walk) + payments. */
+    detail(supplierId: string): SupplierDebtDetail {
+      const invoices = api.settlements(supplierId);
+      const payments = isSentinel(supplierId) ? [] : paymentsOf(supplierId);
+      const owed = api.owed(supplierId);
+      return { owed, invoices, payments, credit: Math.max(0, -owed) };
     },
 
     /**

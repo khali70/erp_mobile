@@ -14,6 +14,7 @@ import { ReportsScreen } from '@/features/reports/screens/ReportsScreen';
 import { ProfitLossScreen } from '@/features/reports/screens/ProfitLossScreen';
 import { DebtsByCustomerScreen } from '@/features/reports/screens/DebtsByCustomerScreen';
 import { DebtsBySupplierScreen } from '@/features/reports/screens/DebtsBySupplierScreen';
+import { SupplierDebtDetailScreen } from '@/features/reports/screens/SupplierDebtDetailScreen';
 import { ScanScreen } from '@/features/scan/screens/ScanScreen';
 import { SettingsScreen } from '@/features/settings/screens/SettingsScreen';
 
@@ -33,6 +34,9 @@ export type RootStackParamList = {
   ProfitLoss: undefined;
   DebtsByCustomer: undefined;
   DebtsBySupplier: undefined;
+  // The name rides along so the header can render before the debt is derived —
+  // the id is the only thing the screen actually queries with.
+  SupplierDebtDetail: { supplierId: string; supplierName: string };
   Scan: undefined;
   Settings: undefined;
 };
@@ -57,6 +61,7 @@ export function RootNavigator() {
       <Stack.Screen name="ProfitLoss" component={ProfitLossScreen} />
       <Stack.Screen name="DebtsByCustomer" component={DebtsByCustomerScreen} />
       <Stack.Screen name="DebtsBySupplier" component={DebtsBySupplierScreen} />
+      <Stack.Screen name="SupplierDebtDetail" component={SupplierDebtDetailScreen} />
       <Stack.Screen name="Scan" component={ScanScreen} />
       <Stack.Screen name="Settings" component={SettingsScreen} />
     </Stack.Navigator>
