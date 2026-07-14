@@ -1,9 +1,14 @@
-import { and, asc, eq, isNull, sql } from 'drizzle-orm';
+import { and, asc, eq, inArray, isNull, sql } from 'drizzle-orm';
 import type { BaseSQLiteDatabase } from 'drizzle-orm/sqlite-core';
 import * as schema from '@/db/schema';
 import { now } from '@/utils/id';
 import type { AttachmentMeta } from './document-repository';
-import { SETTLED_AMOUNT_SQL, type Account } from './transaction-repository';
+import {
+  OPENING,
+  SETTLED_AMOUNT_SQL,
+  SUPPLIER_SETTLING_KINDS,
+  type Account,
+} from './transaction-repository';
 import { createExpenseRepository, type ExpenseDebt } from './expense-repository';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -34,6 +39,14 @@ export interface DebtPayment {
   amount: number;
   occurredAt: number;
   account: Account;
+  /**
+   * TRUE ⇒ this is an OPENING ADJUSTMENT (ref_kind='opening'), not a payment made
+   * through the app: money the owner handed over before the app existed, recorded
+   * so the historical invoices it settled stop reading as debt. It pays the debt
+   * down exactly like a payment and it is NOWHERE in the cash book — so the
+   * screen must say which it is, or the two figures look like they disagree.
+   */
+  isOpening: boolean;
   note: string | null;
   /** PROOF OF MONEY — the InstaPay screenshot, if there is one. */
   attachments: AttachmentMeta[];
@@ -103,13 +116,20 @@ export function walkFifo(invoices: DebtInvoice[], paidTotal: number): InvoiceSet
  *
  *   owed(S) = Σ documents.total_amount        WHERE kind='in' AND party_id=S
  *                                               AND status='posted' AND deleted_at IS NULL
- *           − Σ (−direction × transactions.amount) WHERE ref_kind='supplier' AND ref_id=S
- *                                               AND deleted_at IS NULL
+ *           − Σ (−direction × transactions.amount) WHERE ref_kind IN ('supplier','opening')
+ *                                               AND ref_id=S AND deleted_at IS NULL
  *
  * The payment side is SIGNED, never a Σ|amount|: money OUT (−1) pays the debt
  * down, money IN against the same supplier (+1 — a refund, a returned crate)
  * pushes it back UP. Summing magnitudes has a refund PAY OFF the debt it should
  * re-create.
+ *
+ * `'opening'` is on the paid side because it IS money handed over — just handed
+ * over before this app existed (see OPENING in transaction-repository). Debt is
+ * derived and the transactions table is new, so without it every invoice the
+ * shop entered in its first two years reads as unpaid forever. It is the only
+ * kind that settles debt without touching the cash book, and that asymmetry is
+ * deliberate: the money moved, but not from today's drawer.
  *
  * Debt is DERIVED, never stored. A stored debt column drifts the first time a
  * save half-fails or a document is soft-deleted, and then the owner sees "you
@@ -166,6 +186,12 @@ export function createDebtRepository(db: DebtDb, clock: () => number = now) {
    * Nothing writes a +1 supplier row today; the sign is encoded here rather than
    * assumed, so that the day something does, this number moves the right way on
    * its own.
+   *
+   * BOTH settling kinds count: a 'supplier' payment (money moving today) and an
+   * 'opening' adjustment (money that moved before the app existed — see OPENING).
+   * The invoices this shop entered years ago were paid in cash long since; the
+   * opening row is how the owner says so, and it has to land on THIS side of the
+   * subtraction or it says nothing at all.
    */
   function paidTo(supplierId: string): number {
     const row = db
@@ -173,7 +199,7 @@ export function createDebtRepository(db: DebtDb, clock: () => number = now) {
       .from(schema.transactions)
       .where(
         and(
-          eq(schema.transactions.refKind, 'supplier'),
+          inArray(schema.transactions.refKind, SUPPLIER_SETTLING_KINDS),
           eq(schema.transactions.refId, supplierId),
           isNull(schema.transactions.deletedAt),
         ),
@@ -238,7 +264,17 @@ export function createDebtRepository(db: DebtDb, clock: () => number = now) {
       }));
   }
 
-  /** This supplier's live payments, oldest money first (his payment history). */
+  /**
+   * This supplier's live payments, oldest money first (his payment history).
+   *
+   * Opening adjustments are IN this list, and they must be. They are half of the
+   * subtraction that produced `owed`, and a debt that drops by 12,000 with
+   * nothing on screen to explain it is exactly the silent, unarguable number this
+   * whole file exists to refuse. It is also the only place the owner can reach an
+   * opening row to LONG-PRESS IT AWAY when he declares the wrong invoice settled
+   * — and mis-declaring one is the single most likely mistake this feature
+   * invites. `isOpening` is what lets the row say which of the two it is.
+   */
   function paymentsOf(supplierId: string): DebtPayment[] {
     return db
       .select({
@@ -246,13 +282,14 @@ export function createDebtRepository(db: DebtDb, clock: () => number = now) {
         amount: schema.transactions.amount,
         occurredAt: schema.transactions.occurredAt,
         account: schema.transactions.account,
+        refKind: schema.transactions.refKind,
         note: schema.transactions.note,
         attachments: schema.transactions.attachments,
       })
       .from(schema.transactions)
       .where(
         and(
-          eq(schema.transactions.refKind, 'supplier'),
+          inArray(schema.transactions.refKind, SUPPLIER_SETTLING_KINDS),
           eq(schema.transactions.refId, supplierId),
           isNull(schema.transactions.deletedAt),
         ),
@@ -264,6 +301,7 @@ export function createDebtRepository(db: DebtDb, clock: () => number = now) {
         amount: r.amount,
         occurredAt: r.occurredAt,
         account: r.account as Account,
+        isOpening: r.refKind === OPENING,
         note: r.note,
         attachments: parseAttachments(r.attachments),
       }));
@@ -350,12 +388,20 @@ export function createDebtRepository(db: DebtDb, clock: () => number = now) {
         .from(schema.transactions)
         .where(
           and(
-            eq(schema.transactions.refKind, 'supplier'),
+            // THE SAME KINDS `paidTo()` SUBTRACTS, and they have to be. This is the
+            // grouped twin of the per-supplier query, and the two are read side by
+            // side (the list and the detail screen). Let 'opening' into one and not
+            // the other and the debts list will contradict the supplier it opens.
+            inArray(schema.transactions.refKind, SUPPLIER_SETTLING_KINDS),
             isNull(schema.transactions.deletedAt), // a deleted payment paid nothing
           ),
         )
         .groupBy(schema.transactions.refId)
         .all();
+      // An 'opening' row against an EXPENSE groups here too — its refId is an
+      // expense id, which is never a supplier id (both are UUIDs), so it lands in
+      // a bucket no supplier ever looks up. Kept simple deliberately: the kind
+      // resolves the ref, the id resolves the row, and one query serves both.
       for (const r of paidRows) if (r.refId) paid.set(r.refId, r.total);
 
       const owed = new Map<string, number>();

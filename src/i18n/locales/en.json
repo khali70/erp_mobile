@@ -354,6 +354,11 @@
       "cash": "Cash",
       "instapay": "InstaPay"
     },
+    "opening": {
+      "label": "Older payment — not from today's drawer",
+      "hint": "You're recording money you handed over before you started using the app. It clears the old invoices, and it does NOT come out of today's cash.",
+      "badge": "Older payment"
+    },
     "proof": "Payment proof",
     "addProof": "Snap the transfer screenshot",
     "proofHint": "Attach the InstaPay transfer screenshot",

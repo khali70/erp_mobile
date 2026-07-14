@@ -24,4 +24,15 @@ export interface SettleDraft {
   note: string;
   /** PROOF OF MONEY. Only ever collected for InstaPay — cash has nothing to show. */
   proof: AttachmentMeta[];
+  /**
+   * «دفعة قديمة — مش من درج النهارده».
+   *
+   * ON ⇒ the row is written as `ref_kind: 'opening'` instead of
+   * 'supplier'/'expense': money the owner handed over BEFORE this app existed.
+   * It pays the debt down exactly like a payment and NEVER touches the cash book
+   * (see OPENING in transaction-repository) — which is why الحساب and إثبات الدفع
+   * disappear with it. There is no drawer to take it from and no InstaPay
+   * screenshot to show for money that moved six months ago.
+   */
+  isOpening: boolean;
 }

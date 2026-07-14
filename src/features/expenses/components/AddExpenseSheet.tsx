@@ -4,10 +4,11 @@ import { BottomSheet } from '@/components/ui/BottomSheet';
 import { LabeledInput } from '@/components/ui/LabeledInput';
 import { SettleDateField } from '@/features/payments/components/SettleDateField';
 import { ROW } from '@/theme/rtl';
-import { useExpenseForm } from '../hooks/useExpenseForm';
+import { ExpenseDraft, useExpenseForm } from '../hooks/useExpenseForm';
 import { AddExpenseSheetHeader } from './AddExpenseSheetHeader';
 import { ExpenseCategoryPicker } from './ExpenseCategoryPicker';
 import { ExpenseAttachmentField } from './ExpenseAttachmentField';
+import { useEffect } from 'react';
 
 interface AddExpenseSheetProps {
   visible: boolean;
@@ -30,6 +31,7 @@ interface AddExpenseSheetProps {
  */
 export function AddExpenseSheet({ visible, onClose, onSaved }: AddExpenseSheetProps) {
   const { t } = useTranslation();
+
   const {
     draft,
     setTitle,

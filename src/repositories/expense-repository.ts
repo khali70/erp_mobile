@@ -1,9 +1,9 @@
-import { and, desc, eq, isNull, sql } from 'drizzle-orm';
+import { and, desc, eq, inArray, isNull, sql } from 'drizzle-orm';
 import type { BaseSQLiteDatabase } from 'drizzle-orm/sqlite-core';
 import * as schema from '@/db/schema';
 import { newId, now } from '@/utils/id';
 import type { AttachmentMeta } from './document-repository';
-import { SETTLED_AMOUNT_SQL } from './transaction-repository';
+import { EXPENSE_SETTLING_KINDS, SETTLED_AMOUNT_SQL } from './transaction-repository';
 
 // Injectable so the same code runs on expo-sqlite (prod) and better-sqlite3
 // (tests). Any sync Drizzle SQLite db with our schema satisfies it.
@@ -105,8 +105,8 @@ function parseAttachments(raw: string | null): AttachmentMeta[] {
  * quietly lying to him, counting suppliers and nothing else.
  *
  *   owed(E) = expenses.total_amount
- *           − Σ (−direction × transactions.amount)  WHERE ref_kind='expense' AND ref_id=E
- *                                                     AND deleted_at IS NULL
+ *           − Σ (−direction × transactions.amount)  WHERE ref_kind IN ('expense','opening')
+ *                                                     AND ref_id=E AND deleted_at IS NULL
  *
  * The payment side is SIGNED (see SETTLED_AMOUNT_SQL): money out settles the
  * bill, money back in against it un-settles it.
@@ -148,6 +148,11 @@ export function createExpenseRepository(db: ExpenseDb, clock: () => number = now
    * (−1) settles the bill; money coming back in against it (+1 — the landlord
    * refunds a month) un-settles it. A magnitude sum would treat the refund as a
    * second payment and quietly mark the rent paid twice over.
+   *
+   * `'opening'` counts too — an expense entered before the app existed was paid
+   * in money that left the drawer months ago, and the owner needs the same way to
+   * say so that a supplier gets (see OPENING). Character-for-character the
+   * supplier rule, which is the point: one concept, not two.
    */
   function paidByExpense(): Map<string, number> {
     const rows = db
@@ -156,10 +161,18 @@ export function createExpenseRepository(db: ExpenseDb, clock: () => number = now
         total: SETTLED_AMOUNT_SQL,
       })
       .from(schema.transactions)
-      .where(and(eq(schema.transactions.refKind, 'expense'), isNull(schema.transactions.deletedAt)))
+      .where(
+        and(
+          inArray(schema.transactions.refKind, EXPENSE_SETTLING_KINDS),
+          isNull(schema.transactions.deletedAt),
+        ),
+      )
       .groupBy(schema.transactions.refId)
       .all();
 
+    // An 'opening' row against a SUPPLIER groups in here as well; its refId is a
+    // supplier id, which is never an expense id (UUIDs both), so it sits in a
+    // bucket no expense ever asks for. See the twin note in debt-repository.
     const paid = new Map<string, number>();
     for (const r of rows) if (r.refId) paid.set(r.refId, r.total);
     return paid;
@@ -230,14 +243,19 @@ export function createExpenseRepository(db: ExpenseDb, clock: () => number = now
       return api.listWithDebt().filter((e) => e.remaining > 0);
     },
 
-    /** NET paid against ONE expense: Σ(−direction × amount). See `paidByExpense`. */
+    /**
+     * NET paid against ONE expense: Σ(−direction × amount), over the SAME kinds
+     * `paidByExpense()` groups. The two are read side by side (the list, then the
+     * one the owner taps), and a kind allowed into one but not the other is how
+     * the list and the detail come to disagree about the same bill.
+     */
     paidOn(id: string): number {
       const row = db
         .select({ total: SETTLED_AMOUNT_SQL })
         .from(schema.transactions)
         .where(
           and(
-            eq(schema.transactions.refKind, 'expense'),
+            inArray(schema.transactions.refKind, EXPENSE_SETTLING_KINDS),
             eq(schema.transactions.refId, id),
             isNull(schema.transactions.deletedAt),
           ),

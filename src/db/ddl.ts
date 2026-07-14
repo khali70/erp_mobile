@@ -57,6 +57,17 @@ CREATE INDEX IF NOT EXISTS idx_expenses_incurred ON expenses(incurred_at);
  * so `remove()` can take them down with it (see schema.ts). The FIFO walk ignores
  * it entirely.
  *
+ * `ref_kind` is 'supplier' | 'expense' | 'sale' | 'owner' | 'transfer' | 'other'
+ * | 'opening' — and NO CHECK constraint, deliberately: an upgraded phone already
+ * holds rows written by an older build, and a CHECK added here would be enforced
+ * on every future write while the old rows sit there un-validated, so the kinds
+ * are policed in TypeScript (TxRefKind) where the whole union is visible at once.
+ *
+ * 'opening' SETTLES DEBT WITHOUT MOVING MONEY — the only kind excluded from the
+ * cash book (balances / listForCashBook / netBetween). It is how the owner says
+ * "these invoices from before the app existed were already paid", and it needs no
+ * column of its own: it is a `ref_kind`, not a new table. See schema.ts.
+ *
  * TABLE and INDEXES are separate exports on purpose. On an upgraded install the
  * table already exists WITHOUT `doc_id`, and `CREATE INDEX ... ON transactions(doc_id)`
  * would throw "no such column" — so the boot path must run the table, then the

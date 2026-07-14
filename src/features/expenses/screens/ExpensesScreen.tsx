@@ -12,6 +12,7 @@ import { ExpenseFilterChips } from '../components/ExpenseFilterChips';
 import { ExpenseRow } from '../components/ExpenseRow';
 import { ExpensesEmptyState } from '../components/ExpensesEmptyState';
 import { AddExpenseSheet } from '../components/AddExpenseSheet';
+import { categories } from '@/db/schema';
 
 /**
  * النفقات والمصروفات — RENT IS DEBT TOO.
@@ -96,6 +97,9 @@ export function ExpensesScreen() {
 
       <AddExpenseSheet
         visible={addOpen}
+        initValue={{
+          category: filter === 'all' ? undefined : filter,
+        }}
         onClose={() => setAddOpen(false)}
         onSaved={handleAdded}
       />

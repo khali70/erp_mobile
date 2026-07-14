@@ -147,6 +147,24 @@ export const suppliers = sqliteTable('suppliers', {
 //   'owner'    → null         — drawings / capital injection               (±1)
 //   'transfer' → null         — drawer ↔ InstaPay: TWO rows netting to 0   (±1)
 //   'other'    → null         — escape hatch                               (±1)
+//   'opening'  → suppliers.id | expenses.id — ALREADY PAID, BEFORE THE APP  (−1)
+//
+// 'opening' IS THE ONE KIND THAT IS NOT A MOVEMENT OF MONEY, and it is the only
+// row the cash book is allowed to be missing. It settles debt (it is summed on
+// the paid side, exactly like a payment) but it is EXCLUDED from balances(),
+// listForCashBook(), netBetween() and salesBetween().
+//
+// It exists because DEBT IS DERIVED and this table is NEW. On the first boot
+// after the upgrade, a shop with two years of purchase history has invoices and
+// no payments — so every invoice it ever entered, all long since paid in cash,
+// reads as unpaid, and payables jumps to the gross lifetime total of every
+// purchase ever made. Auto-settling them would hide any debt he genuinely still
+// owes AND fake a colossal cash-out; an "we start tracking today" epoch hides the
+// same debt. A LOUD WRONG number he can see and fix; a SILENT MISSING one he
+// cannot. So the old invoices stay visible as debt, and this is the primitive
+// that lets him clear them truthfully. An opening balance is not money moving —
+// it is a STATEMENT ABOUT MONEY THAT ALREADY MOVED, before the app existed, and
+// that is exactly why it must never touch today's drawer.
 //
 // `account` must be a real column: cash and InstaPay are two separate pockets
 // that each reconcile independently. A row that doesn't say which pocket can

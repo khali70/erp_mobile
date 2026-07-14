@@ -34,6 +34,7 @@ const EMPTY: ExpensesState = { all: [], monthTotal: 0, lastMonthTotal: 0, unpaid
 
 export function useExpenses() {
   const [state, setState] = useState<ExpensesState>(EMPTY);
+
   const [filter, setFilter] = useState<ExpenseFilter>('all');
 
   const reload = useCallback(() => {
@@ -64,6 +65,9 @@ export function useExpenses() {
 
   return {
     expenses: visible,
+    /**
+  * the selected category filter, or 'all' for no filter. The list is filtered in memory, not in the repository.
+  */
     filter,
     setFilter,
     monthTotal: state.monthTotal,

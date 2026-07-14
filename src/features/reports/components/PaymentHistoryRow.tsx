@@ -51,8 +51,20 @@ export function PaymentHistoryRow({ payment, onLongPress }: PaymentHistoryRowPro
           </View>
         </View>
 
-        <View className="px-2.5 py-1 rounded-lg border border-border bg-background">
-          <Text className="text-[11px] font-medium text-muted">{payment.accountLabel}</Text>
+        {/* The pocket — or, on an opening adjustment, «دفعة قديمة». That row paid
+            this debt down and is deliberately absent from the cash book, so the
+            chip has to say so: a payment the owner cannot find in his ledger, with
+            a pocket's name on it, reads as a bug in the ledger. */}
+        <View
+          className={`px-2.5 py-1 rounded-lg border ${
+            payment.isOpening ? 'border-primary bg-primary-light' : 'border-border bg-background'
+          }`}
+        >
+          <Text
+            className={`text-[11px] font-medium ${payment.isOpening ? 'text-primary' : 'text-muted'}`}
+          >
+            {payment.accountLabel}
+          </Text>
         </View>
       </View>
 

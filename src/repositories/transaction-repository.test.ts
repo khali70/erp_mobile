@@ -325,3 +325,65 @@ describe('netByRef / settledByRef — the sign is READ from the rows, never assu
     expect(txs.netByRef('supplier', 'ahmed')).toBe(-3000);
   });
 });
+
+/**
+ * The cash book, and the ONE row it is allowed to be missing.
+ *
+ * An `'opening'` adjustment settles debt without moving money: it is a statement
+ * about cash that left the drawer before this app was installed (see OPENING).
+ * Every figure in this file that answers "what is in the pocket" must step over
+ * it, and every figure that answers "what does he owe" must not.
+ */
+describe("'opening' rows are debt, not cash — the cash book steps over them", () => {
+  const opening = (over: Partial<CreateTransactionInput> = {}) =>
+    txs.create(out({ refKind: 'opening', refId: 'ahmed', ...over }));
+
+  it('is invisible to balances(), listForCashBook() and netBetween()', () => {
+    opening({ amount: 12000 });
+
+    expect(txs.balances()).toEqual({ cash: 0, instapay: 0, total: 0 });
+    expect(txs.listForCashBook()).toEqual([]);
+    expect(txs.netBetween(T0 - DAY, T0 + DAY)).toEqual({ cash: 0, instapay: 0, total: 0 });
+    expect(txs.salesBetween(T0 - DAY, T0 + DAY)).toEqual({ cash: 0, instapay: 0, total: 0 });
+  });
+
+  it('does not hide the rows AROUND it — the rest of the book is whole', () => {
+    txs.create(out({ direction: 1, amount: 10000, refKind: 'sale', refId: 'd1' }));
+    txs.create(out({ amount: 4000, refKind: 'supplier', refId: 'ahmed' }));
+    opening({ amount: 50000 }); // a lifetime of pre-app purchases, declared paid
+    txs.create(out({ amount: 1500, account: 'instapay', refKind: 'expense', refId: 'rent' }));
+
+    expect(txs.balances()).toEqual({ cash: 6000, instapay: -1500, total: 4500 });
+    expect(txs.listForCashBook()).toHaveLength(3);
+    expect(txs.salesBetween(T0 - DAY, T0 + DAY).cash).toBe(10000);
+    expect(txs.netBetween(T0 - DAY, T0 + DAY)).toEqual({
+      cash: 6000,
+      instapay: -1500,
+      total: 4500,
+    });
+  });
+
+  it('KEEPS a row whose ref_kind is NULL — `ref_kind <> opening` alone is a silent hole', () => {
+    // In SQL, `NULL <> 'opening'` is NULL, not TRUE. Written without its IS NULL
+    // arm, the exclusion would quietly drop every un-kinded movement out of the
+    // drawer balance — the exact escape-hatch row the ledger deliberately keeps
+    // and renders as 'unknown'. The cash book would stop matching the drawer, and
+    // nothing on screen would say why.
+    txs.create(out({ amount: 500, refKind: null }));
+    opening({ amount: 9000 });
+
+    expect(txs.balances().cash).toBe(-500);
+    expect(txs.listForCashBook()).toHaveLength(1);
+    expect(txs.netBetween(T0 - DAY, T0 + DAY).cash).toBe(-500);
+  });
+
+  it('is still a real, live row — soft-deletable like any other', () => {
+    const id = opening({ amount: 12000 });
+    expect(txs.settledByRef('opening', 'ahmed')).toBe(12000); // money OUT, signed
+
+    txs.archive(id);
+
+    expect(txs.settledByRef('opening', 'ahmed')).toBe(0);
+    expect(txs.listByRef('opening', 'ahmed')).toEqual([]);
+  });
+});

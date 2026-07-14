@@ -94,7 +94,16 @@ export interface PaymentViewModel {
   id: string;
   dateLabel: string;
   amountLabel: string;
+  /**
+   * WHICH POCKET — or, for an opening adjustment, that there was none.
+   *
+   * An opening row settles debt without ever touching the cash book, so labelling
+   * it "نقدي" would send the owner looking for it in a drawer it never came out
+   * of. It says «دفعة قديمة» instead: the same chip, telling the truth.
+   */
   accountLabel: string;
+  /** TRUE ⇒ money that moved BEFORE the app existed. Not in the cash book, by design. */
+  isOpening: boolean;
   note: string | null;
   /** Proof of MONEY — an InstaPay screenshot, when there is one to show. */
   proof: DebtPayment['attachments'];
@@ -105,7 +114,10 @@ export function presentPayment(p: DebtPayment, t: TFunction, lang: string): Paym
     id: p.id,
     dateLabel: formatDate(p.occurredAt, lang),
     amountLabel: money(p.amount, t, lang),
-    accountLabel: t(`payments.accounts.${p.account}`),
+    accountLabel: p.isOpening
+      ? t('payments.opening.badge')
+      : t(`payments.accounts.${p.account}`),
+    isOpening: p.isOpening,
     note: p.note,
     proof: p.attachments,
   };

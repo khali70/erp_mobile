@@ -1,4 +1,4 @@
-import { and, desc, eq, gte, isNull, lt, sql } from 'drizzle-orm';
+import { and, desc, eq, gte, isNull, lt, ne, or, sql } from 'drizzle-orm';
 import type { BaseSQLiteDatabase } from 'drizzle-orm/sqlite-core';
 import * as schema from '@/db/schema';
 import { newId, now } from '@/utils/id';
@@ -15,11 +15,84 @@ export type TxDirection = 1 | -1;
 /** The two pockets. Each reconciles independently, so every row must name one. */
 export type Account = 'cash' | 'instapay';
 
-/** Why the money moved. Resolves `refId` (untyped polymorphic FK, house convention). */
-export type TxRefKind = 'supplier' | 'expense' | 'sale' | 'owner' | 'transfer' | 'other';
+/**
+ * Why the money moved. Resolves `refId` (untyped polymorphic FK, house convention).
+ *
+ * `'opening'` is the one kind that is NOT a movement of money — see
+ * `OPENING` and `IS_CASH_MOVEMENT` below.
+ */
+export type TxRefKind =
+  | 'supplier'
+  | 'expense'
+  | 'sale'
+  | 'owner'
+  | 'transfer'
+  | 'other'
+  | 'opening';
 
 export const CASH: Account = 'cash';
 export const INSTAPAY: Account = 'instapay';
+
+/**
+ * THE OPENING ADJUSTMENT — the one legitimate exception to "the cash book is
+ * complete", and the only reason it is a separate kind instead of a payment.
+ *
+ * AN OPENING BALANCE IS NOT A MOVEMENT OF MONEY. It is a STATEMENT ABOUT MONEY
+ * THAT ALREADY MOVED, before this app existed.
+ *
+ * Debt is DERIVED — `Σ posted purchase invoices − Σ payments` — and the
+ * `transactions` table is NEW. On the first boot after the upgrade, a shop with
+ * two years of purchase history has invoices but not one payment row, so every
+ * invoice the owner ever entered (all of them long since settled in cash he
+ * handed over months ago) reads as fully unpaid. His payables KPI jumps from a
+ * permanent zero to the GROSS LIFETIME TOTAL of every purchase he has made.
+ *
+ * The two obvious fixes are both silent losses, and this codebase does not ship
+ * silent losses:
+ *   • Auto-writing a settling payment per historical invoice HIDES any debt he
+ *     genuinely still owes, and dumps a huge fake cash-OUT into the drawer.
+ *   • Gating debt behind a "we start tracking today" epoch hides the same debt,
+ *     wearing a hat.
+ * A LOUD WRONG number is recoverable — he can see it and fix it. A SILENT
+ * MISSING one is not. So the old invoices stay visible as debt, and this kind is
+ * the primitive that lets him CLEAR them truthfully, one supplier at a time.
+ *
+ * An `'opening'` row therefore:
+ *   • POINTS AT a supplier or an expense (ref_id), exactly like a payment;
+ *   • COUNTS against debt — it is summed by SETTLED_AMOUNT_SQL alongside
+ *     'supplier'/'expense' rows and pays the debt DOWN (direction −1);
+ *   • is EXCLUDED FROM THE CASH BOOK — from `balances()`, `listForCashBook()`,
+ *     `netBetween()` and `salesBetween()`. Money that left the drawer six months
+ *     ago must not show up as cash leaving TODAY. That is the whole point of the
+ *     kind: a normal payment cannot do this, because a normal payment is money
+ *     moving now, and the drawer figure is the one number the cash book exists
+ *     to keep reconcilable against the physical notes in it.
+ */
+export const OPENING: TxRefKind = 'opening';
+
+/**
+ * The kinds that pay a SUPPLIER's debt down: a real payment, or an opening
+ * adjustment declaring it was already paid before the app existed. Both are the
+ * shop handing money over; only one of them happened today.
+ */
+export const SUPPLIER_SETTLING_KINDS: TxRefKind[] = ['supplier', OPENING];
+
+/** The same pair for an EXPENSE. `owed(E)` subtracts exactly these. */
+export const EXPENSE_SETTLING_KINDS: TxRefKind[] = ['expense', OPENING];
+
+/**
+ * "This row is real money moving through a real pocket" — the cash book's filter.
+ *
+ * `ref_kind <> 'opening'` ALONE WOULD BE A BUG: in SQL, `NULL <> 'opening'` is
+ * NULL, not true, so a row with no ref_kind at all — the escape-hatch movement
+ * the ledger deliberately keeps and renders as 'unknown' — would silently drop
+ * out of the drawer balance. A ledger with a hole in it is worse than no ledger.
+ * The `IS NULL` arm is what keeps it whole.
+ */
+export const IS_CASH_MOVEMENT = or(
+  isNull(schema.transactions.refKind),
+  ne(schema.transactions.refKind, OPENING),
+);
 
 /** Every pocket the shop has. The cash book reports each one separately. */
 export const ACCOUNTS: readonly Account[] = [CASH, INSTAPAY];
@@ -168,6 +241,11 @@ export const NET_AMOUNT_SQL = sql<number>`coalesce(sum(${schema.transactions.dir
  * Summing |amount| would have a refund PAY OFF the debt it should re-create.
  * Shared by debt-repository and expense-repository, which derive the same
  * subtraction over two different kinds of obligation.
+ *
+ * It sums whatever rows the caller's `ref_kind` filter lets through — which is
+ * why `'opening'` belongs in SUPPLIER_SETTLING_KINDS / EXPENSE_SETTLING_KINDS
+ * and nowhere else: it is money handed over (direction −1) and it pays the debt
+ * down here, while never reaching the cash book.
  */
 export const SETTLED_AMOUNT_SQL = sql<number>`coalesce(sum(-${schema.transactions.direction} * ${schema.transactions.amount}), 0)`;
 
@@ -261,6 +339,11 @@ export function createTransactionRepository(db: TxDb, clock: () => number = now)
      * drawer, and a cash book with a hole in it is worse than no cash book —
      * the day its figure stops matching the physical drawer is the day the
      * owner stops trusting the app.
+     *
+     * `IS_CASH_MOVEMENT` is the SOLE exception, and it is not a hole: an
+     * `'opening'` row is not money leaving the drawer, it is a statement that
+     * money left it months before this app was installed (see OPENING). Counting
+     * it here would empty a drawer that is sitting full on the counter.
      */
     cashByAccount(account: Account): number {
       const row = db
@@ -268,7 +351,7 @@ export function createTransactionRepository(db: TxDb, clock: () => number = now)
           total: sql<number>`coalesce(sum(${schema.transactions.direction} * ${schema.transactions.amount}), 0)`,
         })
         .from(schema.transactions)
-        .where(and(eq(schema.transactions.account, account), live))
+        .where(and(eq(schema.transactions.account, account), IS_CASH_MOVEMENT, live))
         .get();
       return row?.total ?? 0;
     },
@@ -299,7 +382,9 @@ export function createTransactionRepository(db: TxDb, clock: () => number = now)
      *
      * `ref_kind='sale'` is what keeps this a SALES figure and not a cash-flow
      * one: a 4000 cash payment handed to a supplier on the same day moves the
-     * drawer but sells nothing, and must not appear here.
+     * drawer but sells nothing, and must not appear here. That same equality is
+     * what already excludes an `'opening'` row — no extra filter needed, and none
+     * wanted: an opening adjustment is neither a sale nor money moving today.
      */
     salesBetween(fromMs: number, toMs: number): AccountTotals {
       const rows = db
@@ -330,6 +415,10 @@ export function createTransactionRepository(db: TxDb, clock: () => number = now)
      * A different question from `salesBetween` and deliberately not fused with
      * it — the day's takings and the day's change in the drawer are not the same
      * number, and a screen that shows one as the other is lying about both.
+     *
+     * "Every ref kind" means every kind that is MONEY MOVING. An `'opening'` row
+     * is not (see OPENING): back-dating one onto a day in March must not rewrite
+     * what the drawer did in March, because the drawer already did it.
      */
     netBetween(fromMs: number, toMs: number): AccountTotals {
       const rows = db
@@ -342,6 +431,7 @@ export function createTransactionRepository(db: TxDb, clock: () => number = now)
           and(
             gte(schema.transactions.occurredAt, fromMs),
             lt(schema.transactions.occurredAt, toMs),
+            IS_CASH_MOVEMENT,
             live,
           ),
         )
@@ -350,12 +440,21 @@ export function createTransactionRepository(db: TxDb, clock: () => number = now)
       return totalsFrom(rows);
     },
 
-    /** The cash book itself: every live movement, most recent money first. */
+    /**
+     * The cash book itself: every live movement of money, most recent first.
+     *
+     * `'opening'` rows are absent, and that is the ONE row this list is allowed
+     * to be missing (see OPENING). The cash book is a record of money moving
+     * through the two pockets; an opening adjustment is a statement about money
+     * that moved before the app existed, and putting it here would show cash
+     * leaving the drawer today that left it six months ago. Its place is the
+     * supplier's ledger, where it settles the invoices it says were settled.
+     */
     listForCashBook() {
       return db
         .select()
         .from(schema.transactions)
-        .where(live)
+        .where(and(IS_CASH_MOVEMENT, live))
         .orderBy(desc(schema.transactions.occurredAt), desc(schema.transactions.createdAt))
         .all();
     },

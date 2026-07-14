@@ -6,7 +6,7 @@ import { formatMoneyMajor, normalizeDigits, toLocaleDigits } from '@/utils/numer
 import { addDays } from '@/utils/dates';
 import { ingest, pickPhoto, removeAttachment } from '@/utils/attachments';
 import { transactionRepository } from '@/repositories/transaction-repository.client';
-import type { Account } from '@/repositories/transaction-repository';
+import { CASH, OPENING, type Account } from '@/repositories/transaction-repository';
 import type { AttachmentMeta } from '@/repositories/document-repository';
 import type { SettleDraft, SettleTarget } from '../types';
 
@@ -24,10 +24,14 @@ interface UseSettlePaymentArgs {
 
 const emptyDraft = (): SettleDraft => ({
   amount: '',
-  account: 'cash',
+  account: CASH,
   occurredAt: Date.now(),
   note: '',
   proof: [],
+  // OFF by default: the overwhelmingly common case is money moving right now,
+  // at the counter, and a sheet that guesses "this is historical" would quietly
+  // keep today's payments out of the cash book.
+  isOpening: false,
 });
 
 /**
@@ -99,6 +103,26 @@ export function useSettlePayment({
     });
   }, []);
 
+  /**
+   * «دفعة قديمة» — flip the row between a PAYMENT and an OPENING ADJUSTMENT.
+   *
+   * Turning it ON drops the proof, for the same reason `setAccount` does: the
+   * write below never stores attachments on an opening row (there is no InstaPay
+   * screenshot for money that moved before the app existed), so keeping the bytes
+   * would leave them in attachments.db attached to nothing while the owner still
+   * believes he filed them.
+   */
+  const setOpening = useCallback((isOpening: boolean) => {
+    setDraft((prev) => {
+      if (!isOpening) return { ...prev, isOpening };
+      prev.proof.forEach((a) => removeAttachment(a.id));
+      // Back to cash: the account is meaningless on an opening row (it reaches no
+      // pocket), and leaving it on إنستاباي would put a pocket name on a row that
+      // never touched one — the sheet must not remember a choice it stopped using.
+      return { ...prev, isOpening, account: CASH, proof: [] };
+    });
+  }, []);
+
   /** Nudge the payment date by whole days. Never past today: money cannot move
    *  tomorrow, and a future-dated payment would show cash the drawer lacks. */
   const shiftDate = useCallback(
@@ -140,16 +164,28 @@ export function useSettlePayment({
     setSaving(true);
     try {
       transactionRepository.create({
-        direction: -1, // money OUT of the shop
+        // MONEY OUT — for an opening adjustment too. It is money the shop handed
+        // over; the only difference is that it left the drawer before this app
+        // existed. Give it +1 and it would push the debt UP like a refund.
+        direction: -1,
         amount: amountMinor,
         occurredAt: draft.occurredAt,
+        // An opening row reaches no pocket (it is excluded from `balances()`), so
+        // its account is inert — but the column is NOT NULL and every row must
+        // still be well-formed. `setOpening` has already forced it back to cash.
         account: draft.account,
-        refKind: target.refKind,
+        // THE WHOLE SWITCH. 'opening' settles the debt exactly like a payment and
+        // stays out of the cash book: money that moved months ago must not empty
+        // a drawer that is sitting full on the counter. See OPENING.
+        refKind: draft.isOpening ? OPENING : target.refKind,
         refId: target.refId,
         note: draft.note.trim() || null,
         // Cash was handed over and both men saw it; InstaPay IS a screenshot, and
-        // that screenshot is the only evidence the transfer ever happened.
-        attachments: draft.account === 'instapay' ? draft.proof : undefined,
+        // that screenshot is the only evidence the transfer ever happened. An
+        // opening row has neither — there is nothing to photograph about money
+        // that moved before the app was installed.
+        attachments:
+          !draft.isOpening && draft.account === 'instapay' ? draft.proof : undefined,
       });
 
       // SAY WHAT JUST HAPPENED, IN NUMBERS. The sheet used to simply vanish, and
@@ -199,6 +235,7 @@ export function useSettlePayment({
     amountValue: toLocaleDigits(draft.amount, i18n.language),
     setAmount,
     setAccount,
+    setOpening,
     setNote,
     shiftDate,
     addProof,

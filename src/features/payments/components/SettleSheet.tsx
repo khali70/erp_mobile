@@ -7,6 +7,7 @@ import type { SettleTarget } from '../types';
 import { SettleSheetHeader } from './SettleSheetHeader';
 import { SettleAmountField } from './SettleAmountField';
 import { AccountToggle } from './AccountToggle';
+import { OldPaymentToggle } from './OldPaymentToggle';
 import { SettleDateField } from './SettleDateField';
 import { PaymentProofPicker } from './PaymentProofPicker';
 
@@ -40,6 +41,11 @@ interface SettleSheetProps {
  * إثبات الدفع appears ONLY for إنستاباي — cash was handed over and both men saw
  * it, so there is nothing to photograph; an InstaPay transfer IS a screenshot,
  * and that screenshot is the only evidence it ever happened.
+ *
+ * «دفعة قديمة» turns the same sheet into an OPENING ADJUSTMENT — the row that
+ * settles a pre-app invoice without moving today's cash (see OldPaymentToggle).
+ * الحساب and إثبات الدفع hide behind it, because money that moved before the app
+ * existed came out of no pocket this app can name and left no screenshot to file.
  */
 export function SettleSheet({
   visible,
@@ -57,6 +63,7 @@ export function SettleSheet({
     amountValue,
     setAmount,
     setAccount,
+    setOpening,
     setNote,
     shiftDate,
     addProof,
@@ -75,10 +82,18 @@ export function SettleSheet({
         keyboardShouldPersistTaps="handled"
       >
         <SettleAmountField value={amountValue} onChange={setAmount} />
-        <AccountToggle value={draft.account} onChange={setAccount} />
+
+        <OldPaymentToggle value={draft.isOpening} onChange={setOpening} />
+
+        {/* Hidden, not disabled: a greyed-out pocket picker still asserts that a
+            pocket is part of this row, and none is. An opening adjustment names no
+            account the owner can reconcile, and offering him one to look at — even
+            a dead one — is the app implying a fact it is about to throw away. */}
+        {!draft.isOpening && <AccountToggle value={draft.account} onChange={setAccount} />}
+
         <SettleDateField value={draft.occurredAt} onShift={shiftDate} />
 
-        {draft.account === 'instapay' && (
+        {!draft.isOpening && draft.account === 'instapay' && (
           <PaymentProofPicker proof={draft.proof} onAdd={addProof} onRemove={removeProof} />
         )}
 

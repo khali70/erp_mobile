@@ -769,3 +769,247 @@ describe('TC-5.2 — total payables includes EXPENSES, not just suppliers', () =
     expect(txs.cashByAccount('cash')).toBe(-20000); // ...but the drawer really did empty
   });
 });
+
+/**
+ * THE OPENING ADJUSTMENT — the first boot after the upgrade.
+ *
+ * Debt is DERIVED (invoices − payments) and `transactions` is a NEW table. On a
+ * phone carrying two years of purchase history, every one of those invoices — all
+ * long since paid in cash — comes back as unpaid debt, and payables leaps from a
+ * permanent zero to the gross lifetime total of everything the shop ever bought.
+ *
+ * The fix is NOT to auto-settle them (that hides the debts he really does still
+ * owe, and fakes a colossal cash-out from a drawer that never emptied) and NOT to
+ * gate debt behind a "we start today" epoch (the same hiding, in a hat). A LOUD
+ * WRONG number is recoverable; a SILENT MISSING one is not. So the old invoices
+ * stay visible, and `ref_kind='opening'` is the primitive that clears them
+ * truthfully: it settles debt exactly like a payment, and it is the ONE row the
+ * cash book is allowed to be missing.
+ */
+describe('opening adjustments — money that moved before the app existed', () => {
+  /** «دفعة قديمة»: the same −1 row a payment writes, under a different kind. */
+  const declarePaid = (
+    refId: string,
+    amount: number,
+    opts: { at?: number; direction?: 1 | -1 } = {},
+  ) =>
+    txs.create({
+      direction: opts.direction ?? -1, // money OUT — he handed it over, just not today
+      amount,
+      occurredAt: opts.at ?? T0,
+      account: 'cash',
+      refKind: 'opening',
+      refId,
+    });
+
+  it('reduces owed(supplier) EXACTLY like a payment does', () => {
+    const ahmed = addSupplier('Ahmed');
+    const mahmoud = addSupplier('Mahmoud');
+    purchase(ahmed, 12000, undefined, { docDate: T0 - 300 * DAY });
+    purchase(mahmoud, 12000, undefined, { docDate: T0 - 300 * DAY });
+
+    // Two identical debts. One is cleared by a real payment, the other by an
+    // opening adjustment — and the debt figure cannot tell them apart, because
+    // as far as what he OWES is concerned there is nothing to tell.
+    pay(mahmoud, 12000);
+    declarePaid(ahmed, 12000);
+
+    expect(debts.owed(ahmed)).toBe(0);
+    expect(debts.owed(mahmoud)).toBe(0);
+    expect(debts.list()).toEqual([]); // neither is a debt any more
+  });
+
+  it('settles PART of a debt, leaving the rest loudly visible', () => {
+    const ahmed = addSupplier('Ahmed');
+    purchase(ahmed, 12000, undefined, { docDate: T0 - 300 * DAY });
+
+    declarePaid(ahmed, 5000);
+
+    // He says he already paid 5,000 of it. The other 7,000 stays on the screen,
+    // because it may well be real and nothing here is allowed to guess.
+    expect(debts.owed(ahmed)).toBe(7000);
+  });
+
+  it('does NOT appear in balances() — the drawer is untouched', () => {
+    const ahmed = addSupplier('Ahmed');
+    purchase(ahmed, 12000, undefined, { docDate: T0 - 300 * DAY });
+
+    declarePaid(ahmed, 12000);
+
+    // THE WHOLE POINT. That 12,000 left the drawer months before the app was
+    // installed. Counting it now would show the owner a drawer 12,000 emptier
+    // than the notes sitting in it — and the drawer figure is the one number in
+    // the app he can physically check.
+    expect(txs.balances()).toEqual({ cash: 0, instapay: 0, total: 0 });
+    expect(txs.cashByAccount('cash')).toBe(0);
+  });
+
+  it('does NOT appear in listForCashBook() — nor in the day it was back-dated to', () => {
+    const ahmed = addSupplier('Ahmed');
+    purchase(ahmed, 12000, undefined, { docDate: T0 - 300 * DAY });
+
+    declarePaid(ahmed, 12000, { at: T0 - 200 * DAY });
+
+    expect(txs.listForCashBook()).toEqual([]);
+    // Back-dating one onto a day in the past must not rewrite what the drawer did
+    // that day. The drawer already did it.
+    expect(txs.netBetween(T0 - 201 * DAY, T0 - 199 * DAY)).toEqual({
+      cash: 0,
+      instapay: 0,
+      total: 0,
+    });
+    expect(txs.salesBetween(T0 - 201 * DAY, T0 - 199 * DAY).total).toBe(0);
+  });
+
+  it('a REAL payment still lands in the cash book — the exclusion is opening-only', () => {
+    const ahmed = addSupplier('Ahmed');
+    purchase(ahmed, 12000, undefined, { docDate: T0 - 300 * DAY });
+
+    pay(ahmed, 4000); // money moving TODAY
+    declarePaid(ahmed, 8000); // money that moved before the app existed
+
+    expect(debts.owed(ahmed)).toBe(0); // both settle the debt
+    expect(txs.balances().cash).toBe(-4000); // only one empties the drawer
+    expect(txs.listForCashBook()).toHaveLength(1);
+  });
+
+  it('flows through owedBySupplier() IDENTICALLY to the per-supplier owed() path', () => {
+    // Two different queries answer the same question — the debts LIST reads the
+    // grouped one, the supplier's SCREEN reads the per-supplier one, and the owner
+    // sees both in the same breath. Let 'opening' into one and not the other and
+    // the list contradicts the row it opens.
+    const ahmed = addSupplier('Ahmed');
+    const mahmoud = addSupplier('Mahmoud');
+    const sayed = addSupplier('Sayed');
+    purchase(ahmed, 12000, undefined, { docDate: T0 - 300 * DAY });
+    purchase(mahmoud, 9000, undefined, { docDate: T0 - 300 * DAY });
+    purchase(sayed, 4000, undefined, { docDate: T0 - 300 * DAY });
+
+    declarePaid(ahmed, 12000); // fully declared already-paid
+    declarePaid(mahmoud, 5000); // partly
+    pay(mahmoud, 1000); // ...plus a real payment today
+    // sayed: nothing at all
+
+    const grouped = debts.owedBySupplier();
+    for (const s of [ahmed, mahmoud, sayed]) {
+      expect(grouped.get(s)).toBe(debts.owed(s));
+    }
+    expect(grouped.get(ahmed)).toBe(0);
+    expect(grouped.get(mahmoud)).toBe(3000);
+    expect(grouped.get(sayed)).toBe(4000);
+  });
+
+  it('payables() reflects it — the KPI that panicked him is the one it must fix', () => {
+    const ahmed = addSupplier('Ahmed');
+    purchase(ahmed, 12000, undefined, { docDate: T0 - 300 * DAY });
+    const oldRent = expenses.create({ title: 'إيجار قديم', totalAmount: 20000, incurredAt: T0 }).id;
+
+    // Before: the app tells him he owes a fortune he settled long ago.
+    expect(debts.payables()).toEqual({ suppliers: 12000, expenses: 20000, total: 32000 });
+
+    declarePaid(ahmed, 12000);
+    declarePaid(oldRent, 20000);
+
+    // After: he has said so, row by row, and the numbers agree with him — without
+    // one piastre of fake cash moving through the drawer.
+    expect(debts.payables()).toEqual({ suppliers: 0, expenses: 0, total: 0 });
+    expect(txs.balances()).toEqual({ cash: 0, instapay: 0, total: 0 });
+  });
+
+  it('settles an EXPENSE the same way it settles a supplier — one concept, not two', () => {
+    const oldRent = expenses.create({ title: 'إيجار', totalAmount: 20000, incurredAt: T0 }).id;
+
+    declarePaid(oldRent, 15000);
+
+    expect(expenses.owed(oldRent)).toBe(5000);
+    expect(expenses.paidOn(oldRent)).toBe(15000);
+    // The grouped path (listWithDebt → paidByExpense) must agree with the single
+    // one (paidOn), exactly as it must on the supplier side.
+    expect(expenses.listWithDebt()[0]).toMatchObject({ paid: 15000, remaining: 5000, status: 'partial' });
+    expect(expenses.payableTotal()).toBe(5000);
+  });
+
+  it("an opening row against a supplier does not settle an EXPENSE, and vice versa", () => {
+    const ahmed = addSupplier('Ahmed');
+    purchase(ahmed, 12000, undefined, { docDate: T0 - 300 * DAY });
+    const oldRent = expenses.create({ title: 'إيجار', totalAmount: 20000, incurredAt: T0 }).id;
+
+    declarePaid(ahmed, 12000);
+
+    // Both books read the same kind now, so `ref_id` is the only thing keeping
+    // them apart — and it is enough: an id is never both a supplier and an expense.
+    expect(debts.owed(ahmed)).toBe(0);
+    expect(expenses.owed(oldRent)).toBe(20000);
+    expect(expenses.payableTotal()).toBe(20000);
+  });
+
+  it('the FIFO walk treats it as money paid — oldest invoices first, like any payment', () => {
+    const ahmed = addSupplier('Ahmed');
+    purchase(ahmed, 5000, undefined, { docDate: T0 - 300 * DAY }); // oldest
+    purchase(ahmed, 4000, undefined, { docDate: T0 - 200 * DAY });
+    purchase(ahmed, 3000, undefined, { docDate: T0 - 100 * DAY }); // newest
+
+    // He declares 7,000 already handed over. It drinks the oldest invoice dry and
+    // half of the next — the same walk a real 7,000 payment would drive.
+    declarePaid(ahmed, 7000);
+
+    const walked = debts.settlements(ahmed);
+    expect(walked.map((s) => [s.total, s.paid, s.remaining, s.status])).toEqual([
+      [5000, 5000, 0, 'settled'],
+      [4000, 2000, 2000, 'partial'],
+      [3000, 0, 3000, 'unpaid'],
+    ]);
+    // Σ remaining === owed, still. The walk and the total cannot disagree.
+    expect(walked.reduce((sum, s) => sum + s.remaining, 0)).toBe(debts.owed(ahmed));
+    expect(debts.owed(ahmed)).toBe(5000);
+  });
+
+  it('is SIGNED like a payment: −1 pays the debt DOWN, +1 pushes it back UP', () => {
+    const ahmed = addSupplier('Ahmed');
+    purchase(ahmed, 12000, undefined, { docDate: T0 - 300 * DAY });
+
+    declarePaid(ahmed, 10000); // direction −1: money OUT
+    expect(debts.owed(ahmed)).toBe(2000);
+
+    // A +1 opening row is money coming BACK against him. It must push the debt UP,
+    // exactly as a refund does — a Σ|amount| would have it PAY OFF 3,000 more of
+    // the very debt it re-creates, and the owner would never see where it went.
+    declarePaid(ahmed, 3000, { direction: 1 });
+    expect(debts.owed(ahmed)).toBe(5000);
+    expect(debts.owedBySupplier().get(ahmed)).toBe(5000); // both queries, same sign
+  });
+
+  it('shows up in the payment history — a debt that drops must SAY why', () => {
+    const ahmed = addSupplier('Ahmed');
+    purchase(ahmed, 12000, undefined, { docDate: T0 - 300 * DAY });
+
+    pay(ahmed, 2000, { at: T0 });
+    declarePaid(ahmed, 5000, { at: T0 - 10 * DAY });
+
+    const { payments, owed } = debts.detail(ahmed);
+    // Oldest money first — and the opening row is IN the list. Leaving it out would
+    // show a supplier whose invoices say 12,000, whose payments say 2,000, and
+    // whose debt says 5,000: three numbers, no explanation, no way to undo it.
+    expect(payments.map((p) => [p.amount, p.isOpening])).toEqual([
+      [5000, true],
+      [2000, false],
+    ]);
+    expect(owed).toBe(5000);
+  });
+
+  it('is archivable — a wrongly-declared invoice can be un-declared', () => {
+    const ahmed = addSupplier('Ahmed');
+    purchase(ahmed, 12000, undefined, { docDate: T0 - 300 * DAY });
+    const id = declarePaid(ahmed, 12000);
+    expect(debts.owed(ahmed)).toBe(0);
+
+    // Mis-declaring is the likeliest mistake this feature invites, and it is
+    // recoverable for the same reason a mistyped سداد is: the row is soft-deleted
+    // and the derived debt comes straight back.
+    txs.archive(id);
+
+    expect(debts.owed(ahmed)).toBe(12000);
+    expect(debts.owedBySupplier().get(ahmed)).toBe(12000);
+    expect(debts.detail(ahmed).payments).toEqual([]);
+  });
+});
