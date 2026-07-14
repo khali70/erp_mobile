@@ -97,6 +97,25 @@ Two money inputs never normalized Arabic-Indic digits:
 
 Both now route through `normalizeDigits` before parsing. The expense form gained its first hook test (5 cases, real repository over real SQL) pinning ١٠٠٠, the Arabic decimal separator ١٢٫٥٠, the thousands separator ١٬٠٠٠ the app itself prints, and the two refusals.
 
+**An empty margin pill on a fresh install** — committed as `a8fe053`.
+
+Found only after installing the release build, because it needs a *fresh* database to show: a month with no sales has no margin, so `marginTag` is `''` — the whole point being that an empty tag beats a fabricated 0٪. But `KpiCard` rendered the pill regardless, so the first thing a new owner saw was a blank green chip: a badge saying nothing, in the colour of good news. It now renders no pill at all.
+
+---
+
+## Release build — installed and verified
+
+The dev client was uninstalled (its SQLite data backed up first to `devicebackup/`: 6 items, 8 documents, 6 transactions, 2 suppliers) and `app-release.apk` installed in its place.
+
+The release build boots clean on a fresh database:
+
+- No dev-menu bubble.
+- قيمة المخزون **١٧٬٤٧٨ ج.م** — up from the old build's ١٣٬٧٠٤, confirming the per-item seed costs are live and the 40٪-margin constant is gone.
+- أرباح الشهر renders **٠ ج.م with no percentage tag** — no sales this month means no margin, which is the correct answer and the one the old build could not give.
+- ٥ seeded opening documents (the zero-stock item correctly gets none), ٣ low-stock.
+
+**Note:** the first APK built at 19:28 predated the Arabic-keypad fix. It was rebuilt at 20:09, and again after `a8fe053`, so the installed binary matches the head of the stack.
+
 ---
 
 ## Not a defect
