@@ -30,6 +30,11 @@ export interface DocDraftBuffer {
   account?: Account;
   /** PROOF OF MONEY (the InstaPay screenshot). Bytes already in attachments.db. */
   paymentAttachments?: AttachmentMeta[];
+  // SALE ONLY — one sale paid across BOTH pockets. `cashPart` is the cash half
+  // as typed; the InstaPay half is always the remainder, so only this is worth
+  // persisting (and a restored total that has since changed still adds up).
+  split?: boolean;
+  cashPart?: string;
 }
 
 /** True when the quick-entry row holds anything worth persisting. */
@@ -70,6 +75,8 @@ export function useDocDraft(mode: DocMode) {
         !buffer.attachments?.length &&
         !buffer.paymentAttachments?.length &&
         buffer.paid == null &&
+        !buffer.split &&
+        !buffer.cashPart &&
         !quickHasContent(buffer.quick)
       ) {
         storage.remove(key);

@@ -305,6 +305,29 @@ export function createDocumentRepository(db: DocDb) {
     docDate: number,
   ): void {
     const payments = input.payments ?? [];
+    const paid = payments.reduce((sum, p) => sum + p.amount, 0);
+
+    // THE SALES INVARIANT — checked BEFORE the "no money moved" early-out,
+    // because for a sale "no money moved" is precisely the failure.
+    //
+    // Customer debt (AR) is deprecated and unbuilt: there is NO book that can
+    // hold an unpaid sale. So `Σ transactions(ref_kind='sale', ref_id=doc)` MUST
+    // equal the document total. A short-paid sale is REJECTED — accept it and
+    // the difference simply vanishes: goods gone, money not in the drawer, and
+    // nothing anywhere recording who owes it.
+    //
+    // If this ever proves wrong in the real shop, that is the signal to
+    // UN-DEPRECATE AR. It is not a constraint to paper over.
+    //
+    // The check is scoped to callers that DECLARE payments. A caller that omits
+    // `payments` entirely is not recording money at all (drafts, stock-only
+    // fixtures); the sale screen always declares them, and always in full.
+    if (input.kind === 'outgoing' && input.payments !== undefined && paid !== totalAmount) {
+      throw new InvalidPaymentError(
+        `A sale must be settled in full — there is no customer-debt book to hold the rest (paid ${paid} of ${totalAmount})`,
+      );
+    }
+
     if (payments.length === 0) return; // no money moved — write nothing
 
     // A draft is not an obligation and settles nothing; money against one is
@@ -314,7 +337,6 @@ export function createDocumentRepository(db: DocDb) {
       throw new InvalidPaymentError('Cannot record a payment on a draft document');
     }
 
-    const paid = payments.reduce((sum, p) => sum + p.amount, 0);
     if (paid < 0) throw new InvalidPaymentError(`Paid amount cannot be negative (got ${paid})`);
     // Over-paying at delivery is rejected: you cannot hand a man more than the
     // goods are worth *in the same breath as receiving them*. Paying more than

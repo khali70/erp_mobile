@@ -1,4 +1,4 @@
-import { and, desc, eq, isNull, sql } from 'drizzle-orm';
+import { and, desc, eq, gte, isNull, lt, sql } from 'drizzle-orm';
 import type { BaseSQLiteDatabase } from 'drizzle-orm/sqlite-core';
 import * as schema from '@/db/schema';
 import { newId, now } from '@/utils/id';
@@ -20,6 +20,23 @@ export type TxRefKind = 'supplier' | 'expense' | 'sale' | 'owner' | 'transfer' |
 
 export const CASH: Account = 'cash';
 export const INSTAPAY: Account = 'instapay';
+
+/** Every pocket the shop has. The cash book reports each one separately. */
+export const ACCOUNTS: readonly Account[] = [CASH, INSTAPAY];
+
+/**
+ * One figure per pocket, plus their sum.
+ *
+ * `total` is a convenience, NEVER a substitute for the two: a single merged
+ * number cannot be reconciled against anything, because there is nothing in the
+ * world you can count that equals it. The drawer holds notes; InstaPay holds a
+ * balance in an app. Each is checked on its own or not at all.
+ */
+export interface AccountTotals {
+  cash: number;
+  instapay: number;
+  total: number;
+}
 
 export interface CreateTransactionInput {
   direction: TxDirection;
@@ -101,10 +118,17 @@ export function insertTransactionRow(
   return id;
 }
 
+/** Fold a grouped-by-account SQL result into a figure per pocket, plus the sum. */
+function totalsFrom(rows: { account: string; total: number }[]): AccountTotals {
+  const cash = rows.find((r) => r.account === CASH)?.total ?? 0;
+  const instapay = rows.find((r) => r.account === INSTAPAY)?.total ?? 0;
+  return { cash, instapay, total: cash + instapay };
+}
+
 export function createTransactionRepository(db: TxDb, clock: () => number = now) {
   const live = isNull(schema.transactions.deletedAt);
 
-  return {
+  const api = {
     /** Record one money movement. Standalone — opens its own db transaction. */
     create(input: CreateTransactionInput): string {
       return db.transaction(() => insertTransactionRow(db, input, clock));
@@ -172,6 +196,83 @@ export function createTransactionRepository(db: TxDb, clock: () => number = now)
       return row?.total ?? 0;
     },
 
+    /**
+     * Both pockets at once — cash, InstaPay, and their sum.
+     *
+     * The reconciliation invariant (TC-7.3) in one call: each figure IS
+     * Σ(direction × amount) over that account's live rows, computed from the
+     * rows every time and cached NOWHERE. A stored balance is a number that can
+     * disagree with the ledger; a derived one cannot, because it *is* the ledger.
+     */
+    balances(): AccountTotals {
+      const cash = api.cashByAccount(CASH);
+      const instapay = api.cashByAccount(INSTAPAY);
+      return { cash, instapay, total: cash + instapay };
+    },
+
+    /**
+     * WHAT THE SHOP SOLD in a window, split by the pocket the money landed in.
+     * `[fromMs, toMs)` — half-open, so consecutive days can never double-count.
+     *
+     * Summed from `transactions`, filtered on `occurred_at` and `ref_kind='sale'`
+     * — NEVER from `documents`, which has no `account` column and therefore
+     * physically cannot answer "cash or InstaPay" (NFR12). It also could not
+     * answer it for a split-paid sale even in principle: one document, two
+     * pockets, and the split lives only here.
+     *
+     * `ref_kind='sale'` is what keeps this a SALES figure and not a cash-flow
+     * one: a 4000 cash payment handed to a supplier on the same day moves the
+     * drawer but sells nothing, and must not appear here.
+     */
+    salesBetween(fromMs: number, toMs: number): AccountTotals {
+      const rows = db
+        .select({
+          account: schema.transactions.account,
+          total: sql<number>`coalesce(sum(${schema.transactions.amount}), 0)`,
+        })
+        .from(schema.transactions)
+        .where(
+          and(
+            eq(schema.transactions.refKind, 'sale'),
+            // Money IN only. A refund (were one ever recorded against a sale)
+            // is not a sale, and must not inflate the day's takings.
+            eq(schema.transactions.direction, 1),
+            gte(schema.transactions.occurredAt, fromMs),
+            lt(schema.transactions.occurredAt, toMs),
+            live,
+          ),
+        )
+        .groupBy(schema.transactions.account)
+        .all();
+      return totalsFrom(rows);
+    },
+
+    /**
+     * NET movement per pocket in a window: Σ(direction × amount), every ref kind.
+     *
+     * A different question from `salesBetween` and deliberately not fused with
+     * it — the day's takings and the day's change in the drawer are not the same
+     * number, and a screen that shows one as the other is lying about both.
+     */
+    netBetween(fromMs: number, toMs: number): AccountTotals {
+      const rows = db
+        .select({
+          account: schema.transactions.account,
+          total: sql<number>`coalesce(sum(${schema.transactions.direction} * ${schema.transactions.amount}), 0)`,
+        })
+        .from(schema.transactions)
+        .where(
+          and(
+            gte(schema.transactions.occurredAt, fromMs),
+            lt(schema.transactions.occurredAt, toMs),
+            live,
+          ),
+        )
+        .groupBy(schema.transactions.account)
+        .all();
+      return totalsFrom(rows);
+    },
+
     /** The cash book itself: every live movement, most recent money first. */
     listForCashBook() {
       return db
@@ -191,6 +292,11 @@ export function createTransactionRepository(db: TxDb, clock: () => number = now)
         .run();
     },
   };
+
+  return api;
 }
+
+/** One live row of the cash book, as the ledger reads it. */
+export type TransactionRow = ReturnType<TransactionRepository['listForCashBook']>[number];
 
 export type TransactionRepository = ReturnType<typeof createTransactionRepository>;

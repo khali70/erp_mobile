@@ -51,7 +51,8 @@
       "expenses": "Expenses",
       "reports": "Reports",
       "customers": "Customers",
-      "suppliers": "Suppliers"
+      "suppliers": "Suppliers",
+      "cashbook": "Cash book"
     },
     "banner": {
       "title": "Daily collection stat",
@@ -359,7 +360,8 @@
       "exceedsTotal": "Paid exceeds the invoice total. To pay more than is owed, use the debts screen.",
       "walkInMustBePaid": "A direct cash purchase (no supplier) must be paid in full — it cannot carry debt.",
       "title": "Payment error",
-      "amountRequired": "Enter an amount greater than zero."
+      "amountRequired": "Enter an amount greater than zero.",
+      "splitExceedsTotal": "The cash part is larger than the invoice total."
     },
     "amount": "Amount",
     "date": "Date",
@@ -367,7 +369,10 @@
     "dayEarlier": "A day earlier",
     "dayLater": "A day later",
     "note": "Note",
-    "notePlaceholder": "Extra details (optional)"
+    "notePlaceholder": "Extra details (optional)",
+    "howPaid": "How it was paid",
+    "split": "Split payment (cash + InstaPay)",
+    "splitHint": "The rest is recorded on InstaPay — a sale is always settled in full."
   },
   "debts": {
     "title": "Supplier debts",
@@ -434,6 +439,48 @@
       "title": "Expense error",
       "titleRequired": "Describe what the expense was for.",
       "amountRequired": "Enter an amount greater than zero."
+    }
+  },
+  "cashbook": {
+    "title": "Cash book",
+    "totalOnHand": "Across both pockets: {{amount}}",
+    "salesToday": "Today's sales",
+    "transferRoute": "From {{from}} to {{to}}",
+    "kinds": {
+      "supplier": "Supplier payment",
+      "expense": "Bill payment",
+      "sale": "Sale",
+      "drawing": "Owner drawing",
+      "injection": "Owner injection",
+      "transfer": "Transfer between accounts",
+      "other": "Other movement",
+      "unknown": "Unclassified movement"
+    },
+    "empty": {
+      "title": "No money has moved yet",
+      "body": "Every sale, payment, drawing and transfer lands here — so you can count the drawer and check the app agrees."
+    },
+    "form": {
+      "title": "Record a movement",
+      "subtitle": "Drawing, injection or transfer",
+      "type": "Movement type",
+      "types": {
+        "drawing": "Owner drawing",
+        "injection": "Owner injection",
+        "transfer": "Transfer",
+        "other": "Other"
+      },
+      "direction": "Direction",
+      "directions": {
+        "in": "In",
+        "out": "Out"
+      },
+      "route": "Transfer",
+      "notePlaceholder": "Why the money moved (optional)",
+      "save": "Record movement"
+    },
+    "errors": {
+      "title": "Could not record the movement"
     }
   },
   "settings": {

@@ -4,7 +4,7 @@ import { useNavigation } from '@react-navigation/native';
 import { useTranslation } from 'react-i18next';
 import { getDocumentAsync } from 'expo-document-picker';
 import { File } from 'expo-file-system';
-import { fromMinor, toMinor } from '@/utils/money';
+import { fromMinor, lineTotal, toMinor } from '@/utils/money';
 import { parseStockCsv, parseAmount, type ImportRow } from '../utils/importStock';
 import { useItems } from '@/features/inventory/hooks/useItems';
 import { useSettingsStore } from '@/store/settings-store';
@@ -88,6 +88,15 @@ export function useDocumentForm(mode: DocMode) {
   // means adding a line after typing nothing keeps paid == total automatically.
   const [paidInput, setPaidInput] = useState<string | null>(draft.paid ?? null);
   const [account, setAccount] = useState<Account>(draft.account ?? 'cash');
+  // SALE SPLIT — one sale, paid partly in cash and partly by InstaPay.
+  //
+  // Off by default: most sales land in one pocket, and a second field the owner
+  // has to zero out every time is a tax on the common case. When it is ON he
+  // types only the CASH part; the rest goes to InstaPay by construction, so the
+  // two can never fail to add up to the total (which for a sale they must — see
+  // `payments` below).
+  const [splitEnabled, setSplitEnabled] = useState(draft.split ?? false);
+  const [cashPartInput, setCashPartInput] = useState<string>(draft.cashPart ?? '');
   // PROOF OF MONEY — hangs off the payment, never the document (which carries
   // proof of GOODS). Cash needs none; InstaPay IS a screenshot.
   const [paymentAttachments, setPaymentAttachments] = useState<AttachmentMeta[]>(
@@ -123,6 +132,8 @@ export function useDocumentForm(mode: DocMode) {
       paid: paidInput,
       account,
       paymentAttachments,
+      split: splitEnabled,
+      cashPart: cashPartInput,
     });
   }, [
     lines,
@@ -134,6 +145,8 @@ export function useDocumentForm(mode: DocMode) {
     paidInput,
     account,
     paymentAttachments,
+    splitEnabled,
+    cashPartInput,
     persistDraft,
   ]);
 
@@ -202,6 +215,8 @@ export function useDocumentForm(mode: DocMode) {
           setPaidInput(null);
           setAccount('cash');
           setPaymentAttachments([]);
+          setSplitEnabled(false);
+          setCashPartInput('');
           clearDraft();
         },
       },
@@ -211,11 +226,42 @@ export function useDocumentForm(mode: DocMode) {
   const total = useMemo(() => lines.reduce((s, l) => s + l.unitPrice * l.qty, 0), [lines]);
   const isWalkIn = chosen && party === null;
 
+  // The document total in MINOR units, computed exactly as documentRepository
+  // computes it (per-line rounding, then summed) — NOT as toMinor(total), which
+  // rounds once at the end and can land a piastre away from it.
+  //
+  // That one piastre is the difference between a sale being saved and being
+  // REJECTED: a sale's payments must equal the document total exactly, so the
+  // form has to agree with the ledger to the last minor unit.
+  const totalMinor = useMemo(
+    () => lines.reduce((sum, l) => sum + lineTotal(l.qty, toMinor(l.unitPrice)), 0),
+    [lines],
+  );
+
   // An untouched paid field IS the total (see `paidInput` above). Both are major
   // units here; they cross into integer minor units exactly once, at save.
   const paid = paidInput === null ? total : Math.max(0, parseFloat(paidInput) || 0);
   const paidValue = paidInput ?? String(total);
   const remaining = total - paid; // > 0 ⇒ debt; shown only when it exists
+
+  // HOW THE CUSTOMER PAID — cash, InstaPay, or both.
+  //
+  // A sale is ALWAYS settled in full: customer debt (AR) is deprecated and
+  // unbuilt, so there is no book that could hold an unpaid remainder. The owner
+  // therefore never types "how much" — only "which pocket", and when he splits,
+  // how much of it was cash. The InstaPay part is the REMAINDER, by construction:
+  // the two halves cannot fail to add up to the total, because the second one is
+  // defined as what the first leaves behind.
+  const saleCashMinor = splitEnabled
+    ? Math.min(Math.max(0, toMinor(cashPartInput || '0')), totalMinor)
+    : account === 'cash'
+      ? totalMinor
+      : 0;
+  const saleInstapayMinor = totalMinor - saleCashMinor;
+  const saleCashPart = fromMinor(saleCashMinor);
+  const saleInstapayPart = fromMinor(saleInstapayMinor);
+  /** True when any of the sale's money came through InstaPay — proof rides on it. */
+  const saleTouchesInstapay = mode === 'sale' && saleInstapayMinor > 0;
 
   // Build a fresh line from a catalog item, snapshotting the pricing context the
   // row needs to show margin while the owner haggles. Sale prefills the list
@@ -436,6 +482,13 @@ export function useDocumentForm(mode: DocMode) {
         return;
       }
     }
+    // A split whose cash half is bigger than the whole sale is a typo, and it is
+    // told rather than silently trimmed: the owner's number is never quietly
+    // changed under him — he wrote it, so he gets to see it was wrong.
+    if (mode === 'sale' && splitEnabled && toMinor(cashPartInput || '0') > totalMinor) {
+      Alert.alert(t('documents.errors.title'), t('payments.errors.splitExceedsTotal'));
+      return;
+    }
     // Selling at a loss is a confirm, never a block — it's his shop.
     if (belowCostLines.length > 0) {
       Alert.alert(
@@ -507,24 +560,38 @@ export function useDocumentForm(mode: DocMode) {
       const walkInId = mode === 'sale' ? WALKIN_CUSTOMER_ID : WALKIN_SUPPLIER_ID;
       const partyId = party?.id ?? walkInId;
 
-      // Money handed over at delivery. paid === 0 writes NO transaction row: no
-      // money moved, and the cash book must not claim otherwise.
+      // Money that changed hands as part of saving this document.
       //
-      // Sales are left alone here: a sale's payment (and its "must be settled in
-      // full" invariant) is Epic 4. Epic 1 only teaches the purchase to pay.
-      const paidMinor = toMinor(paid);
-      const payments: DocumentPaymentInput[] =
-        mode === 'purchase' && paidMinor > 0
-          ? [
-              {
-                amount: paidMinor,
-                account,
-                // Proof only ever accompanies InstaPay — cash was handed over and
-                // both men saw it; there is nothing to screenshot.
-                attachments: account === 'instapay' ? paymentAttachments : undefined,
-              },
-            ]
-          : [];
+      // PURCHASE: whatever the owner handed over — possibly nothing (paid === 0
+      // writes NO transaction row: no money moved, and the cash book must not
+      // claim otherwise), possibly less than the total, which becomes debt.
+      //
+      // SALE: the full total, ALWAYS, across one pocket or two. A split writes
+      // TWO rows against the SAME document — one sale, two pockets — which is
+      // exactly why the day's cash/InstaPay figures can only be summed from the
+      // transactions and never from `documents`.
+      const payments: DocumentPaymentInput[] = [];
+      if (mode === 'purchase') {
+        const paidMinor = toMinor(paid);
+        if (paidMinor > 0) {
+          payments.push({
+            amount: paidMinor,
+            account,
+            // Proof only ever accompanies InstaPay — cash was handed over and
+            // both men saw it; there is nothing to screenshot.
+            attachments: account === 'instapay' ? paymentAttachments : undefined,
+          });
+        }
+      } else {
+        if (saleCashMinor > 0) payments.push({ amount: saleCashMinor, account: 'cash' });
+        if (saleInstapayMinor > 0) {
+          payments.push({
+            amount: saleInstapayMinor,
+            account: 'instapay',
+            attachments: paymentAttachments,
+          });
+        }
+      }
 
       const docId = documentRepository.create(
         {
@@ -610,6 +677,14 @@ export function useDocumentForm(mode: DocMode) {
     paymentAttachments,
     addPaymentProof,
     removePaymentProof,
+    // payment (sale) — always the full total, across one pocket or two
+    splitEnabled,
+    setSplitEnabled,
+    cashPartValue: cashPartInput,
+    setCashPart: setCashPartInput,
+    saleCashPart,
+    saleInstapayPart,
+    saleTouchesInstapay,
     // dialog / mode state
     pickerOpen,
     setPickerOpen,

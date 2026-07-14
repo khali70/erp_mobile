@@ -7,6 +7,7 @@ import { PartyCard } from '../components/PartyCard';
 import { RestoredDraftBanner } from '../components/RestoredDraftBanner';
 import { DocLinesSection } from '../components/DocLinesSection';
 import { DocSummaryCard } from '../components/DocSummaryCard';
+import { SalePaymentCard } from '../components/SalePaymentCard';
 import { SaveDocButton } from '../components/SaveDocButton';
 import { ScanPane } from '../components/ScanPane';
 import { DocFormModals } from '../components/DocFormModals';
@@ -81,6 +82,23 @@ export function NewOutgoingScreen() {
         />
 
         <DocSummaryCard count={f.lines.length} total={f.total} />
+        {/* The sale's other half: which pocket the money landed in. Until this
+            card existed the app recorded what LEFT the shop and nothing about
+            what came back in — the drawer and the InstaPay balance were both
+            unaccounted for. */}
+        <SalePaymentCard
+          account={f.account}
+          onChangeAccount={f.setAccount}
+          split={f.splitEnabled}
+          onChangeSplit={f.setSplitEnabled}
+          cashValue={f.cashPartValue}
+          onChangeCash={f.setCashPart}
+          instapayPart={f.saleInstapayPart}
+          touchesInstapay={f.saleTouchesInstapay}
+          proof={f.paymentAttachments}
+          onAddProof={f.addPaymentProof}
+          onRemoveProof={f.removePaymentProof}
+        />
         <SaveDocButton onPress={f.save} saving={f.saving} />
       </ScrollView>
 

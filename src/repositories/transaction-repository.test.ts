@@ -4,9 +4,12 @@ import { createDocumentRepository } from './document-repository';
 import {
   createTransactionRepository,
   InvalidTransactionError,
+  type Account,
   type CreateTransactionInput,
+  type TxRefKind,
 } from './transaction-repository';
 import { createSupplierRepository } from './supplier-repository';
+import { createDebtRepository } from './debt-repository';
 import type { AttachmentMeta } from './document-repository';
 
 const T0 = 1_760_000_000_000; // fixed clock — never Date.now()
@@ -146,6 +149,37 @@ describe('the cash book — money moves, in one pocket or the other', () => {
     expect(txs.cashByAccount('cash') + txs.cashByAccount('instapay')).toBe(0);
   });
 
+  it('TC-7.1: an owner drawing empties the drawer and touches NO supplier debt', () => {
+    const ahmed = suppliers.create({ name: 'Ahmed' }).id;
+    docs.create({
+      kind: 'incoming',
+      status: 'posted',
+      partyId: ahmed,
+      docDate: T0,
+      lines: [{ itemId: 'X', qty: 1, unitPrice: 6000 }],
+      payments: [{ amount: 2000, account: 'cash' }], // 4000 still owed
+    });
+    const debts = createDebtRepository(db, () => T0);
+    expect(debts.owed(ahmed)).toBe(4000);
+
+    // He takes 2000 out of the drawer for himself. It points at NOBODY.
+    txs.create({
+      direction: -1,
+      amount: 2000,
+      occurredAt: T0 + DAY,
+      account: 'cash',
+      refKind: 'owner',
+      refId: null,
+    });
+
+    expect(txs.cashByAccount('cash')).toBe(-4000); // −2000 paid, −2000 taken
+    // He does not owe Ahmed a piastre more or less for having eaten lunch. This
+    // is the movement no other screen in the app can record — and without it the
+    // app's cash figure silently drifts away from the money in the drawer.
+    expect(debts.owed(ahmed)).toBe(4000);
+    expect(debts.payables().total).toBe(4000);
+  });
+
   it('TC-7.3: reconciliation — Σ(direction × amount) per account IS that account balance', () => {
     const rows: CreateTransactionInput[] = [
       { direction: 1, amount: 10000, occurredAt: T0, account: 'cash', refKind: 'sale' },
@@ -163,6 +197,58 @@ describe('the cash book — money moves, in one pocket or the other', () => {
 
     expect(txs.cashByAccount('cash')).toBe(expected('cash')); // 10000 − 4000 − 2000 = 4000
     expect(txs.cashByAccount('instapay')).toBe(expected('instapay')); // 7000 − 1500 = 5500
+  });
+
+  // TC-7.3, PROPERTY-TESTED. The hand-written case above proves the formula on
+  // one dataset; this proves it on a hundred it has never seen — including the
+  // ones nobody would think to write down, with soft-deleted rows scattered
+  // through them. Reconciliation is THE invariant of this feature: the day the
+  // reported balance stops equalling the sum of the movements is the day the app
+  // and the drawer disagree, and the owner cannot tell which one is lying.
+  it('TC-7.3: reconciliation holds for a RANDOMIZED transaction set (property test)', () => {
+    // Seeded LCG — random enough to surprise, deterministic enough to debug.
+    let seed = 0x5eed;
+    const rand = (n: number) => {
+      seed = (seed * 1664525 + 1013904223) >>> 0;
+      return seed % n;
+    };
+
+    const accounts: Account[] = ['cash', 'instapay'];
+    const kinds: TxRefKind[] = ['supplier', 'expense', 'sale', 'owner', 'transfer', 'other'];
+
+    for (let run = 0; run < 100; run++) {
+      const db = makeTestDb();
+      const repo = createTransactionRepository(db, () => T0);
+
+      const live: CreateTransactionInput[] = [];
+      const rowCount = 1 + rand(12);
+
+      for (let i = 0; i < rowCount; i++) {
+        const input: CreateTransactionInput = {
+          direction: rand(2) === 0 ? 1 : -1,
+          amount: 1 + rand(100000), // positive integer minor units, always
+          occurredAt: T0 + rand(30) * DAY,
+          account: accounts[rand(accounts.length)],
+          refKind: kinds[rand(kinds.length)],
+        };
+        const id = repo.create(input);
+
+        // Some rows get soft-deleted. A deleted row must affect NOTHING, so it
+        // is simply never added to the expected set (TC-7.4).
+        if (rand(4) === 0) repo.archive(id);
+        else live.push(input);
+      }
+
+      const expected = (account: Account) =>
+        live
+          .filter((r) => r.account === account)
+          .reduce((sum, r) => sum + r.direction * r.amount, 0);
+
+      const balances = repo.balances();
+      expect(balances.cash).toBe(expected('cash'));
+      expect(balances.instapay).toBe(expected('instapay'));
+      expect(balances.total).toBe(balances.cash + balances.instapay);
+    }
   });
 
   it('TC-7.4: a soft-deleted transaction vanishes from every figure', () => {

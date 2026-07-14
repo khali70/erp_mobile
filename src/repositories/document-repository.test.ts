@@ -1,15 +1,17 @@
 import { makeTestDb, type TestDb } from '@/db/testing/test-db';
-import { seedSentinels } from '@/db/sentinels';
+import { seedSentinels, WALKIN_CUSTOMER_ID } from '@/db/sentinels';
 import * as schema from '@/db/schema';
 import {
   createDocumentRepository,
   InvalidPaymentError,
   NegativeStockError,
+  type AttachmentMeta,
   type CreateDocumentInput,
   type DocumentRepository,
 } from './document-repository';
 import { createSupplierRepository } from './supplier-repository';
 import { createDebtRepository } from './debt-repository';
+import { createTransactionRepository } from './transaction-repository';
 
 const T0 = 1_760_000_000_000; // fixed clock — never Date.now()
 
@@ -223,5 +225,108 @@ describe('documentRepository — payment atomicity (TC-2.2)', () => {
       refId: saleId, // points at the DOCUMENT, not a party
       account: 'cash',
     });
+  });
+});
+
+// TC-3 / TC-4 — HOW THE CUSTOMER PAID.
+//
+// Customer debt (AR) is deprecated and unbuilt: there is NO book anywhere that
+// can hold an unpaid sale. So a sale's payments MUST add up to its total, and
+// the app must refuse a sale that does not — otherwise the goods walk out of the
+// shop and the money exists in no record at all.
+describe('documentRepository — a sale is settled in full, in one pocket or two', () => {
+  let txs: ReturnType<typeof createTransactionRepository>;
+
+  beforeEach(() => {
+    txs = createTransactionRepository(db, () => T0);
+    seedSentinels(db, T0);
+    repo.create(incoming('A', 100, 0)); // goods on the shelf, no money moved
+  });
+
+  const sell = (
+    total: number,
+    payments: { amount: number; account: 'cash' | 'instapay'; attachments?: AttachmentMeta[] }[],
+  ): string =>
+    repo.create({
+      kind: 'outgoing',
+      status: 'posted',
+      partyId: WALKIN_CUSTOMER_ID,
+      docDate: T0,
+      lines: [{ itemId: 'A', qty: 1, unitPrice: total }],
+      payments,
+    });
+
+  it('TC-3.1: a cash sale of 10000 writes ONE +1 cash row against the document', () => {
+    const docId = sell(10000, [{ amount: 10000, account: 'cash' }]);
+
+    const rows = txs.listByRef('sale', docId);
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({ direction: 1, amount: 10000, account: 'cash' });
+    expect(txs.balances().cash).toBe(10000);
+  });
+
+  it('TC-3.2: REJECTS a short-paid sale — the missing money would have nowhere to live', () => {
+    expect(() => sell(10000, [{ amount: 6000, account: 'cash' }])).toThrow(InvalidPaymentError);
+
+    // And rolls back completely: no invoice, no lines, no stock movement, no
+    // half-recorded money. If this ever needs to be allowed in the real shop,
+    // that is the signal to un-deprecate AR — not to loosen this check.
+    expect(db.select().from(schema.documents).all()).toHaveLength(1); // only the purchase
+    expect(txs.listForCashBook()).toHaveLength(0);
+    expect(repo.onHand('A')).toBe(100);
+  });
+
+  it('TC-3.2: REJECTS a sale recorded with no payment at all', () => {
+    expect(() => sell(10000, [])).toThrow(InvalidPaymentError);
+    expect(txs.listForCashBook()).toHaveLength(0);
+  });
+
+  it('TC-4.1: an InstaPay sale carries the screenshot and leaves the DRAWER untouched', () => {
+    const screenshot: AttachmentMeta = {
+      id: 'att-1',
+      name: 'instapay.jpg',
+      mime: 'image/jpeg',
+      size: 2048,
+    };
+    const docId = sell(10000, [
+      { amount: 10000, account: 'instapay', attachments: [screenshot] },
+    ]);
+
+    const [row] = txs.listByRef('sale', docId);
+    expect(row).toMatchObject({ direction: 1, amount: 10000, account: 'instapay' });
+    // PROOF OF MONEY lives on the payment. The document's own attachments (proof
+    // of GOODS) are untouched by it.
+    expect(JSON.parse(row.attachments!)).toEqual([screenshot]);
+    expect(repo.getWithLines(docId)!.attachments).toEqual([]);
+
+    expect(txs.balances().instapay).toBe(10000);
+    // The assertion that proves the two pockets are genuinely separate.
+    expect(txs.balances().cash).toBe(0);
+  });
+
+  it('TC-4.3: a sale split 5000 cash + 5000 InstaPay writes TWO rows on ONE document', () => {
+    const docId = sell(10000, [
+      { amount: 5000, account: 'cash' },
+      { amount: 5000, account: 'instapay' },
+    ]);
+
+    const rows = txs.listByRef('sale', docId);
+    expect(rows).toHaveLength(2);
+    expect(rows.every((r) => r.refKind === 'sale' && r.refId === docId)).toBe(true);
+    expect(rows.map((r) => r.account).sort()).toEqual(['cash', 'instapay']);
+
+    expect(txs.balances()).toEqual({ cash: 5000, instapay: 5000, total: 10000 });
+    // The settled-in-full invariant still holds: 5000 + 5000 === 10000.
+    expect(txs.sumByRef('sale', docId)).toBe(10000);
+  });
+
+  it('REJECTS a split that does not add up to the total', () => {
+    expect(() =>
+      sell(10000, [
+        { amount: 5000, account: 'cash' },
+        { amount: 4000, account: 'instapay' }, // 1000 short — where would it go?
+      ]),
+    ).toThrow(InvalidPaymentError);
+    expect(txs.listForCashBook()).toHaveLength(0);
   });
 });

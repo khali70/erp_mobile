@@ -24,6 +24,24 @@ export function isSameDay(a: number, b: number): boolean {
   );
 }
 
+/**
+ * Epoch ms of the first instant of `ms`'s day, in the shop's LOCAL timezone.
+ *
+ * LOCAL, never UTC. The shop is in Egypt (UTC+2/+3): a 22:30 sale bucketed by
+ * UTC lands in the wrong day, and the owner counting his drawer at closing would
+ * find the app disagreeing with the money in his hand.
+ */
+export function startOfDay(ms: number): number {
+  const d = new Date(ms);
+  return new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+}
+
+/** Epoch ms of the first instant of the day AFTER `ms`'s — an exclusive bound. */
+export function endOfDay(ms: number): number {
+  const d = new Date(ms);
+  return new Date(d.getFullYear(), d.getMonth(), d.getDate() + 1).getTime();
+}
+
 /** Whole days between two epoch-ms timestamps. Floors; never negative. */
 export function daysBetween(from: number, to: number): number {
   return Math.max(0, Math.floor((to - from) / DAY_MS));
