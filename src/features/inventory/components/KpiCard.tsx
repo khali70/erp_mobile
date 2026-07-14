@@ -42,9 +42,14 @@ export function KpiCard({
           {valueText} <Text className="text-xs font-normal text-muted">{currency}</Text>
         </Text>
       </MaskedValue>
-      <View className={`self-end mt-1.5 px-2 py-0.5 rounded-md ${tagBgClass}`}>
-        <Text className={`text-[10px] font-semibold ${tagTextClass}`}>{tagText}</Text>
-      </View>
+      {/* No tag means NO PILL. A month with no sales has no margin to report, and
+          the empty string it passes was still painting a blank coloured chip —
+          a badge that says nothing, in the colour of good news. */}
+      {tagText ? (
+        <View className={`self-end mt-1.5 px-2 py-0.5 rounded-md ${tagBgClass}`}>
+          <Text className={`text-[10px] font-semibold ${tagTextClass}`}>{tagText}</Text>
+        </View>
+      ) : null}
     </Pressable>
   );
 }
