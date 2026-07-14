@@ -381,6 +381,7 @@
       "walkInMustBePaid": "A direct cash purchase (no supplier) must be paid in full — it cannot carry debt.",
       "title": "Payment error",
       "amountRequired": "Enter an amount greater than zero.",
+      "invalidAmount": "That amount isn't a number — type a number (type 0 if you paid nothing).",
       "splitExceedsTotal": "The cash part is larger than the invoice total."
     },
     "amount": "Amount",

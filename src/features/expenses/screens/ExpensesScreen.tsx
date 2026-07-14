@@ -97,9 +97,7 @@ export function ExpensesScreen() {
 
       <AddExpenseSheet
         visible={addOpen}
-        initValue={{
-          category: filter === 'all' ? undefined : filter,
-        }}
+        initialCategory={filter === 'all' ? undefined : filter}
         onClose={() => setAddOpen(false)}
         onSaved={handleAdded}
       />

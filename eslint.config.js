@@ -12,6 +12,7 @@ module.exports = tseslint.config(
       'babel.config.js',
       'jest.config.js',
       'jest.setup.js',
+      'jest.setup.hooks.js',
       'eslint.config.js',
       'tailwind.config.js',
       'metro.config.js',

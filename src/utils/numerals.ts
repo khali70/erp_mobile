@@ -91,11 +91,25 @@ export function toLocaleDigits(value: string, lang: string): string {
     .replace(/\d/g, (d) => ARABIC_INDIC[Number(d)]);
 }
 
-/** Any locale's digits/decimal mark → canonical Latin, ready for `parseFloat`. */
+/**
+ * Any locale's digits/decimal mark → canonical Latin, ready for `parseFloat`.
+ *
+ * GROUPING SEPARATORS ARE STRIPPED, and that is not cosmetic. `parseFloat` stops
+ * at the first character it cannot read: it reads "1٬000" as **1**, and "1,000"
+ * as **1**. An owner who types a thousand pounds into the paid box the way this
+ * app itself PRINTS a thousand pounds (١٬٠٠٠ — see `formatMoneyMajor`) would have
+ * had one pound recorded, and the other 999 silently turned into debt. Same
+ * class of bug as the Arabic-Indic digits: a money box that half-reads a number
+ * is worse than one that refuses it.
+ */
 export function normalizeDigits(value: string): string {
   return value
     .replace(/[٠-٩]/g, (d) => String(d.charCodeAt(0) - 0x0660))
-    .replace(/[٫،]/g, '.');
+    .replace(/[٫،]/g, '.')
+    // ٬ (Arabic thousands), ',' (Latin thousands), and any stray spacing —
+    // including NBSP (\u00A0) and NARROW NBSP (\u202F), which is what a paste of a
+    // formatted figure actually carries.
+    .replace(/[٬,\s\u00a0\u202f]/g, '');
 }
 
 /**

@@ -69,6 +69,20 @@ describe('toLocaleDigits / normalizeDigits — the money INPUT boundary', () => 
   it('is a true round-trip', () => {
     expect(normalizeDigits(toLocaleDigits('1250.50', 'ar'))).toBe('1250.50');
   });
+
+  it('strips GROUPING separators — "١٬٠٠٠" is a thousand, and parseFloat reads "1٬000" as 1', () => {
+    // The app PRINTS a thousand pounds as ١٬٠٠٠ (formatMoneyMajor). An owner who
+    // types it back the way he reads it must not be recorded as paying ONE pound
+    // and owing the other 999.
+    expect(normalizeDigits('١٬٠٠٠')).toBe('1000');
+    expect(parseFloat(normalizeDigits('١٬٠٠٠'))).toBe(1000);
+    expect(normalizeDigits('١٬٢٥٠٫٥٠')).toBe('1250.50');
+    // Same trap in English: parseFloat('1,000') === 1.
+    expect(normalizeDigits('1,000.50')).toBe('1000.50');
+    expect(parseFloat(normalizeDigits('1,000.50'))).toBe(1000.5);
+    // Stray spaces from a paste are not digits either.
+    expect(normalizeDigits(' 25.20 ')).toBe('25.20');
+  });
 });
 
 describe('bidiIsolate', () => {

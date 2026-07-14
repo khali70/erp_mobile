@@ -244,12 +244,31 @@ export function useDocumentForm(mode: DocMode) {
   // ledger's by a piastre.
   const total = fromMinor(totalMinor);
 
-  // An untouched paid field IS the total (see `paidInput` above). `paidInput` is
-  // always CANONICAL (Latin digits, '.') so parseFloat can read it; the shaping
-  // to ٢٥٫٢٠ happens on the way out, in `paidValue`.
-  const paidCanonical = paidInput ?? toMajor(totalMinor);
-  const paid = Math.max(0, parseFloat(paidCanonical) || 0);
-  const paidValue = toLocaleDigits(paidCanonical, lang);
+  // An untouched paid field IS the total (see `paidInput` above), and so is a
+  // CLEARED one: an empty box and an untouched box look identical on screen, so
+  // they must not mean opposite things about money. They used to — clearing the
+  // field parsed to 0 and posted the entire invoice as debt, with nothing on
+  // screen distinguishing that from the paid-in-full default. Zero is still
+  // sayable, but it has to be TYPED: `0` is a statement, blank is an absence.
+  //
+  // `paidInput` is always CANONICAL (Latin digits, '.'); the shaping to ٢٥٫٢٠
+  // happens on the way out, in `paidValue`.
+  const paidTyped = paidInput?.trim() ?? '';
+  const paidCanonical = paidTyped === '' ? toMajor(totalMinor) : paidTyped;
+  // Number(), NOT parseFloat(): parseFloat reads what it can and throws the rest
+  // away — "25abc" becomes 25, "abc" becomes NaN and then, coerced with `|| 0`,
+  // becomes ZERO. A money box that half-reads a number, or reads a typo as
+  // "paid nothing", is exactly how a settled purchase becomes a debt in silence.
+  // Here, a value that is not a number is NOT a number, and `save` refuses it.
+  const paidParsed = Number(paidCanonical);
+  const paidIsNumber = Number.isFinite(paidParsed);
+  // NOT clamped: a negative is REFUSED at save, not quietly rounded up to zero
+  // (which would have posted the whole invoice as debt — a refusal that looked
+  // like a save).
+  const paid = paidIsNumber ? paidParsed : 0;
+  // The box shows what he TYPED — blank stays blank; only an untouched field
+  // shows the total. (Re-filling a cleared box would fight his next keystroke.)
+  const paidValue = toLocaleDigits(paidInput ?? toMajor(totalMinor), lang);
   const remaining = total - paid; // > 0 ⇒ debt; shown only when it exists
 
   // Everything the owner types into a money box is normalised at the boundary:
@@ -280,7 +299,16 @@ export function useDocumentForm(mode: DocMode) {
   //
   // Unclamped, so a cash half bigger than the sale is still TOLD to him at save
   // rather than quietly trimmed (see `save`).
-  const cashPartMinor = toMinor(cashPartInput.trim() || toMajor(totalMinor));
+  //
+  // A cash half that is NOT A NUMBER ("abc", "-5", a stray letter from a paste)
+  // used to parse to 0 — and a zero cash half routes the WHOLE SALE to InstaPay,
+  // silently, filing cash the owner is holding in his hand into a pocket it never
+  // reached. As with `paid`: not a number means not a number, and `save` refuses.
+  const cashPartTyped = cashPartInput.trim();
+  const cashPartCanonical = cashPartTyped === '' ? toMajor(totalMinor) : cashPartTyped;
+  const cashPartParsed = Number(cashPartCanonical);
+  const cashPartIsNumber = Number.isFinite(cashPartParsed);
+  const cashPartMinor = cashPartIsNumber ? toMinor(cashPartParsed) : 0;
   const saleCashMinor = splitEnabled
     ? Math.min(Math.max(0, cashPartMinor), totalMinor)
     : account === 'cash'
@@ -518,6 +546,12 @@ export function useDocumentForm(mode: DocMode) {
       return;
     }
     if (mode === 'purchase') {
+      // NOT A NUMBER ⇒ REFUSE. Never "therefore zero": zero is a purchase bought
+      // entirely on credit, and a typo must not be able to say that.
+      if (!paidIsNumber) {
+        Alert.alert(t('documents.errors.title'), t('payments.errors.invalidAmount'));
+        return;
+      }
       if (paid < 0) {
         Alert.alert(t('documents.errors.title'), t('payments.errors.negative'));
         return;
@@ -539,9 +573,21 @@ export function useDocumentForm(mode: DocMode) {
     // A split whose cash half is bigger than the whole sale is a typo, and it is
     // told rather than silently trimmed: the owner's number is never quietly
     // changed under him — he wrote it, so he gets to see it was wrong.
-    if (mode === 'sale' && splitEnabled && cashPartMinor > totalMinor) {
-      Alert.alert(t('documents.errors.title'), t('payments.errors.splitExceedsTotal'));
-      return;
+    if (mode === 'sale' && splitEnabled) {
+      if (!cashPartIsNumber) {
+        Alert.alert(t('documents.errors.title'), t('payments.errors.invalidAmount'));
+        return;
+      }
+      // A negative cash half is not "zero cash" — that would hand the entire
+      // sale to InstaPay on the strength of a stray minus sign.
+      if (cashPartMinor < 0) {
+        Alert.alert(t('documents.errors.title'), t('payments.errors.negative'));
+        return;
+      }
+      if (cashPartMinor > totalMinor) {
+        Alert.alert(t('documents.errors.title'), t('payments.errors.splitExceedsTotal'));
+        return;
+      }
     }
     // Selling at a loss is a confirm, never a block — it's his shop.
     if (belowCostLines.length > 0) {

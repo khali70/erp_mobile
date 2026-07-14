@@ -15,6 +15,11 @@ interface AddExpenseSheetProps {
   onClose: () => void;
   /** Fired after the expense row is committed — reload the list here. */
   onSaved: () => void;
+  /**
+   * Category to start on. The screen passes whatever category is being filtered:
+   * a man looking at a list of إيجار who taps "add" is adding rent.
+   */
+  initialCategory?: ExpenseDraft['category'];
 }
 
 /**
@@ -29,7 +34,12 @@ interface AddExpenseSheetProps {
  * a supplier picker. A landlord in the Suppliers list is a man the owner has
  * never bought a box from, sitting in the list he buys from.
  */
-export function AddExpenseSheet({ visible, onClose, onSaved }: AddExpenseSheetProps) {
+export function AddExpenseSheet({
+  visible,
+  onClose,
+  onSaved,
+  initialCategory,
+}: AddExpenseSheetProps) {
   const { t } = useTranslation();
 
   const {
@@ -45,6 +55,12 @@ export function AddExpenseSheet({ visible, onClose, onSaved }: AddExpenseSheetPr
     canSave,
     submit,
   } = useExpenseForm({ visible, onSaved });
+
+  // useExpenseForm resets the draft when the sheet opens, so seed the category
+  // after that reset, not before it.
+  useEffect(() => {
+    if (visible && initialCategory) setCategory(initialCategory);
+  }, [visible, initialCategory, setCategory]);
 
   return (
     <BottomSheet visible={visible} onClose={onClose} className="overflow-hidden">
