@@ -21,8 +21,16 @@ import { attachmentsDb } from '@/db/attachments-client';
  */
 export type BackupResult = { shared: boolean; fileNames: string[] };
 
-/** Checkpoint + copy one db to a dated cache file; returns the snapshot File. */
-async function snapshot(db: SQLiteDatabase, fileName: string): Promise<File> {
+/**
+ * Checkpoint + copy one db to a dated cache file; returns the snapshot File.
+ *
+ * Exported because RESTORE takes the SAME snapshot before it overwrites the live
+ * file (`pre-restore-*.db`), and that snapshot is the only thing a bad restore
+ * can be rolled back from. Two copies of the checkpoint-then-copy dance would be
+ * two chances to forget the checkpoint — and forgetting it silently drops every
+ * write still sitting in the WAL.
+ */
+export async function snapshot(db: SQLiteDatabase, fileName: string): Promise<File> {
   await db.execAsync('PRAGMA wal_checkpoint(TRUNCATE);');
   // `databasePath` is a bare filesystem path (e.g. /data/.../erp.db); the File
   // API needs a file:// URI, otherwise Android throws "URI is not absolute".
@@ -30,7 +38,11 @@ async function snapshot(db: SQLiteDatabase, fileName: string): Promise<File> {
   const source = new File(path.startsWith('file://') ? path : `file://${path}`);
   const dest = new File(Paths.cache, fileName);
   if (dest.exists) dest.delete(); // copy() throws if the target exists
-  source.copy(dest);
+  // copySync, NOT the async copy(): the caller must be able to treat the
+  // returned File as finished. Restore overwrites the live database on the very
+  // next line after taking its safety snapshot — a copy still in flight there is
+  // a rollback source that does not exist yet.
+  source.copySync(dest);
   return dest;
 }
 

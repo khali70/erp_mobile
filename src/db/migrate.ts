@@ -1,6 +1,9 @@
-import type { openDatabaseSync } from 'expo-sqlite';
+import type { SQLiteDatabase } from 'expo-sqlite';
+import { drizzle } from 'drizzle-orm/expo-sqlite';
+import * as schema from './schema';
 import { db, sqlite } from './client';
 import { initAttachmentsDb } from './attachments-client';
+import { APP_SCHEMA_VERSION } from './schema-version';
 import {
   CORE_DDL,
   DOCS_PARTY_INDEX_DDL,
@@ -16,6 +19,23 @@ import { backfillWalkInParties, seedSentinels, type SentinelDb } from './sentine
 // openDatabaseSync handle raced the change-listener handle and could NPE in
 // prepareSync on a cold first boot). WAL is expo-sqlite's default — no PRAGMA.
 export function runMigrations(): void {
+  migrateErpDatabase(sqlite, db as unknown as SentinelDb);
+
+  // Attachment bytes live in a separate DB file — bootstrap it here too.
+  initAttachmentsDb();
+}
+
+/**
+ * The migration pass itself, against an ARBITRARY handle.
+ *
+ * `runMigrations()` above points it at the live singletons. RESTORE points it at
+ * the file it has just copied over the live path (through a fresh connection,
+ * because the singleton is closed for the swap) — a backup taken by an older
+ * build is missing later columns, and this is the ONLY code that adds them.
+ * Extracted rather than duplicated for the reason written at the top of ./ddl:
+ * a second copy of a migration drifts, and the drift is invisible.
+ */
+export function migrateErpDatabase(sqlite: SQLiteDatabase, db: SentinelDb): void {
   // The core schema (items, documents, lines, stock, parties, categories, tags).
   // Its SQL lives in ./ddl so the prod-schema generator runs the SAME statements
   // the phone runs — a hand-copied second version would drift silently.
@@ -87,15 +107,23 @@ export function runMigrations(): void {
   // Seed the sentinels and repoint legacy null-party documents at them. BOTH are
   // idempotent (INSERT OR IGNORE on a fixed id; the backfill is a no-op once no
   // nulls remain), which they must be — this runs on every single app boot.
-  seedSentinels(db as unknown as SentinelDb);
-  backfillWalkInParties(db as unknown as SentinelDb);
+  seedSentinels(db);
+  backfillWalkInParties(db);
 
-  // Attachment bytes live in a separate DB file — bootstrap it here too.
-  initAttachmentsDb();
+  // STAMP the schema generation, last — a file only claims a version once every
+  // statement above has succeeded against it. RESTORE reads this back with
+  // `PRAGMA user_version` to tell an old backup (migrate it forward) from one
+  // written by a future build (refuse it: forward-only migrations cannot undo).
+  sqlite.execSync(`PRAGMA user_version = ${APP_SCHEMA_VERSION};`);
+}
+
+/** Wrap a raw handle in the Drizzle surface `seedSentinels` needs. */
+export function drizzleFor(handle: SQLiteDatabase): SentinelDb {
+  return drizzle(handle, { schema }) as unknown as SentinelDb;
 }
 
 function addColumnIfMissing(
-  sqlite: ReturnType<typeof openDatabaseSync>,
+  sqlite: SQLiteDatabase,
   table: string,
   column: string,
   definition: string,

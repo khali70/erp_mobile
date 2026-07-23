@@ -8,6 +8,7 @@ import { ScreenHeader } from '@/components/ui/ScreenHeader';
 import { useSettingsStore } from '@/store/settings-store';
 import { UpdatesSettingsSection } from '@/features/updates/components/UpdatesSettingsSection';
 import { SettingsSwitchRow } from '../components/SettingsSwitchRow';
+import { RestoreSection } from '../components/RestoreSection';
 import { backupDatabase } from '../backup';
 
 /**
@@ -109,6 +110,10 @@ export function SettingsScreen() {
         </View>
 
         <UpdatesSettingsSection />
+
+        {/* The inverse of backup, and the app's only irreversible action — its
+            whole flow (row, confirm, progress, result) lives in one component. */}
+        <RestoreSection />
       </ScrollView>
     </View>
   );

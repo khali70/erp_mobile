@@ -613,6 +613,79 @@
       "button": "Back up now",
       "working": "Preparing backup…",
       "errorTitle": "Backup failed"
+    },
+    "restore": {
+      "label": "Restore from backup",
+      "hint": "Replace the app’s current data with the contents of a backup file. Everything recorded on this phone is erased and replaced by the file — use it only after losing the phone or reinstalling the app.",
+      "button": "Restore from backup",
+      "target": {
+        "title": "What do you want to restore?",
+        "hint": "A backup is saved as two files: one for the books, one for receipt photos. Choose what to restore.",
+        "erp": "Books & stock",
+        "erpHint": "Items, documents, customers, suppliers, and the cash book. The file name starts with erp-backup",
+        "attachments": "Receipt photos",
+        "attachmentsHint": "Photos and attachments on documents. The file name starts with erp-attachments",
+        "both": "Both",
+        "bothHint": "You will be asked to pick the two files, one after the other.",
+        "cancel": "Cancel"
+      },
+      "validating": {
+        "title": "Checking backup file…"
+      },
+      "preview": {
+        "title": "Confirm restore",
+        "file": "File",
+        "size": "Size",
+        "sizeValue": "{{value}} MB",
+        "version": "Data version",
+        "contains": "This backup contains",
+        "counts": "{{documents}} documents · {{items}} items · {{parties}} customers and suppliers",
+        "attachmentsOnly": "Receipt-photo file — it holds no books.",
+        "migrationNote": "This backup is from an older version; the app will upgrade it after restoring.",
+        "warning": "Warning: everything recorded on this phone right now — every document, item, debt, and cash entry — is erased and replaced by this file. The app saves a safety copy of your current data before it starts; that copy is the only way back.",
+        "confirmLabel": "Type “{{word}}” to confirm replacing your data",
+        "confirmWord": "RESTORE",
+        "confirmPlaceholder": "Type here",
+        "confirm": "Replace my data now",
+        "cancel": "Cancel"
+      },
+      "progress": {
+        "title": "Restoring…",
+        "note": "Do not close the app or lock the screen until this finishes."
+      },
+      "success": {
+        "title": "Restore complete",
+        "body": "Your data has been replaced. Fully close the app and open it again for the restored data to appear.",
+        "attachmentsMissing": "Receipt photos were not restored, so some document images may not open. You can restore the photo file later from the same screen.",
+        "restart": "Got it — I’ll close the app"
+      },
+      "error": {
+        "title": "Restore failed",
+        "safe": "None of your current data was touched.",
+        "notSqlite": "That file is not a backup from this app. Pick a .db file the app itself created.",
+        "unknownSchema": "That is a database file, but not one belonging to this app.",
+        "wrongSlotErp": "That is the books & stock file, and you picked it in the receipt-photos slot. Try again and pick it in the right slot.",
+        "wrongSlotAttachments": "That is the receipt-photos file, and you picked it in the books & stock slot. Try again and pick it in the right slot.",
+        "schemaTooNew": "This backup was made by a newer version of the app. Update the app first, then try again — restoring it now could corrupt your data.",
+        "fileMissing": "The file could not be read. It may have been moved or deleted mid-way.",
+        "noSpace": "Not enough space on the phone to save a safety copy before restoring. Free some space and try again.",
+        "copyFailed": "The copy stopped before it finished, and your previous data was put back.",
+        "migrateFailed": "The file is valid but could not be upgraded to this app version, and your previous data was put back.",
+        "unknown": "Something unexpected went wrong during the restore.",
+        "close": "Close"
+      },
+      "recovery": {
+        "title": "A restore did not finish",
+        "body": "The app closed while a backup was being restored, so the current data may be incomplete. A safety copy of your data from before that restore was kept.",
+        "rollback": "Put my previous data back",
+        "keep": "Continue with current data",
+        "working": "Putting your data back…",
+        "unavailable": "The safety copy is no longer on the phone, so there is nothing to roll back to.",
+        "doneTitle": "Your previous data is back",
+        "doneBody": "Fully close the app and open it again.",
+        "failedTitle": "Could not put the data back",
+        "failedBody": "The app could not restore the safety copy. Try closing the app and opening it again."
+      }
     }
   },
   "privacy": {
