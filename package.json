@@ -1,5 +1,5 @@
 {
-  "name": "erp-mobile",
+  "name": "rafuf",
   "version": "1.0.0",
   "main": "index.ts",
   "dependencies": {
@@ -10,6 +10,7 @@
     "expo": "~57.0.2",
     "expo-audio": "~57.0.0",
     "expo-camera": "~57.0.1",
+    "expo-contacts": "~57.0.2",
     "expo-crypto": "~57.0.0",
     "expo-dev-client": "~57.0.5",
     "expo-document-picker": "~57.0.0",

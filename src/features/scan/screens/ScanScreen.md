@@ -1,6 +1,6 @@
 # مسح الباركود — Barcode Scan Screen
 
-> Part of **ERP Mobile**. Project overview + full screen map: [`docs/PROJECT.md`](../../../../docs/PROJECT.md). Step 7.
+> Part of **Rafuf**. Project overview + full screen map: [`docs/PROJECT.md`](../../../../docs/PROJECT.md). Step 7.
 
 ## Purpose
 Camera barcode/QR scanner. Resolves a code against the local catalog to (a) find an existing item, (b) start a new item with the code pre-filled, or (c) add a line to a sale/purchase document.

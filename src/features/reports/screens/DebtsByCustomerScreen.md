@@ -1,6 +1,6 @@
 # ديون الزبائن — Debts by Customer (Receivables / AR) — **REMOVED**
 
-> Part of **ERP Mobile**. Project overview + full screen map: [`docs/PROJECT.md`](../../../../docs/PROJECT.md).
+> Part of **Rafuf**. Project overview + full screen map: [`docs/PROJECT.md`](../../../../docs/PROJECT.md).
 
 ## Status: DROPPED (2026-07-07 — owner)
 **No customer debt (AR) in this app.** Sales are always paid in full, cash. There are no receivables to report, so this screen is **removed**.

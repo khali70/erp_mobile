@@ -1,6 +1,6 @@
 # النفقات — Expenses Screen
 
-> Part of **ERP Mobile**. Project overview + full screen map: [`docs/PROJECT.md`](../../../../docs/PROJECT.md). Step 5.
+> Part of **Rafuf**. Project overview + full screen map: [`docs/PROJECT.md`](../../../../docs/PROJECT.md). Step 5.
 
 ## Purpose
 Record shop operating costs that aren't stock purchases — rent, salaries, fuel, utilities. Feeds the cash book and the P&L operating-expense line.

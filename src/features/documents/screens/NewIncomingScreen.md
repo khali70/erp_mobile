@@ -1,6 +1,6 @@
 # وارد جديد — New Incoming (Purchase) Screen
 
-> Part of **ERP Mobile**. Project overview + full screen map: [`docs/PROJECT.md`](../../../../docs/PROJECT.md). Step 3.
+> Part of **Rafuf**. Project overview + full screen map: [`docs/PROJECT.md`](../../../../docs/PROJECT.md). Step 3.
 
 ## Purpose
 Record a **goods-in document** (a purchase from a supplier). Increments stock, updates each item's **weighted-average cost**, and — if not fully paid — creates **supplier debt (AP)**. **This is the ONLY place debt is created.**

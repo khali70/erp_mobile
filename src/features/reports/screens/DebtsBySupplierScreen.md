@@ -1,6 +1,6 @@
 # ديون الموردين — Debts by Supplier (Payables / AP)
 
-> Part of **ERP Mobile**. Project overview + full screen map: [`docs/PROJECT.md`](../../../../docs/PROJECT.md). Step 6.
+> Part of **Rafuf**. Project overview + full screen map: [`docs/PROJECT.md`](../../../../docs/PROJECT.md). Step 6.
 
 ## Purpose
 What the shop owes suppliers. Payables (AP) rolled up per supplier.

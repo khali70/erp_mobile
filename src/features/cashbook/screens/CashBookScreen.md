@@ -1,6 +1,6 @@
 # دفتر النقدية — Cash Book Screen
 
-> Part of **ERP Mobile**. Project overview + full screen map: [`docs/PROJECT.md`](../../../../docs/PROJECT.md). Step 3.
+> Part of **Rafuf**. Project overview + full screen map: [`docs/PROJECT.md`](../../../../docs/PROJECT.md). Step 3.
 
 ## Purpose
 One ledger holding **every movement of money**, in or out, with no exceptions — sales collected, supplier payments, bills, owner drawings and injections, and transfers between the drawer and InstaPay. Answers the two questions the owner actually asks: *"does the app agree with what is in my drawer?"* and *"how much did I sell today, cash versus InstaPay?"*

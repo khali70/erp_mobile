@@ -1,6 +1,6 @@
 # صادر جديد — New Outgoing (Sale) Screen
 
-> Part of **ERP Mobile**. Project overview + full screen map: [`docs/PROJECT.md`](../../../../docs/PROJECT.md). Step 3.
+> Part of **Rafuf**. Project overview + full screen map: [`docs/PROJECT.md`](../../../../docs/PROJECT.md). Step 3.
 
 ## Purpose
 Record a **goods-out document** (a sale). Decrements stock, books revenue, COGS at weighted-avg cost. **Sale is always paid in full, cash. No customer debt.**

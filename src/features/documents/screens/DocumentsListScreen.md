@@ -1,6 +1,6 @@
 # المستندات — Documents List Screen
 
-> Part of **ERP Mobile**. Project overview + full screen map: [`docs/PROJECT.md`](../../../../docs/PROJECT.md). Step 3.
+> Part of **Rafuf**. Project overview + full screen map: [`docs/PROJECT.md`](../../../../docs/PROJECT.md). Step 3.
 
 ## Purpose
 Chronological list of every in/out document (sales + purchases). The audit trail — tap any row to view detail, and reverse it with a correcting document.

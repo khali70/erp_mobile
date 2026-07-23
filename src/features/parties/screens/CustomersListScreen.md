@@ -1,6 +1,6 @@
 # الزبائن — Customers List Screen
 
-> Part of **ERP Mobile**. Project overview + full screen map: [`docs/PROJECT.md`](../../../../docs/PROJECT.md). Step 2.
+> Part of **Rafuf**. Project overview + full screen map: [`docs/PROJECT.md`](../../../../docs/PROJECT.md). Step 2.
 
 ## Purpose
 List of customers with each one's **balance = what they owe the shop (receivables / AR)**. Manage customers and see debt at a glance.

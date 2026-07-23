@@ -1,6 +1,6 @@
 # الرئيسية — Home / Dashboard Screen
 
-> Part of **ERP Mobile**. Project overview + full screen map: [`docs/PROJECT.md`](../../../../docs/PROJECT.md). Step 1.
+> Part of **Rafuf**. Project overview + full screen map: [`docs/PROJECT.md`](../../../../docs/PROJECT.md). Step 1.
 
 ## Purpose
 The hub. Answers the owner's daily questions without navigating, and launches every core action.

@@ -1,6 +1,6 @@
 # التقارير — Reports Hub Screen
 
-> Part of **ERP Mobile**. Project overview + full screen map: [`docs/PROJECT.md`](../../../../docs/PROJECT.md). Step 6.
+> Part of **Rafuf**. Project overview + full screen map: [`docs/PROJECT.md`](../../../../docs/PROJECT.md). Step 6.
 
 ## Purpose
 Entry point to all analytics. A list of report tiles the owner can open, favorite, and reorder.

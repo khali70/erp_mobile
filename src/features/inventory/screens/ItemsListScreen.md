@@ -1,6 +1,6 @@
 # البضائع — Items / Catalog Screen
 
-> Part of **ERP Mobile**. Project overview + full screen map: [`docs/PROJECT.md`](../../../../docs/PROJECT.md). Step 1.
+> Part of **Rafuf**. Project overview + full screen map: [`docs/PROJECT.md`](../../../../docs/PROJECT.md). Step 1.
 
 ## Purpose
 The product catalog — the foundation everything else references. Add, edit, search items and see live stock at a glance.

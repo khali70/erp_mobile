@@ -1,6 +1,6 @@
 # الأرباح والخسائر — Profit & Loss Screen
 
-> Part of **ERP Mobile**. Project overview + full screen map: [`docs/PROJECT.md`](../../../../docs/PROJECT.md). Step 6.
+> Part of **Rafuf**. Project overview + full screen map: [`docs/PROJECT.md`](../../../../docs/PROJECT.md). Step 6.
 
 ## Purpose
 The P&L statement — the single number the owner cares about. **Revenue − COGS − expenses = profit**, for a chosen period.

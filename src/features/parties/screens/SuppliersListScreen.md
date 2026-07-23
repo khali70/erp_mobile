@@ -1,6 +1,6 @@
 # الموردون — Suppliers List Screen
 
-> Part of **ERP Mobile**. Project overview + full screen map: [`docs/PROJECT.md`](../../../../docs/PROJECT.md). Step 2.
+> Part of **Rafuf**. Project overview + full screen map: [`docs/PROJECT.md`](../../../../docs/PROJECT.md). Step 2.
 
 ## Purpose
 List of suppliers with each one's **balance = what the shop owes them (payables / AP)**. Manage supplier records and see debt at a glance.

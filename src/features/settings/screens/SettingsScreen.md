@@ -1,6 +1,6 @@
 # الإعدادات — Settings, Backup & Restore Screen
 
-> Part of **ERP Mobile**. Project overview + full screen map: [`docs/PROJECT.md`](../../../../docs/PROJECT.md). Step 8.
+> Part of **Rafuf**. Project overview + full screen map: [`docs/PROJECT.md`](../../../../docs/PROJECT.md). Step 8.
 
 ## Purpose
 App configuration + the **trust anchor**: local backup/restore. For a local-only app, a lost phone must not mean a lost business.
