@@ -1,6 +1,6 @@
-# ERP Mobile
+# Rafuf (رفوف)
 
-Arabic-first retail ERP mobile app built with Expo + React Native.
+Arabic-first, offline-first retail ERP mobile app built with Expo + React Native.
 
 ## Quick Start
 

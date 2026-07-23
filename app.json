@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "ERP Mobile",
-    "slug": "erp-mobile",
+    "name": "Rafuf",
+    "slug": "rafuf",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -29,7 +29,7 @@
     },
     "android": {
       "adaptiveIcon": {
-        "backgroundColor": "#E6F4FE",
+        "backgroundColor": "#E6F5F3",
         "foregroundImage": "./assets/android-icon-foreground.png",
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
@@ -37,9 +37,10 @@
       "predictiveBackGestureEnabled": false,
       "permissions": [
         "android.permission.USE_BIOMETRIC",
-        "android.permission.USE_FINGERPRINT"
+        "android.permission.USE_FINGERPRINT",
+        "android.permission.READ_CONTACTS"
       ],
-      "package": "com.khali70.erpmobile"
+      "package": "com.khali70.rafuf"
     },
     "web": {
       "favicon": "./assets/favicon.png"
@@ -55,6 +56,26 @@
         "expo-camera",
         {
           "cameraPermission": "Allow $(PRODUCT_NAME) to use the camera to scan item barcodes."
+        }
+      ],
+      [
+        "expo-contacts",
+        {
+          "contactsPermission": "Allow $(PRODUCT_NAME) to read your contacts so it can fill in a customer's or supplier's name and phone number for you. Contacts are read on this device only, are never changed, and are never uploaded."
+        }
+      ],
+      "./plugins/withoutWriteContacts",
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/splash-icon.png",
+          "imageWidth": 220,
+          "resizeMode": "contain",
+          "backgroundColor": "#E6F5F3",
+          "dark": {
+            "image": "./assets/splash-icon.png",
+            "backgroundColor": "#08483F"
+          }
         }
       ]
     ]
