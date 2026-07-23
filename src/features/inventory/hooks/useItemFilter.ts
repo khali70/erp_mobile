@@ -1,32 +1,52 @@
-import { useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import type { InventoryItem, StockFilter } from '../types';
-import { getStockStatus } from '@/utils/stock';
+import {
+  EMPTY_ADVANCED_FILTERS,
+  countActiveFilters,
+  filterItems,
+  type AdvancedItemFilters,
+} from '../utils/filterItems';
 
 /**
- * Encapsulates search + stock-filter state and derivation over a list of items.
- * Keeps filtering logic out of the view (single responsibility).
+ * Owns search + stock chip + the advanced filter set, and derives the visible
+ * list from them. All predicate logic lives in `utils/filterItems` (pure and
+ * unit-tested); this hook is only the state that feeds it, so the screen stays
+ * composition-only.
  */
 export function useItemFilter(items: InventoryItem[]) {
   const [query, setQuery] = useState('');
   const [filter, setFilter] = useState<StockFilter>('all');
+  const [advanced, setAdvanced] = useState<AdvancedItemFilters>(EMPTY_ADVANCED_FILTERS);
 
-  const filtered = useMemo(() => {
-    const q = query.trim();
-    return items.filter((item) => {
-      const matchesSearch = q === '' || item.name.includes(q) || item.barcode?.includes(q);
-      if (!matchesSearch) return false;
+  const filtered = useMemo(
+    () => filterItems(items, { query, stock: filter, advanced }),
+    [items, query, filter, advanced],
+  );
 
-      const status = getStockStatus(item.qty, item.lowStockThreshold);
-      if (filter === 'low') return status === 'low';
-      if (filter === 'out') return status === 'out';
-      return true;
-    });
-  }, [items, query, filter]);
+  const activeAdvancedCount = useMemo(() => countActiveFilters(advanced), [advanced]);
 
-  const reset = () => {
+  /** Any filter at all is on — search, stock chip, or an advanced dimension. */
+  const anyFilterActive = query.trim() !== '' || filter !== 'all' || activeAdvancedCount > 0;
+
+  const resetAdvanced = useCallback(() => setAdvanced(EMPTY_ADVANCED_FILTERS), []);
+
+  const reset = useCallback(() => {
     setQuery('');
     setFilter('all');
-  };
+    setAdvanced(EMPTY_ADVANCED_FILTERS);
+  }, []);
 
-  return { query, setQuery, filter, setFilter, filtered, reset };
+  return {
+    query,
+    setQuery,
+    filter,
+    setFilter,
+    advanced,
+    setAdvanced,
+    activeAdvancedCount,
+    anyFilterActive,
+    filtered,
+    reset,
+    resetAdvanced,
+  };
 }

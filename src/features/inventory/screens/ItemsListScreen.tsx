@@ -1,14 +1,13 @@
-import { useState } from 'react';
-import { View, Text, Pressable, ScrollView, Alert } from 'react-native';
+import { useCallback, useState } from 'react';
+import { View, FlatList, Alert, type ListRenderItem } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import Feather from '@expo/vector-icons/Feather';
 import { useTranslation } from 'react-i18next';
-import colors from '@/theme/colors';
 import type { RootStackParamList } from '@/navigation/RootNavigator';
 import { useItems } from '../hooks/useItems';
 import { useCategories } from '../hooks/useCategories';
 import { useItemFilter } from '../hooks/useItemFilter';
+import { useItemFilterOptions } from '../hooks/useItemFilterOptions';
 import { presentItem } from '../presenters';
 import { toDraft, fromDraft } from '../drafts';
 import { itemRepository } from '@/repositories/item-repository.client';
@@ -16,13 +15,17 @@ import { tagRepository } from '@/repositories/tag-repository.client';
 import { DuplicateBarcodeError } from '@/repositories/item-repository';
 import type { InventoryItem, ItemDraft, StockFilter } from '../types';
 import { ScreenHeader } from '@/components/ui/ScreenHeader';
-import { SearchBar } from '@/components/ui/SearchBar';
 import { FilterChips, type FilterOption } from '@/components/ui/FilterChips';
 import { ItemRow } from '../components/ItemRow';
 import { ItemFormSheet } from '../components/ItemFormSheet';
 import { BarcodeScanModal } from '../components/BarcodeScanModal';
+import { ItemsFilterBar } from '../components/ItemsFilterBar';
+import { ItemsEmptyState } from '../components/ItemsEmptyState';
+import { AdvancedFilterSheet } from '../components/AdvancedFilterSheet';
 import { ROW } from '@/theme/rtl';
-import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
+import { AdvancedFilterButton } from '../components/AdvancedFilterButton';
+
+const keyExtractor = (item: InventoryItem) => item.id;
 
 /**
  * البضائع — Items list (Step 1). Composition-only screen: data from the
@@ -34,11 +37,25 @@ export function ItemsListScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const { items, reload } = useItems();
   const { byName: categoryIndex, reload: reloadCategories } = useCategories();
-  const { query, setQuery, filter, setFilter, filtered, reset } = useItemFilter(items);
+  const {
+    query,
+    setQuery,
+    filter,
+    setFilter,
+    advanced,
+    setAdvanced,
+    activeAdvancedCount,
+    anyFilterActive,
+    filtered,
+    reset,
+    resetAdvanced,
+  } = useItemFilter(items);
+  const { categoryOptions, tagOptions } = useItemFilterOptions(items);
 
   const [formOpen, setFormOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<InventoryItem | null>(null);
   const [scanOpen, setScanOpen] = useState(false);
+  const [filtersOpen, setFiltersOpen] = useState(false);
   const filterOptions: FilterOption<StockFilter>[] = [
     { key: 'all', label: t('inventory.filters.all'), activeClass: 'bg-primary' },
     { key: 'low', label: t('inventory.filters.low'), activeClass: 'bg-warning' },
@@ -49,10 +66,27 @@ export function ItemsListScreen() {
     setEditingItem(null);
     setFormOpen(true);
   };
-  const openEdit = (item: InventoryItem) => {
+  const openEdit = useCallback((item: InventoryItem) => {
     setEditingItem(item);
     setFormOpen(true);
-  };
+  }, []);
+
+  const renderItem: ListRenderItem<InventoryItem> = useCallback(
+    ({ item }) => (
+      <ItemRow
+        item={presentItem(item, t, i18n.language, categoryIndex)}
+        onPress={() =>
+          navigation.navigate('ItemMovement', {
+            itemId: item.id,
+            itemName: item.name,
+            unit: item.unit,
+          })
+        }
+        onLongPress={() => openEdit(item)}
+      />
+    ),
+    [t, i18n.language, categoryIndex, navigation, openEdit],
+  );
 
   const handleSave = (draft: ItemDraft) => {
     try {
@@ -86,51 +120,33 @@ export function ItemsListScreen() {
       />
 
       <View className="flex-1 px-4 pt-3.5 gap-4">
-        <View className={`${ROW} items-center gap-2.5`}>
-          <View className="flex-1">
-            <SearchBar
-              value={query}
-              onChangeText={setQuery}
-              placeholder={t('inventory.searchPlaceholder')}
-            />
-          </View>
-          <Pressable
-            className="w-12 h-12 rounded-2xl items-center justify-center bg-primary"
-            onPress={() => setScanOpen(true)}
-            accessibilityRole="button"
-            accessibilityLabel={t('inventory.scan')}
-          >
-            <MaterialCommunityIcons name="barcode-scan" size={20} color={colors.surface} />
-          </Pressable>
+        <ItemsFilterBar
+          query={query}
+          onChangeQuery={setQuery}
+          onScan={() => setScanOpen(true)}
+          anyActive={anyFilterActive}
+          onClearAll={reset}
+        />
+        <View className={`${ROW} items-center justify-between gap-2.5`}>
+          <FilterChips options={filterOptions} value={filter} onChange={(k: StockFilter) => setFilter(k)} />
+          <AdvancedFilterButton count={activeAdvancedCount} onPress={() => setFiltersOpen(true)} />
+
         </View>
-
-        <FilterChips options={filterOptions} value={filter} onChange={(k: StockFilter) => setFilter(k)} />
-
         {filtered.length === 0 ? (
-          <View className="bg-surface rounded-2xl p-8 border border-border items-center gap-3 mt-2">
-            <Feather name="package" size={44} color={colors['slate-400']} />
-            <Text className="text-muted text-sm text-center">{t('inventory.empty.message')}</Text>
-            <Pressable onPress={reset} accessibilityRole="button">
-              <Text className="text-xs text-primary font-bold underline">{t('inventory.empty.reset')}</Text>
-            </Pressable>
-          </View>
+          <ItemsEmptyState filtered={anyFilterActive} onReset={reset} />
         ) : (
-          <ScrollView className="flex-1" contentContainerClassName="gap-3 pb-24" showsVerticalScrollIndicator={false}>
-            {filtered.map((item) => (
-              <ItemRow
-                key={item.id}
-                item={presentItem(item, t, i18n.language, categoryIndex)}
-                onPress={() =>
-                  navigation.navigate('ItemMovement', {
-                    itemId: item.id,
-                    itemName: item.name,
-                    unit: item.unit,
-                  })
-                }
-                onLongPress={() => openEdit(item)}
-              />
-            ))}
-          </ScrollView>
+            <FlatList
+              className="flex-1"
+              data={filtered}
+              keyExtractor={keyExtractor}
+              renderItem={renderItem}
+              contentContainerClassName="gap-3 pb-24"
+              showsVerticalScrollIndicator={false}
+              keyboardShouldPersistTaps="handled"
+              removeClippedSubviews
+              initialNumToRender={12}
+              windowSize={11}
+            />
         )}
       </View>
 
@@ -139,6 +155,23 @@ export function ItemsListScreen() {
         initial={editingItem ? toDraft(editingItem) : null}
         onClose={() => setFormOpen(false)}
         onSave={handleSave}
+      />
+      <AdvancedFilterSheet
+        visible={filtersOpen}
+        onClose={() => setFiltersOpen(false)}
+        value={advanced}
+        stock={filter}
+        categoryOptions={categoryOptions}
+        tagOptions={tagOptions}
+        onApply={(next, stock) => {
+          setAdvanced(next);
+          setFilter(stock);
+          setFiltersOpen(false);
+        }}
+        onReset={() => {
+          resetAdvanced();
+          setFilter('all');
+        }}
       />
       <BarcodeScanModal
         visible={scanOpen}

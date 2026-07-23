@@ -71,7 +71,37 @@
     },
     "empty": {
       "message": "No goods match the search or selected filter.",
-      "reset": "Reset filters"
+      "reset": "Reset filters",
+      "noMatch": "No items match these filters."
+    },
+    "advancedFilters": {
+      "button": "Filters",
+      "title": "Advanced filters",
+      "category": "Category",
+      "uncategorized": "Uncategorized",
+      "salePrice": "Selling price",
+      "costPrice": "Supplier price",
+      "stock": "Stock status",
+      "qty": "Quantity on hand",
+      "pricingMode": "Pricing",
+      "tags": "Tags",
+      "min": "From",
+      "max": "To",
+      "apply": "Apply",
+      "reset": "Reset",
+      "clearAll": "Clear filters",
+      "activeCount": "{{count}} active filters",
+      "noTags": "No tags on any item yet",
+      "modeAny": "Any",
+      "modeFixed": "Fixed",
+      "modeNegotiable": "Dynamic"
+    },
+    "stockTotals": {
+      "costValue": "Stock value (cost)",
+      "saleValue": "At selling price",
+      "summary": "{{items}} products · {{units}} units",
+      "missingCost": "{{count}} stocked item has no supplier price",
+      "missingCost_other": "{{count}} stocked items have no supplier price"
     },
     "badge": {
       "lowSuffix": "low",

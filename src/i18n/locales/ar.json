@@ -71,7 +71,37 @@
     },
     "empty": {
       "message": "لا توجد بضائع تطابق البحث أو التصنيف المحدد.",
-      "reset": "إعادة ضبط التصفية"
+      "reset": "إعادة ضبط التصفية",
+      "noMatch": "لا توجد بضائع تطابق هذه الفلاتر."
+    },
+    "advancedFilters": {
+      "button": "فلاتر",
+      "title": "فلاتر متقدمة",
+      "category": "التصنيف",
+      "uncategorized": "بدون تصنيف",
+      "salePrice": "سعر البيع",
+      "costPrice": "سعر المورّد",
+      "stock": "حالة المخزون",
+      "qty": "الكمية المتاحة",
+      "pricingMode": "نوع التسعير",
+      "tags": "الوسوم",
+      "min": "من",
+      "max": "إلى",
+      "apply": "تطبيق",
+      "reset": "إعادة ضبط",
+      "clearAll": "مسح الفلاتر",
+      "activeCount": "{{count}} فلاتر مفعّلة",
+      "noTags": "لا توجد وسوم على أي بضاعة بعد",
+      "modeAny": "الكل",
+      "modeFixed": "ثابت",
+      "modeNegotiable": "متغيّر"
+    },
+    "stockTotals": {
+      "costValue": "قيمة المخزون (بالتكلفة)",
+      "saleValue": "بسعر البيع",
+      "summary": "{{items}} صنف · {{units}} وحدة",
+      "missingCost": "صنف واحد بالمخزون بدون سعر مورّد",
+      "missingCost_other": "{{count}} أصناف بالمخزون بدون سعر مورّد"
     },
     "badge": {
       "lowSuffix": "منخفض",
