@@ -100,7 +100,7 @@
       "costValue": "Stock value (cost)",
       "saleValue": "At selling price",
       "summary": "{{items}} products · {{units}} units",
-      "missingCost": "{{count}} stocked item has no supplier price",
+      "missingCost_one": "{{count}} stocked item has no supplier price",
       "missingCost_other": "{{count}} stocked items have no supplier price"
     },
     "badge": {

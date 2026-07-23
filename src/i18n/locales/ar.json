@@ -100,8 +100,12 @@
       "costValue": "قيمة المخزون (بالتكلفة)",
       "saleValue": "بسعر البيع",
       "summary": "{{items}} صنف · {{units}} وحدة",
-      "missingCost": "صنف واحد بالمخزون بدون سعر مورّد",
-      "missingCost_other": "{{count}} أصناف بالمخزون بدون سعر مورّد"
+      "missingCost_zero": "مفيش أصناف بدون سعر مورّد",
+      "missingCost_one": "صنف واحد بالمخزون بدون سعر مورّد",
+      "missingCost_two": "صنفين بالمخزون بدون سعر مورّد",
+      "missingCost_few": "{{count}} أصناف بالمخزون بدون سعر مورّد",
+      "missingCost_many": "{{count}} صنف بالمخزون بدون سعر مورّد",
+      "missingCost_other": "{{count}} صنف بالمخزون بدون سعر مورّد"
     },
     "badge": {
       "lowSuffix": "منخفض",

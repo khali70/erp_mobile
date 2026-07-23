@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { View, FlatList, Alert, type ListRenderItem } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -24,6 +24,8 @@ import { ItemsEmptyState } from '../components/ItemsEmptyState';
 import { AdvancedFilterSheet } from '../components/AdvancedFilterSheet';
 import { ROW } from '@/theme/rtl';
 import { AdvancedFilterButton } from '../components/AdvancedFilterButton';
+import { StockTotalsBar } from '../components/StockTotalsBar';
+import { computeStockTotals } from '../utils/stockTotals';
 
 const keyExtractor = (item: InventoryItem) => item.id;
 
@@ -51,6 +53,9 @@ export function ItemsListScreen() {
     resetAdvanced,
   } = useItemFilter(items);
   const { categoryOptions, tagOptions } = useItemFilterOptions(items);
+  // Valued over `filtered`, not `items` — the number has to answer "what am I
+  // looking at right now", otherwise it contradicts the list under it.
+  const totals = useMemo(() => computeStockTotals(filtered), [filtered]);
 
   const [formOpen, setFormOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<InventoryItem | null>(null);
@@ -135,6 +140,8 @@ export function ItemsListScreen() {
         {filtered.length === 0 ? (
           <ItemsEmptyState filtered={anyFilterActive} onReset={reset} />
         ) : (
+          <>
+            <StockTotalsBar totals={totals} />
             <FlatList
               className="flex-1"
               data={filtered}
@@ -147,6 +154,7 @@ export function ItemsListScreen() {
               initialNumToRender={12}
               windowSize={11}
             />
+          </>
         )}
       </View>
 
