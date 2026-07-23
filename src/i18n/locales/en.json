@@ -1,6 +1,6 @@
 {
   "common": {
-    "appName": "ERP Mobile",
+    "appName": "Rafuf",
     "save": "Save",
     "cancel": "Cancel",
     "delete": "Delete",
@@ -10,7 +10,7 @@
     "loadFailed": "Could not load data"
   },
   "home": {
-    "title": "ERP Mobile",
+    "title": "Rafuf",
     "subtitle": "Local single-user inventory + accounting",
     "items": "Items",
     "newDocument": "New document",
