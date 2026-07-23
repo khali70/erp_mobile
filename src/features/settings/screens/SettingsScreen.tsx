@@ -108,12 +108,12 @@ export function SettingsScreen() {
             </Text>
           </Pressable>
         </View>
-
-        <UpdatesSettingsSection />
-
         {/* The inverse of backup, and the app's only irreversible action — its
             whole flow (row, confirm, progress, result) lives in one component. */}
         <RestoreSection />
+        <UpdatesSettingsSection />
+
+
       </ScrollView>
     </View>
   );
