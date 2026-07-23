@@ -621,5 +621,44 @@
       "hideValues": "Hide money figures",
       "revealValue": "Tap to show this figure"
     }
+  },
+  "updates": {
+    "section": "App updates",
+    "check": {
+      "label": "App version",
+      "button": "Check for updates"
+    },
+    "status": {
+      "idle": "Tap to check for updates",
+      "checking": "Checking for updates…",
+      "downloading": "Downloading update…",
+      "available": "Update available",
+      "ready": "Update ready — restart to apply",
+      "upToDate": "You're on the latest version",
+      "error": "Couldn't check for updates. Tap to retry.",
+      "unavailable": "Updates are unavailable in development"
+    },
+    "meta": {
+      "version": "v{{version}} · {{channel}}"
+    },
+    "lastChecked": {
+      "label": "Last checked {{value}}"
+    },
+    "relative": {
+      "justNow": "just now",
+      "minutesAgo": "{{count}} min ago",
+      "hoursAgo": "{{count}} h ago",
+      "daysAgo": "{{count}} d ago"
+    },
+    "autoCheck": {
+      "label": "Check for updates on launch",
+      "hint": "When on, the app quietly checks for a new version each time it opens and tells you when one is ready. Updates download in the background and never interrupt your work."
+    },
+    "prompt": {
+      "title": "Update ready",
+      "body": "A new version has been downloaded. Restart to apply it now, or keep working — it will apply the next time you open the app.",
+      "restart": "Restart now",
+      "later": "Later"
+    }
   }
 }

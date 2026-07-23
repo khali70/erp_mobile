@@ -6,8 +6,20 @@
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "automatic",
+    "runtimeVersion": {
+      "policy": "fingerprint"
+    },
+    "updates": {
+      "enabled": true,
+      "checkAutomatically": "NEVER",
+      "fallbackToCacheTimeout": 0,
+      "url": "https://u.expo.dev/79afcb64-f9e1-4458-99a7-eaef7dd4eafd"
+    },
     "extra": {
-      "supportsRTL": true
+      "supportsRTL": true,
+      "eas": {
+        "projectId": "79afcb64-f9e1-4458-99a7-eaef7dd4eafd"
+      }
     },
     "ios": {
       "supportsTablet": true,

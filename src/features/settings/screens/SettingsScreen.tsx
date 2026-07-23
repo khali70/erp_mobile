@@ -6,6 +6,7 @@ import Feather from '@expo/vector-icons/Feather';
 import colors from '@/theme/colors';
 import { ScreenHeader } from '@/components/ui/ScreenHeader';
 import { useSettingsStore } from '@/store/settings-store';
+import { UpdatesSettingsSection } from '@/features/updates/components/UpdatesSettingsSection';
 import { SettingsSwitchRow } from '../components/SettingsSwitchRow';
 import { backupDatabase } from '../backup';
 
@@ -106,6 +107,8 @@ export function SettingsScreen() {
             </Text>
           </Pressable>
         </View>
+
+        <UpdatesSettingsSection />
       </ScrollView>
     </View>
   );

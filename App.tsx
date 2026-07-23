@@ -9,6 +9,7 @@ import { RootNavigator } from '@/navigation/RootNavigator';
 import { runMigrations } from '@/db/migrate';
 import { seedDemoDataIfEmpty, seedCategoriesIfEmpty } from '@/db/seed';
 import { usePrivacyGuard } from '@/privacy/usePrivacyGuard';
+import { UpdatesProvider } from '@/features/updates/UpdatesProvider';
 
 export default function App() {
   const [ready, setReady] = useState(false);
@@ -30,7 +31,11 @@ export default function App() {
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>
         <NavigationContainer>
-          <RootNavigator />
+          {/* Mounted only after the ready gate above, so the boot-time OTA check
+              never runs before migrations/seed and never gates the splash. */}
+          <UpdatesProvider>
+            <RootNavigator />
+          </UpdatesProvider>
           <StatusBar style="auto" />
         </NavigationContainer>
       </SafeAreaProvider>
