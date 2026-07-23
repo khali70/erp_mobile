@@ -81,6 +81,26 @@ export function seedSentinels(db: SentinelDb, ts: number = now()): void {
 }
 
 /**
+ * The sentinel rows as raw `INSERT OR IGNORE` SQL, for the prod-schema
+ * provisioning artifact. It is the SAME two rows `seedSentinels()` writes with
+ * Drizzle — id, name and is_system come from the constants above, so the .sql
+ * file cannot drift from the runtime seed. `INSERT OR IGNORE` on the fixed PK
+ * makes it a no-op once the row exists, so a phone booting against a DB the
+ * script provisioned re-runs `seedSentinels()` harmlessly. `balance` is omitted
+ * on purpose (retired, DB default). `ts` defaults to 0 — the null-object rows
+ * predate everything; a fixed epoch keeps the artifact deterministic.
+ */
+export function sentinelInsertSql(ts = 0): string {
+  const cols = '(id, created_at, updated_at, deleted_at, name, phone, is_system)';
+  return [
+    `INSERT OR IGNORE INTO suppliers ${cols}`,
+    `VALUES ('${WALKIN_SUPPLIER_ID}', ${ts}, ${ts}, NULL, '${WALKIN_SUPPLIER_NAME}', NULL, 1);`,
+    `INSERT OR IGNORE INTO customers ${cols}`,
+    `VALUES ('${WALKIN_CUSTOMER_ID}', ${ts}, ${ts}, NULL, '${WALKIN_CUSTOMER_NAME}', NULL, 1);`,
+  ].join('\n');
+}
+
+/**
  * Repoint every legacy `party_id IS NULL` document at the matching sentinel:
  * purchases (`kind='in'`) at the walk-in supplier, sales (`kind='out'`) at the
  * walk-in customer. Runs in the same pass as the seed, on every boot — a no-op

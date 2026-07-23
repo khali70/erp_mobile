@@ -1,7 +1,13 @@
 import type { openDatabaseSync } from 'expo-sqlite';
 import { db, sqlite } from './client';
 import { initAttachmentsDb } from './attachments-client';
-import { EXPENSES_DDL, TRANSACTIONS_DDL, TRANSACTIONS_INDEXES_DDL } from './ddl';
+import {
+  CORE_DDL,
+  DOCS_PARTY_INDEX_DDL,
+  EXPENSES_DDL,
+  TRANSACTIONS_DDL,
+  TRANSACTIONS_INDEXES_DDL,
+} from './ddl';
 import { backfillWalkInParties, seedSentinels, type SentinelDb } from './sentinels';
 
 // Forward-only bootstrap migration, run once at app boot.
@@ -10,105 +16,10 @@ import { backfillWalkInParties, seedSentinels, type SentinelDb } from './sentine
 // openDatabaseSync handle raced the change-listener handle and could NPE in
 // prepareSync on a cold first boot). WAL is expo-sqlite's default — no PRAGMA.
 export function runMigrations(): void {
-  sqlite.execSync(`
-    CREATE TABLE IF NOT EXISTS items (
-      id TEXT PRIMARY KEY,
-      created_at INTEGER NOT NULL,
-      updated_at INTEGER NOT NULL,
-      deleted_at INTEGER,
-      name TEXT NOT NULL,
-      category TEXT,
-      barcode TEXT,
-      unit TEXT NOT NULL DEFAULT 'pcs',
-      cost_price INTEGER NOT NULL DEFAULT 0,
-      sale_price INTEGER NOT NULL DEFAULT 0,
-      currency TEXT NOT NULL DEFAULT 'EGP',
-      pricing_mode TEXT NOT NULL DEFAULT 'fixed',
-      min_price INTEGER,
-      low_stock_threshold INTEGER NOT NULL DEFAULT 0,
-      photo_uri TEXT
-    );
-
-    CREATE TABLE IF NOT EXISTS documents (
-      id TEXT PRIMARY KEY,
-      created_at INTEGER NOT NULL,
-      updated_at INTEGER NOT NULL,
-      deleted_at INTEGER,
-      kind TEXT NOT NULL,
-      direction INTEGER NOT NULL,
-      status TEXT NOT NULL DEFAULT 'posted',
-      doc_no TEXT,
-      doc_date INTEGER,
-      total_amount INTEGER NOT NULL DEFAULT 0,
-      posted_at INTEGER,
-      party_id TEXT,
-      note TEXT,
-      attachments TEXT
-    );
-
-    CREATE TABLE IF NOT EXISTS document_lines (
-      id TEXT PRIMARY KEY,
-      created_at INTEGER NOT NULL,
-      updated_at INTEGER NOT NULL,
-      deleted_at INTEGER,
-      document_id TEXT NOT NULL,
-      item_id TEXT NOT NULL,
-      qty INTEGER NOT NULL,
-      unit_price INTEGER NOT NULL DEFAULT 0,
-      list_price INTEGER
-    );
-
-    CREATE TABLE IF NOT EXISTS stock_levels (
-      item_id TEXT PRIMARY KEY,
-      qty_on_hand INTEGER NOT NULL DEFAULT 0,
-      updated_at INTEGER NOT NULL
-    );
-
-    CREATE TABLE IF NOT EXISTS customers (
-      id TEXT PRIMARY KEY,
-      created_at INTEGER NOT NULL,
-      updated_at INTEGER NOT NULL,
-      deleted_at INTEGER,
-      name TEXT NOT NULL,
-      phone TEXT,
-      balance INTEGER NOT NULL DEFAULT 0,
-      is_system INTEGER NOT NULL DEFAULT 0
-    );
-
-    CREATE TABLE IF NOT EXISTS suppliers (
-      id TEXT PRIMARY KEY,
-      created_at INTEGER NOT NULL,
-      updated_at INTEGER NOT NULL,
-      deleted_at INTEGER,
-      name TEXT NOT NULL,
-      phone TEXT,
-      balance INTEGER NOT NULL DEFAULT 0,
-      is_system INTEGER NOT NULL DEFAULT 0
-    );
-
-    CREATE TABLE IF NOT EXISTS categories (
-      id TEXT PRIMARY KEY,
-      created_at INTEGER NOT NULL,
-      updated_at INTEGER NOT NULL,
-      deleted_at INTEGER,
-      name TEXT NOT NULL UNIQUE,
-      color TEXT,
-      icon TEXT,
-      i18n_key TEXT,
-      sort_order INTEGER NOT NULL DEFAULT 0
-    );
-
-    CREATE TABLE IF NOT EXISTS tags (
-      id TEXT PRIMARY KEY,
-      created_at INTEGER NOT NULL,
-      updated_at INTEGER NOT NULL,
-      deleted_at INTEGER,
-      name TEXT NOT NULL UNIQUE
-    );
-
-    CREATE INDEX IF NOT EXISTS idx_lines_document ON document_lines(document_id);
-    CREATE INDEX IF NOT EXISTS idx_lines_item ON document_lines(item_id);
-  `);
+  // The core schema (items, documents, lines, stock, parties, categories, tags).
+  // Its SQL lives in ./ddl so the prod-schema generator runs the SAME statements
+  // the phone runs — a hand-copied second version would drift silently.
+  sqlite.execSync(CORE_DDL);
 
   // The CASH BOOK and EXPENSES. Their DDL lives in ./ddl so this boot path and
   // the test harness run the SAME SQL (a hand-copied second version drifts, and
@@ -171,9 +82,7 @@ export function runMigrations(): void {
   // on every focus of the debts screen and inside computeDashboardStats() on
   // Home, once per supplier; without it the shop's slowest screen is its home.
   sqlite.execSync(TRANSACTIONS_INDEXES_DDL);
-  sqlite.execSync(`
-    CREATE INDEX IF NOT EXISTS idx_docs_party ON documents(party_id, kind, status);
-  `);
+  sqlite.execSync(DOCS_PARTY_INDEX_DDL);
 
   // Seed the sentinels and repoint legacy null-party documents at them. BOTH are
   // idempotent (INSERT OR IGNORE on a fixed id; the backfill is a no-op once no

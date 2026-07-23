@@ -99,3 +99,146 @@ CREATE INDEX IF NOT EXISTS idx_tx_occurred ON transactions(occurred_at);
 CREATE INDEX IF NOT EXISTS idx_tx_account ON transactions(account);
 CREATE INDEX IF NOT EXISTS idx_tx_doc ON transactions(doc_id);
 `;
+
+/**
+ * THE CORE SCHEMA — items, documents, document_lines, stock_levels, the two
+ * party tables, categories and tags — plus the two line indexes.
+ *
+ * This used to be an inline `sqlite.execSync(...)` blob inside `migrate.ts`. It
+ * moved here so it is a value the prod-schema generator can import (migrate.ts
+ * pulls in expo-sqlite and cannot be loaded off-device), WITHOUT forking the
+ * schema: `runMigrations()` still runs this exact string, so the .sql artifact
+ * and the phone can never drift. Every statement is `IF NOT EXISTS` — it fires
+ * on every boot. The columns are the FULL current shape; the ADD COLUMN
+ * back-fills in migrate.ts exist only to bring OLD installs up to this shape, so
+ * a fresh DB built from CORE_DDL alone already has every column and needs none
+ * of them.
+ */
+export const CORE_DDL = `
+    CREATE TABLE IF NOT EXISTS items (
+      id TEXT PRIMARY KEY,
+      created_at INTEGER NOT NULL,
+      updated_at INTEGER NOT NULL,
+      deleted_at INTEGER,
+      name TEXT NOT NULL,
+      category TEXT,
+      barcode TEXT,
+      unit TEXT NOT NULL DEFAULT 'pcs',
+      cost_price INTEGER NOT NULL DEFAULT 0,
+      sale_price INTEGER NOT NULL DEFAULT 0,
+      currency TEXT NOT NULL DEFAULT 'EGP',
+      pricing_mode TEXT NOT NULL DEFAULT 'fixed',
+      min_price INTEGER,
+      low_stock_threshold INTEGER NOT NULL DEFAULT 0,
+      photo_uri TEXT
+    );
+
+    CREATE TABLE IF NOT EXISTS documents (
+      id TEXT PRIMARY KEY,
+      created_at INTEGER NOT NULL,
+      updated_at INTEGER NOT NULL,
+      deleted_at INTEGER,
+      kind TEXT NOT NULL,
+      direction INTEGER NOT NULL,
+      status TEXT NOT NULL DEFAULT 'posted',
+      doc_no TEXT,
+      doc_date INTEGER,
+      total_amount INTEGER NOT NULL DEFAULT 0,
+      posted_at INTEGER,
+      party_id TEXT,
+      note TEXT,
+      attachments TEXT
+    );
+
+    CREATE TABLE IF NOT EXISTS document_lines (
+      id TEXT PRIMARY KEY,
+      created_at INTEGER NOT NULL,
+      updated_at INTEGER NOT NULL,
+      deleted_at INTEGER,
+      document_id TEXT NOT NULL,
+      item_id TEXT NOT NULL,
+      qty INTEGER NOT NULL,
+      unit_price INTEGER NOT NULL DEFAULT 0,
+      list_price INTEGER
+    );
+
+    CREATE TABLE IF NOT EXISTS stock_levels (
+      item_id TEXT PRIMARY KEY,
+      qty_on_hand INTEGER NOT NULL DEFAULT 0,
+      updated_at INTEGER NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS customers (
+      id TEXT PRIMARY KEY,
+      created_at INTEGER NOT NULL,
+      updated_at INTEGER NOT NULL,
+      deleted_at INTEGER,
+      name TEXT NOT NULL,
+      phone TEXT,
+      balance INTEGER NOT NULL DEFAULT 0,
+      is_system INTEGER NOT NULL DEFAULT 0
+    );
+
+    CREATE TABLE IF NOT EXISTS suppliers (
+      id TEXT PRIMARY KEY,
+      created_at INTEGER NOT NULL,
+      updated_at INTEGER NOT NULL,
+      deleted_at INTEGER,
+      name TEXT NOT NULL,
+      phone TEXT,
+      balance INTEGER NOT NULL DEFAULT 0,
+      is_system INTEGER NOT NULL DEFAULT 0
+    );
+
+    CREATE TABLE IF NOT EXISTS categories (
+      id TEXT PRIMARY KEY,
+      created_at INTEGER NOT NULL,
+      updated_at INTEGER NOT NULL,
+      deleted_at INTEGER,
+      name TEXT NOT NULL UNIQUE,
+      color TEXT,
+      icon TEXT,
+      i18n_key TEXT,
+      sort_order INTEGER NOT NULL DEFAULT 0
+    );
+
+    CREATE TABLE IF NOT EXISTS tags (
+      id TEXT PRIMARY KEY,
+      created_at INTEGER NOT NULL,
+      updated_at INTEGER NOT NULL,
+      deleted_at INTEGER,
+      name TEXT NOT NULL UNIQUE
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_lines_document ON document_lines(document_id);
+    CREATE INDEX IF NOT EXISTS idx_lines_item ON document_lines(item_id);
+`;
+
+/**
+ * The documents party index. Run LAST — after the `party_id` back-fill has added
+ * the column on upgraded installs. Split from CORE_DDL for the same table-then-
+ * column-then-index reason the transactions indexes are split out above.
+ */
+export const DOCS_PARTY_INDEX_DDL = `
+CREATE INDEX IF NOT EXISTS idx_docs_party ON documents(party_id, kind, status);
+`;
+
+/**
+ * The ATTACHMENTS table — receipt/proof BLOBs. Lives in a SEPARATE database file
+ * (attachments.db), not erp.db, so the hot ERP tables stay lean. The constant
+ * lives here so `attachments-client.ts` (which imports expo-sqlite) and the
+ * prod-schema generator share one definition.
+ */
+export const ATTACHMENTS_DDL = `
+    CREATE TABLE IF NOT EXISTS attachments (
+      id TEXT PRIMARY KEY,
+      document_id TEXT NOT NULL,
+      name TEXT NOT NULL,
+      mime TEXT NOT NULL,
+      size INTEGER NOT NULL,
+      created_at INTEGER NOT NULL,
+      bytes BLOB NOT NULL
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_att_doc ON attachments(document_id);
+`;
