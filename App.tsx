@@ -20,7 +20,7 @@ export default function App() {
   useEffect(() => {
     runMigrations();
     seedCategoriesIfEmpty(); // registry must exist before demo items reference it
-    seedDemoDataIfEmpty();
+    seedDemoDataIfEmpty(); // self-gated on __DEV__ (DEMO_SEED_ENABLED): a no-op in prod
     setReady(true);
   }, []);
 
