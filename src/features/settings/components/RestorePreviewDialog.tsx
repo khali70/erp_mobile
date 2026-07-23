@@ -6,9 +6,10 @@ import colors from '@/theme/colors';
 import { ROW } from '@/theme/rtl';
 import { Dialog } from '@/components/ui/Dialog';
 import { LabeledInput } from '@/components/ui/LabeledInput';
-import { formatNumber, toLocaleDigits } from '@/utils/numerals';
+import { formatDay, formatNumber, toLocaleDigits } from '@/utils/numerals';
 import type { RestorePreview } from '../restore';
 import { toMegabytes } from '../utils/file-size';
+import { restoreContentsKey } from '../utils/restore-messages';
 import { RestoreDetailRow } from './RestoreDetailRow';
 
 interface RestorePreviewDialogProps {
@@ -57,19 +58,30 @@ export function RestorePreviewDialog({ preview, onConfirm, onCancel }: RestorePr
             label={t('settings.restore.preview.version')}
             value={formatNumber(preview.userVersion, lang)}
           />
+          {preview.createdAt !== null && (
+            <RestoreDetailRow
+              label={t('settings.restore.preview.createdAt')}
+              value={formatDay(preview.createdAt, lang)}
+            />
+          )}
+          {/* What the file ACTUALLY holds — a full backup, a legacy ledger, or a
+              legacy receipts file are three different promises. */}
           <RestoreDetailRow
             label={t('settings.restore.preview.contains')}
-            value={
-              preview.target === 'erp'
-                ? t('settings.restore.preview.counts', {
-                    documents: formatNumber(preview.counts.documents, lang),
-                    items: formatNumber(preview.counts.items, lang),
-                    parties: formatNumber(preview.counts.parties, lang),
-                  })
-                : t('settings.restore.preview.attachmentsOnly')
-            }
+            value={t(restoreContentsKey(preview.format), {
+              documents: formatNumber(preview.counts.documents, lang),
+              items: formatNumber(preview.counts.items, lang),
+              parties: formatNumber(preview.counts.parties, lang),
+              attachments: formatNumber(preview.counts.attachments, lang),
+            })}
           />
         </View>
+
+        {preview.format === 'erp' && (
+          <Text className="text-xs text-warning-dark text-right leading-5">
+            {t('settings.restore.preview.ledgerOnlyNote')}
+          </Text>
+        )}
 
         {preview.needsMigration && (
           <Text className="text-xs text-muted text-right leading-5">

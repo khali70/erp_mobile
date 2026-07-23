@@ -27,7 +27,7 @@ export function RestoreErrorDialog({ error, onClose }: RestoreErrorDialogProps) 
         <Text className="text-base font-bold text-ink">{t('settings.restore.error.title')}</Text>
       </View>
       <Text className="text-sm text-ink text-right leading-6">
-        {t(restoreErrorKey(error.code, error.actualTarget))}
+        {t(restoreErrorKey(error.code, error.actualFormat))}
       </Text>
       {isPreFlightFailure(error.code) && (
         <Text className="text-xs text-positive text-right leading-5 font-semibold">

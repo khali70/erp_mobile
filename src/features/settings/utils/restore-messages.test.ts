@@ -1,5 +1,5 @@
 import type { RestoreFailureCode } from '../restore-validation';
-import { restoreErrorKey } from './restore-messages';
+import { restoreContentsKey, restoreErrorKey } from './restore-messages';
 
 const ALL_CODES: RestoreFailureCode[] = [
   'not-sqlite',
@@ -19,7 +19,8 @@ describe('restoreErrorKey', () => {
     expect(new Set(keys).size).toBe(ALL_CODES.length);
   });
 
-  it('names the slot the file actually belongs to on a mix-up', () => {
+  it('names the format the file actually is on a mix-up', () => {
+    expect(restoreErrorKey('wrong-slot', 'merged')).toBe('settings.restore.error.wrongSlotMerged');
     expect(restoreErrorKey('wrong-slot', 'erp')).toBe('settings.restore.error.wrongSlotErp');
     expect(restoreErrorKey('wrong-slot', 'attachments')).toBe(
       'settings.restore.error.wrongSlotAttachments',
@@ -32,5 +33,13 @@ describe('restoreErrorKey', () => {
 
   it('falls back to the generic key for an unknown code', () => {
     expect(restoreErrorKey('unknown')).toBe('settings.restore.error.unknown');
+  });
+});
+
+describe('restoreContentsKey', () => {
+  it('describes the three formats differently — they are three different promises', () => {
+    const keys = (['merged', 'erp', 'attachments'] as const).map(restoreContentsKey);
+    expect(new Set(keys).size).toBe(3);
+    expect(keys[0]).toBe('settings.restore.preview.countsMerged');
   });
 });

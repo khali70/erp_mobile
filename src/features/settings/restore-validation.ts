@@ -1,18 +1,31 @@
 import { APP_SCHEMA_VERSION } from '@/db/schema-version';
+import {
+  detectBackupFormat,
+  isBackupFormatTooNew,
+  type BackupFormat,
+  type BackupMeta,
+} from './backup-format';
 
 /**
  * RESTORE — the PURE half. Everything here is decidable from bytes and strings:
- * is this a SQLite file, whose schema is it, is it too new, which sidecars must
- * die. No `expo-*` import may ever enter this module — that is what lets the
+ * is this a SQLite file, which backup format is it, is it too new, which sidecars
+ * must die. No `expo-*` import may ever enter this module — that is what lets the
  * node/ts-jest suite run these decisions for real (`restore-validation.test.ts`)
  * instead of mocking the one thing that must never be wrong: the check that runs
  * *before* the owner's live database is overwritten.
  *
- * The impure half (picker, file copies, handles, the swap) lives in `restore.ts`.
+ * The file FORMAT itself (the merged layout, its marker, its SQL) lives in
+ * ./backup-format, shared with the backup writer so the two cannot drift. The
+ * impure half (picker, file copies, handles, the swap) lives in ./restore.
  */
 
-/** Which of the two database files a candidate is meant to replace. */
-export type RestoreTarget = 'erp' | 'attachments';
+export type { BackupFormat, RestoreTarget } from './backup-format';
+export {
+  ATTACHMENTS_REQUIRED_TABLES,
+  ERP_REQUIRED_TABLES,
+  detectBackupFormat,
+  restoreTargetsFor,
+} from './backup-format';
 
 /**
  * Every SQLite database file begins with this exact 16-byte string, NUL
@@ -22,6 +35,7 @@ export type RestoreTarget = 'erp' | 'attachments';
  * a non-database can fail late and confusingly — after we have started.
  */
 export const SQLITE_MAGIC = 'SQLite format 3\u0000';
+/** 16 — the header string, its terminating NUL included. */
 export const SQLITE_MAGIC_LENGTH = SQLITE_MAGIC.length;
 
 /** True when `bytes` opens with the SQLite file-format magic. */
@@ -33,61 +47,20 @@ export function isSqliteHeader(bytes: Uint8Array): boolean {
   return true;
 }
 
-/**
- * Tables that MUST exist for a file to be this app's ledger. Deliberately the
- * core set only (not indexes, not the additive columns): an OLD backup is a
- * legitimate restore source and will be missing later columns, which the
- * migration pass adds back. Requiring a column here would reject exactly the
- * backups this feature exists to recover.
- */
-export const ERP_REQUIRED_TABLES = [
-  'items',
-  'documents',
-  'document_lines',
-  'stock_levels',
-  'customers',
-  'suppliers',
-] as const;
-
-/** The attachments DB is a single BLOB table — that is its whole schema. */
-export const ATTACHMENTS_REQUIRED_TABLES = ['attachments'] as const;
-
-function hasAll(tables: readonly string[], required: readonly string[]): boolean {
-  const present = new Set(tables);
-  return required.every((table) => present.has(table));
-}
-
-/**
- * Which slot the picked file actually belongs to, from its table list — `null`
- * when it is a valid SQLite database but not one of ours (someone's WhatsApp
- * msgstore.db, a browser cache).
- *
- * The two schemas are disjoint: `erp.db` has no `attachments` TABLE (documents
- * carry an `attachments` JSON *column*), and `attachments.db` has nothing else.
- * That disjointness is what lets us name the correct slot in the error message
- * when the owner mixes up the two files — which they will, since the backup
- * flow emits both, seconds apart, with near-identical names.
- */
-export function detectTarget(tables: readonly string[]): RestoreTarget | null {
-  if (hasAll(tables, ERP_REQUIRED_TABLES)) return 'erp';
-  if (hasAll(tables, ATTACHMENTS_REQUIRED_TABLES)) return 'attachments';
-  return null;
-}
-
 export type RestoreRejectionCode =
   /** Not a SQLite file at all — wrong pick entirely. */
   | 'not-sqlite'
   /** A real SQLite file, but not this app's. */
   | 'unknown-schema'
-  /** One of ours, in the wrong slot (ledger file picked as attachments, etc). */
+  /** One of ours, in the wrong slot (a legacy ledger picked as a full backup). */
   | 'wrong-slot'
   /** Written by a newer app build; restoring it would be a downgrade. */
   | 'schema-too-new';
 
 export type RestoreRejection = {
   code: RestoreRejectionCode;
-  /** For `wrong-slot`: the slot the file DOES belong to. */
-  actualTarget?: RestoreTarget;
+  /** For `wrong-slot`: the format the file ACTUALLY is. */
+  actualFormat?: BackupFormat;
   /** For `schema-too-new`: the file's version and this build's. */
   fileVersion?: number;
   appVersion?: number;
@@ -123,19 +96,22 @@ export function isPreFlightFailure(code: RestoreFailureCode): boolean {
 }
 
 export type CandidateFacts = {
-  target: RestoreTarget;
+  /** What the owner said they were restoring. */
+  slot: BackupFormat;
   /** The first bytes of the file — `SQLITE_MAGIC_LENGTH` is enough. */
   header: Uint8Array;
   /** `name` column of every `table` row in the candidate's `sqlite_master`. */
   tables: readonly string[];
+  /** Parsed `backup_meta`, or `null` when the file carries no marker table. */
+  meta: BackupMeta | null;
   /** The candidate's `PRAGMA user_version`. */
   userVersion: number;
   appVersion?: number;
 };
 
 /**
- * The gate. Returns `null` when the candidate may be restored into `target`,
- * or the reason it may not. Ordered cheapest-and-most-fundamental first, so the
+ * The gate. Returns `null` when the candidate may be restored into `slot`, or
+ * the reason it may not. Ordered cheapest-and-most-fundamental first, so the
  * message the owner sees names the real problem rather than a symptom of it.
  */
 export function validateCandidate(facts: CandidateFacts): RestoreRejection | null {
@@ -143,9 +119,20 @@ export function validateCandidate(facts: CandidateFacts): RestoreRejection | nul
 
   if (!isSqliteHeader(facts.header)) return { code: 'not-sqlite' };
 
-  const actualTarget = detectTarget(facts.tables);
-  if (actualTarget === null) return { code: 'unknown-schema' };
-  if (actualTarget !== facts.target) return { code: 'wrong-slot', actualTarget };
+  // A merged layout from a FUTURE build: it says what it is, and this build does
+  // not know how to take it apart. Refuse before the shape check, so the message
+  // is "update the app" rather than a confusing complaint about tables.
+  if (isBackupFormatTooNew(facts.meta)) {
+    return {
+      code: 'schema-too-new',
+      fileVersion: facts.meta?.formatVersion ?? undefined,
+      appVersion,
+    };
+  }
+
+  const actualFormat = detectBackupFormat(facts.tables, facts.meta);
+  if (actualFormat === null) return { code: 'unknown-schema' };
+  if (actualFormat !== facts.slot) return { code: 'wrong-slot', actualFormat };
 
   if (facts.userVersion > appVersion) {
     return { code: 'schema-too-new', fileVersion: facts.userVersion, appVersion };
@@ -154,7 +141,10 @@ export function validateCandidate(facts: CandidateFacts): RestoreRejection | nul
 }
 
 /** True when the candidate is older than this build and needs migrating forward. */
-export function needsForwardMigration(userVersion: number, appVersion = APP_SCHEMA_VERSION): boolean {
+export function needsForwardMigration(
+  userVersion: number,
+  appVersion = APP_SCHEMA_VERSION,
+): boolean {
   return userVersion < appVersion;
 }
 

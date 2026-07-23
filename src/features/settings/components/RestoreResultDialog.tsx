@@ -15,12 +15,12 @@ interface RestoreResultDialogProps {
 /**
  * The success state — and a dead end on purpose.
  *
- * By the time this shows, the live database handle is CLOSED and every hydrated
- * store in the process points at a file that has been replaced underneath it.
- * There is no `expo-updates` in this project to reload with (see
- * `CAN_RELOAD_PROGRAMMATICALLY` in ../restore), so the dialog is
- * non-dismissible and asks the owner to fully close and reopen the app rather
- * than letting them wander back into screens that would read from nothing.
+ * By the time this shows, the live database handles are CLOSED and every
+ * hydrated store in the process points at files that have been replaced
+ * underneath it. The CTA restarts the app by whatever means this build has (see
+ * `requestAppRestart` in ../restore); the dialog is non-dismissible either way,
+ * so nobody wanders back into screens that would read from nothing while a
+ * restart is still pending.
  */
 export function RestoreResultDialog({
   visible,
