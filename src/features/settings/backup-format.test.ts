@@ -11,22 +11,54 @@ import {
   TRANSACTIONS_INDEXES_DDL,
 } from '@/db/ddl';
 import { APP_SCHEMA_VERSION } from '@/db/schema-version';
+import { unzipSync, zipSync } from 'fflate';
 import {
   BACKUP_META_TABLE,
   DROP_MERGED_ARTIFACTS_SQL,
+  MAX_BACKUP_BYTES,
   MERGED_BACKUP_FORMAT,
   MERGED_BACKUP_FORMAT_VERSION,
-  backupMetaRows,
+  ZIP_ENTRY_ATTACHMENTS,
+  ZIP_ENTRY_ERP,
+  buildBackupZip,
   detectBackupFormat,
+  exceedsBackupSizeLimit,
   extractAttachmentsSql,
   isBackupFormatTooNew,
-  mergeAttachmentsSql,
+  isZipHeader,
   parseBackupMeta,
+  readBackupZip,
   restoreTargetsFor,
   sqlQuote,
-  writeBackupMetaSql,
   type BackupMeta,
 } from './backup-format';
+
+/**
+ * MERGED-FORMAT NOTE: nothing in the app writes a merged `.db` any more — the
+ * backup artifact is a zip. The merge SQL below therefore lives HERE, in the
+ * test, and the fixtures it builds stand in for the files already on owners'
+ * devices. That is the honest shape for these tests: they prove restore can take
+ * apart a file it did not create.
+ */
+const MERGE_INTO_LEDGER_SQL = (attachmentsPath: string) =>
+  [
+    `ATTACH DATABASE ${sqlQuote(attachmentsPath)} AS att;`,
+    'DROP TABLE IF EXISTS main.attachments;',
+    ATTACHMENTS_DDL,
+    'INSERT INTO main.attachments SELECT * FROM att.attachments;',
+    'DETACH DATABASE att;',
+  ].join('\n');
+
+const WRITE_META_SQL = (attachmentCount: number, formatVersion = MERGED_BACKUP_FORMAT_VERSION) =>
+  `
+CREATE TABLE IF NOT EXISTS ${BACKUP_META_TABLE} (key TEXT PRIMARY KEY, value TEXT NOT NULL);
+INSERT OR REPLACE INTO ${BACKUP_META_TABLE} (key, value) VALUES
+  ('format', ${sqlQuote(MERGED_BACKUP_FORMAT)}),
+  ('format_version', ${sqlQuote(String(formatVersion))}),
+  ('app_schema_version', ${sqlQuote(String(APP_SCHEMA_VERSION))}),
+  ('created_at', '123'),
+  ('attachment_count', ${sqlQuote(String(attachmentCount))});
+`;
 
 // ---------------------------------------------------------------------------
 // The COLLISION check the merge design rests on.
@@ -76,22 +108,9 @@ describe('merged-file collision safety', () => {
 // ---------------------------------------------------------------------------
 
 describe('backup meta marker', () => {
-  const input = { createdAt: 1_770_000_000_000, appSchemaVersion: 7, attachmentCount: 42 };
-
-  it('round-trips through rows', () => {
-    const rows = backupMetaRows(input).map(([key, value]) => ({ key, value }));
-    expect(parseBackupMeta(rows)).toEqual({
-      format: MERGED_BACKUP_FORMAT,
-      formatVersion: MERGED_BACKUP_FORMAT_VERSION,
-      appSchemaVersion: 7,
-      createdAt: 1_770_000_000_000,
-      attachmentCount: 42,
-    });
-  });
-
-  it('round-trips through a REAL database, written by the real SQL', () => {
+  it('is read back from a REAL merged file, by value', () => {
     const db = new Database(':memory:');
-    db.exec(writeBackupMetaSql(input));
+    db.exec(WRITE_META_SQL(42));
     const rows = db.prepare(`SELECT key, value FROM ${BACKUP_META_TABLE};`).all() as {
       key: string;
       value: string;
@@ -99,19 +118,6 @@ describe('backup meta marker', () => {
     db.close();
     expect(parseBackupMeta(rows).format).toBe(MERGED_BACKUP_FORMAT);
     expect(parseBackupMeta(rows).attachmentCount).toBe(42);
-  });
-
-  it('is idempotent — re-writing the marker replaces rather than duplicates', () => {
-    const db = new Database(':memory:');
-    db.exec(writeBackupMetaSql(input));
-    db.exec(writeBackupMetaSql({ ...input, attachmentCount: 9 }));
-    const rows = db.prepare(`SELECT key, value FROM ${BACKUP_META_TABLE};`).all() as {
-      key: string;
-      value: string;
-    }[];
-    db.close();
-    expect(rows).toHaveLength(5);
-    expect(parseBackupMeta(rows).attachmentCount).toBe(9);
   });
 
   it('survives missing and garbage rows', () => {
@@ -184,7 +190,12 @@ describe('detectBackupFormat', () => {
   });
 
   it('rejects a ledger missing a core table', () => {
-    expect(detectBackupFormat(LEDGER_TABLES.filter((t) => t !== 'document_lines'), null)).toBeNull();
+    expect(
+      detectBackupFormat(
+        LEDGER_TABLES.filter((t) => t !== 'document_lines'),
+        null,
+      ),
+    ).toBeNull();
   });
 });
 
@@ -207,13 +218,94 @@ describe('isBackupFormatTooNew', () => {
 });
 
 describe('restoreTargetsFor', () => {
-  it('a merged file replaces BOTH databases — so both are snapshotted and both roll back', () => {
+  it('a zip or a merged file replaces BOTH databases — both snapshotted, both rolled back', () => {
+    expect(restoreTargetsFor('zip')).toEqual(['erp', 'attachments']);
     expect(restoreTargetsFor('merged')).toEqual(['erp', 'attachments']);
   });
 
-  it('a legacy file replaces exactly one', () => {
+  it('a zip with no receipts in it leaves the receipts database alone', () => {
+    expect(restoreTargetsFor('zip', false)).toEqual(['erp']);
+  });
+
+  it('a single-database file replaces exactly one', () => {
     expect(restoreTargetsFor('erp')).toEqual(['erp']);
     expect(restoreTargetsFor('attachments')).toEqual(['attachments']);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// THE ZIP — the artifact backup writes today, through real fflate.
+// ---------------------------------------------------------------------------
+
+describe('backup archive', () => {
+  const erp = new Uint8Array([1, 2, 3, 4, 5, 6, 7, 8]);
+  const attachments = new Uint8Array([9, 8, 7, 6]);
+
+  it('holds both databases under the names restore looks for', () => {
+    const entries = unzipSync(buildBackupZip(erp, attachments));
+    expect(Object.keys(entries).sort()).toEqual([ZIP_ENTRY_ATTACHMENTS, ZIP_ENTRY_ERP]);
+  });
+
+  it('round-trips both payloads byte for byte', () => {
+    const read = readBackupZip(buildBackupZip(erp, attachments));
+    expect(typeof read).not.toBe('string');
+    const contents = read as {
+      erp: Uint8Array;
+      attachments: Uint8Array | null;
+    };
+    expect([...contents.erp]).toEqual([...erp]);
+    expect([...(contents.attachments as Uint8Array)]).toEqual([...attachments]);
+  });
+
+  it('round-trips a payload that does not compress — a receipt photo is already compressed', () => {
+    // Pseudo-random bytes stand in for JPEG data: this is the case the low
+    // compression level is chosen for, and it must survive exactly.
+    const noise = new Uint8Array(4096);
+    for (let i = 0; i < noise.length; i += 1) noise[i] = (i * 37 + 11) % 251;
+    const read = readBackupZip(buildBackupZip(erp, noise)) as {
+      attachments: Uint8Array;
+    };
+    expect(Buffer.from(read.attachments).equals(Buffer.from(noise))).toBe(true);
+  });
+
+  it('says NOT-A-ZIP for anything without a PK signature', () => {
+    expect(readBackupZip(new Uint8Array([0x53, 0x51, 0x4c, 0x69]))).toBe('not-zip');
+    expect(readBackupZip(new Uint8Array([]))).toBe('not-zip');
+    expect(isZipHeader(new Uint8Array([0x50, 0x4b, 0x03, 0x04]))).toBe(true);
+    expect(isZipHeader(new Uint8Array([0x50, 0x4b, 0x05, 0x06]))).toBe(true); // empty archive
+    expect(isZipHeader(new Uint8Array([0x50, 0x4b, 0x99, 0x99]))).toBe(false);
+  });
+
+  it('says NOT-A-ZIP for a PK header on corrupt bytes', () => {
+    const truncated = buildBackupZip(erp, attachments).slice(0, 12);
+    expect(readBackupZip(truncated)).toBe('not-zip');
+  });
+
+  it('says MISSING-LEDGER for a real archive with no erp.db in it', () => {
+    expect(readBackupZip(zipSync({ [ZIP_ENTRY_ATTACHMENTS]: attachments }))).toBe(
+      'zip-missing-ledger',
+    );
+    expect(readBackupZip(zipSync({ 'holiday.jpg': attachments }))).toBe('zip-missing-ledger');
+  });
+
+  it('accepts an archive with no receipts entry — a shop may have no photos yet', () => {
+    const read = readBackupZip(zipSync({ [ZIP_ENTRY_ERP]: erp })) as {
+      attachments: Uint8Array | null;
+    };
+    expect(read.attachments).toBeNull();
+  });
+});
+
+describe('size ceiling', () => {
+  it('refuses only past the documented limit', () => {
+    expect(exceedsBackupSizeLimit(MAX_BACKUP_BYTES)).toBe(false);
+    expect(exceedsBackupSizeLimit(MAX_BACKUP_BYTES + 1)).toBe(true);
+    expect(exceedsBackupSizeLimit(0)).toBe(false);
+  });
+
+  it('is measured on the COMBINED snapshots, since both are held in memory at once', () => {
+    expect(exceedsBackupSizeLimit(6, 10)).toBe(false);
+    expect(exceedsBackupSizeLimit(6 + 5, 10)).toBe(true);
   });
 });
 
@@ -221,7 +313,7 @@ describe('restoreTargetsFor', () => {
 // The MERGE and the SPLIT, run for real against SQLite.
 // ---------------------------------------------------------------------------
 
-describe('merge / split round-trip (real SQLite)', () => {
+describe('merged-file split (real SQLite)', () => {
   let dir: string;
 
   beforeEach(() => {
@@ -264,12 +356,13 @@ describe('merge / split round-trip (real SQLite)', () => {
 
     // ---- BACKUP: merge + declare, exactly as backup.ts runs it.
     const merged = new Database(ledger);
-    merged.exec(mergeAttachmentsSql(attachments));
-    const count = (merged.prepare('SELECT COUNT(*) AS c FROM attachments;').get() as { c: number })
-      .c;
-    merged.exec(
-      writeBackupMetaSql({ createdAt: 123, appSchemaVersion: 1, attachmentCount: count }),
-    );
+    merged.exec(MERGE_INTO_LEDGER_SQL(attachments));
+    const count = (
+      merged.prepare('SELECT COUNT(*) AS c FROM attachments;').get() as {
+        c: number;
+      }
+    ).c;
+    merged.exec(WRITE_META_SQL(count));
     merged.close();
 
     // The merged file now detects as `merged`, and the ORIGINAL attachments file
@@ -280,9 +373,10 @@ describe('merge / split round-trip (real SQLite)', () => {
         name: string;
       }[]
     ).map((r) => r.name);
-    const metaRows = check
-      .prepare(`SELECT key, value FROM ${BACKUP_META_TABLE};`)
-      .all() as { key: string; value: string }[];
+    const metaRows = check.prepare(`SELECT key, value FROM ${BACKUP_META_TABLE};`).all() as {
+      key: string;
+      value: string;
+    }[];
     check.close();
     expect(count).toBe(2);
     expect(detectBackupFormat(tables, parseBackupMeta(metaRows))).toBe('merged');
@@ -293,7 +387,9 @@ describe('merge / split round-trip (real SQLite)', () => {
     target.exec(ATTACHMENTS_DDL);
     target.exec(extractAttachmentsSql(ledger));
     const rows = target
-      .prepare('SELECT id, document_id, name, mime, size, created_at, bytes FROM attachments ORDER BY id;')
+      .prepare(
+        'SELECT id, document_id, name, mime, size, created_at, bytes FROM attachments ORDER BY id;',
+      )
       .all() as { id: string; name: string; bytes: Buffer }[];
     target.close();
 
@@ -310,9 +406,11 @@ describe('merge / split round-trip (real SQLite)', () => {
         name: string;
       }[]
     ).map((r) => r.name);
-    const itemsSurvived = (cleaned.prepare('SELECT COUNT(*) AS c FROM items;').get() as {
-      c: number;
-    }).c;
+    const itemsSurvived = (
+      cleaned.prepare('SELECT COUNT(*) AS c FROM items;').get() as {
+        c: number;
+      }
+    ).c;
     cleaned.close();
 
     expect(after).not.toContain('attachments');
@@ -329,7 +427,7 @@ describe('merge / split round-trip (real SQLite)', () => {
     makeAttachments(attachments);
 
     const merged = new Database(ledger);
-    merged.exec(mergeAttachmentsSql(attachments));
+    merged.exec(MERGE_INTO_LEDGER_SQL(attachments));
     merged.close();
 
     const restored = path.join(dir, 'restored.db');
@@ -337,7 +435,11 @@ describe('merge / split round-trip (real SQLite)', () => {
     target.exec(ATTACHMENTS_DDL);
     target.exec(extractAttachmentsSql(ledger));
     target.exec(extractAttachmentsSql(ledger));
-    const c = (target.prepare('SELECT COUNT(*) AS c FROM attachments;').get() as { c: number }).c;
+    const c = (
+      target.prepare('SELECT COUNT(*) AS c FROM attachments;').get() as {
+        c: number;
+      }
+    ).c;
     target.close();
     expect(c).toBe(2);
   });
@@ -349,9 +451,13 @@ describe('merge / split round-trip (real SQLite)', () => {
     makeAttachments(attachments);
 
     const db = new Database(ledger);
-    db.exec(mergeAttachmentsSql(attachments));
-    db.exec(mergeAttachmentsSql(attachments));
-    const c = (db.prepare('SELECT COUNT(*) AS c FROM attachments;').get() as { c: number }).c;
+    db.exec(MERGE_INTO_LEDGER_SQL(attachments));
+    db.exec(MERGE_INTO_LEDGER_SQL(attachments));
+    const c = (
+      db.prepare('SELECT COUNT(*) AS c FROM attachments;').get() as {
+        c: number;
+      }
+    ).c;
     db.close();
     expect(c).toBe(2);
   });
@@ -365,8 +471,8 @@ describe('merge / split round-trip (real SQLite)', () => {
     empty.close();
 
     const db = new Database(ledger);
-    db.exec(mergeAttachmentsSql(attachments));
-    db.exec(writeBackupMetaSql({ createdAt: 1, appSchemaVersion: 1, attachmentCount: 0 }));
+    db.exec(MERGE_INTO_LEDGER_SQL(attachments));
+    db.exec(WRITE_META_SQL(0));
     const tables = (
       db.prepare("SELECT name FROM sqlite_master WHERE type='table';").all() as { name: string }[]
     ).map((r) => r.name);

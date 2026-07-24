@@ -15,17 +15,17 @@ import {
  * The restore state machine. All of the file/database work lives in ../restore;
  * this only sequences it and exposes what the dialogs need to render.
  *
- * ONE pick, ONE confirmation, one safety-snapshot cycle — including for a merged
- * backup, which carries both databases in a single file. (An earlier version
+ * ONE pick, ONE confirmation, one safety-snapshot cycle — including for a full
+ * backup, which carries both databases in a single artifact. (An earlier version
  * queued two picks because backup emitted two files; the queue is gone with the
- * format that required it, and the legacy single-database files are still
+ * format that required it, and the older single-database files are still
  * restorable, one at a time.)
  */
 export type RestoreChoice = BackupFormat;
 
 export type RestorePhase =
   | 'idle'
-  /** Full backup, or one of the two legacy single-database files. */
+  /** Full backup (zip), the older merged `.db`, or a single-database file. */
   | 'choosing'
   /** System picker is open. A cancel here is silent. */
   | 'picking'
@@ -105,7 +105,7 @@ export function useRestoreDatabase() {
 
   /** Back out of the preview — the staged copy is deleted, the live DBs untouched. */
   const cancel = useCallback(() => {
-    if (preview) discardStagedCandidate(preview.format);
+    if (preview) discardStagedCandidate();
     reset();
   }, [preview, reset]);
 
@@ -135,10 +135,9 @@ export function useRestoreDatabase() {
     restored,
     restartRequired,
     /**
-     * A LEGACY ledger-only file was restored, so the receipt bytes on the phone
-     * still belong to whatever was there before — images referenced by the
-     * restored documents may not open. Never true for a merged backup, which
-     * carries both halves.
+     * A ledger-only file was restored, so the receipt bytes on the phone still
+     * belong to whatever was there before — images referenced by the restored
+     * documents may not open. Never true for a full backup carrying both halves.
      */
     attachmentsMissing: restored.includes('erp') && !restored.includes('attachments'),
     start,

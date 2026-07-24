@@ -11,11 +11,11 @@ interface RestoreTargetDialogProps {
 }
 
 /**
- * Step one: WHICH file. A current backup is a single merged file and is the
- * first, primary option; the other two exist only for files made by builds that
- * shipped before the merge, and are labelled as older so nobody reaches for them
- * by default. Asking up front is what lets a mismatch be REJECTED by name
- * ("that is a full backup, pick it under Full backup") instead of half-restored.
+ * Step one: WHICH file. A current backup is a single `.zip` and is the first,
+ * primary option; the other three exist for files made by earlier builds and are
+ * labelled as older so nobody reaches for them by default. Asking up front is
+ * what lets a mismatch be REJECTED by name ("that is a ledger file, pick it
+ * under the ledger option") instead of half-restored.
  */
 export function RestoreTargetDialog({ visible, onChoose, onCancel }: RestoreTargetDialogProps) {
   const { t } = useTranslation();
@@ -30,6 +30,12 @@ export function RestoreTargetDialog({ visible, onChoose, onCancel }: RestoreTarg
 
       <RestoreTargetOption
         icon="archive"
+        label={t('settings.restore.target.zip')}
+        hint={t('settings.restore.target.zipHint')}
+        onPress={() => onChoose('zip')}
+      />
+      <RestoreTargetOption
+        icon="package"
         label={t('settings.restore.target.merged')}
         hint={t('settings.restore.target.mergedHint')}
         onPress={() => onChoose('merged')}

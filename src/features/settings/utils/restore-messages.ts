@@ -8,13 +8,21 @@ import type { RestoreFailureCode } from '../restore-validation';
  *
  * `wrong-slot` splits on the format the file ACTUALLY is, so the message can
  * name it. That is the likeliest mistake in this flow: an owner who has used the
- * app since before the single-file backup has legacy `erp-backup-*` and
- * `erp-attachments-*` files sitting beside the new merged one, all named alike.
+ * app for a while has `erp-backup-*.db`, `erp-attachments-*.db` and a merged
+ * `rafuf-backup-*.db` sitting beside the current `.zip`, all named alike.
+ *
+ * `not-zip` and `zip-missing-ledger` are deliberately separate: "this is not a
+ * backup archive" points the owner at their older `.db` files, while "this
+ * archive has no ledger in it" points them at a different archive entirely.
  */
 export function restoreErrorKey(code: RestoreFailureCode, actualFormat?: BackupFormat): string {
   switch (code) {
     case 'not-sqlite':
       return 'settings.restore.error.notSqlite';
+    case 'not-zip':
+      return 'settings.restore.error.notZip';
+    case 'zip-missing-ledger':
+      return 'settings.restore.error.zipMissingLedger';
     case 'unknown-schema':
       return 'settings.restore.error.unknownSchema';
     case 'wrong-slot':
@@ -38,17 +46,36 @@ export function restoreErrorKey(code: RestoreFailureCode, actualFormat?: BackupF
 }
 
 /**
- * What the picked file actually contains, for the confirm sheet — a merged
- * backup, a legacy ledger, or a legacy receipts file are three different
- * promises about what the owner is about to get back.
+ * What the picked file actually contains, for the confirm sheet — a full backup,
+ * a ledger-only file, or a receipts-only file are three different promises about
+ * what the owner is about to get back.
  */
 export function restoreContentsKey(format: BackupFormat): string {
   switch (format) {
+    case 'zip':
     case 'merged':
       return 'settings.restore.preview.countsMerged';
     case 'erp':
       return 'settings.restore.preview.countsLedger';
     default:
       return 'settings.restore.preview.countsAttachments';
+  }
+}
+
+/**
+ * The file's own name for itself, shown on the confirm sheet. An owner with four
+ * lookalike backups in their Downloads folder needs to be told which KIND of
+ * thing they just picked before they type the confirmation word.
+ */
+export function restoreFormatKey(format: BackupFormat): string {
+  switch (format) {
+    case 'zip':
+      return 'settings.restore.preview.formatZip';
+    case 'merged':
+      return 'settings.restore.preview.formatMerged';
+    case 'erp':
+      return 'settings.restore.preview.formatLedger';
+    default:
+      return 'settings.restore.preview.formatAttachments';
   }
 }

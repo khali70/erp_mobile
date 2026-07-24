@@ -9,7 +9,7 @@ import { LabeledInput } from '@/components/ui/LabeledInput';
 import { formatDay, formatNumber, toLocaleDigits } from '@/utils/numerals';
 import type { RestorePreview } from '../restore';
 import { toMegabytes } from '../utils/file-size';
-import { restoreContentsKey } from '../utils/restore-messages';
+import { restoreContentsKey, restoreFormatKey } from '../utils/restore-messages';
 import { RestoreDetailRow } from './RestoreDetailRow';
 
 interface RestorePreviewDialogProps {
@@ -48,6 +48,12 @@ export function RestorePreviewDialog({ preview, onConfirm, onCancel }: RestorePr
       <ScrollView className="max-h-[62%]" contentContainerClassName="gap-3">
         <View className="gap-2 rounded-2xl border border-border bg-background p-3.5">
           <RestoreDetailRow label={t('settings.restore.preview.file')} value={preview.fileName} />
+          {/* WHICH of the four backup shapes this is — the owner may have all
+              four in one folder, named alike. */}
+          <RestoreDetailRow
+            label={t('settings.restore.preview.format')}
+            value={t(restoreFormatKey(preview.format))}
+          />
           <RestoreDetailRow
             label={t('settings.restore.preview.size')}
             value={t('settings.restore.preview.sizeValue', {
@@ -77,7 +83,7 @@ export function RestorePreviewDialog({ preview, onConfirm, onCancel }: RestorePr
           />
         </View>
 
-        {preview.format === 'erp' && (
+        {preview.format !== 'attachments' && !preview.hasAttachments && (
           <Text className="text-xs text-warning-dark text-right leading-5">
             {t('settings.restore.preview.ledgerOnlyNote')}
           </Text>

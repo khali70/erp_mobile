@@ -24,6 +24,8 @@ export {
   ATTACHMENTS_REQUIRED_TABLES,
   ERP_REQUIRED_TABLES,
   detectBackupFormat,
+  isZipHeader,
+  readBackupZip,
   restoreTargetsFor,
 } from './backup-format';
 
@@ -50,6 +52,10 @@ export function isSqliteHeader(bytes: Uint8Array): boolean {
 export type RestoreRejectionCode =
   /** Not a SQLite file at all — wrong pick entirely. */
   | 'not-sqlite'
+  /** The owner picked a full backup, and the file is not an archive. */
+  | 'not-zip'
+  /** A real archive, but it carries no `erp.db` — no books in it. */
+  | 'zip-missing-ledger'
   /** A real SQLite file, but not this app's. */
   | 'unknown-schema'
   /** One of ours, in the wrong slot (a legacy ledger picked as a full backup). */
@@ -83,6 +89,8 @@ export type RestoreFailureCode =
 
 const PRE_FLIGHT: readonly RestoreFailureCode[] = [
   'not-sqlite',
+  'not-zip',
+  'zip-missing-ledger',
   'unknown-schema',
   'wrong-slot',
   'schema-too-new',
@@ -96,7 +104,12 @@ export function isPreFlightFailure(code: RestoreFailureCode): boolean {
 }
 
 export type CandidateFacts = {
-  /** What the owner said they were restoring. */
+  /**
+   * What the owner said they were restoring — always a DATABASE format here. A
+   * zip is judged by its own header and entry names before any of it reaches
+   * SQLite; each entry it yields is then validated through this gate as `erp`
+   * or `attachments` in its own right.
+   */
   slot: BackupFormat;
   /** The first bytes of the file — `SQLITE_MAGIC_LENGTH` is enough. */
   header: Uint8Array;

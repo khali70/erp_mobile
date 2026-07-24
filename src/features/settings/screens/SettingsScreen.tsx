@@ -5,11 +5,13 @@ import { useTranslation } from 'react-i18next';
 import Feather from '@expo/vector-icons/Feather';
 import colors from '@/theme/colors';
 import { ScreenHeader } from '@/components/ui/ScreenHeader';
+import { toLocaleDigits } from '@/utils/numerals';
 import { useSettingsStore } from '@/store/settings-store';
 import { UpdatesSettingsSection } from '@/features/updates/components/UpdatesSettingsSection';
 import { SettingsSwitchRow } from '../components/SettingsSwitchRow';
 import { RestoreSection } from '../components/RestoreSection';
-import { backupDatabase } from '../backup';
+import { backupDatabase, BackupError } from '../backup';
+import { toMegabytes } from '../utils/file-size';
 
 /**
  * الإعدادات — device settings: the negative-stock policy flag, backup, and the
@@ -17,7 +19,7 @@ import { backupDatabase } from '../backup';
  * Composition-only; NativeWind styling.
  */
 export function SettingsScreen() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const navigation = useNavigation();
   const allowNegativeStock = useSettingsStore((s) => s.allowNegativeStock);
   const setAllowNegativeStock = useSettingsStore((s) => s.setAllowNegativeStock);
@@ -33,7 +35,17 @@ export function SettingsScreen() {
     try {
       await backupDatabase();
     } catch (e) {
-      Alert.alert(t('settings.backup.errorTitle'), String(e instanceof Error ? e.message : e));
+      // A `too-large` refusal is the one failure the owner can DO something
+      // about, so it gets its own sentence with the numbers in it rather than a
+      // raw error string nobody can act on.
+      const message =
+        e instanceof BackupError
+          ? t('settings.backup.errorTooLarge', {
+              size: toLocaleDigits(toMegabytes(e.totalBytes), i18n.language),
+              limit: toLocaleDigits(toMegabytes(e.limitBytes), i18n.language),
+            })
+          : String(e instanceof Error ? e.message : e);
+      Alert.alert(t('settings.backup.errorTitle'), message);
     } finally {
       setBackingUp(false);
     }
@@ -77,9 +89,7 @@ export function SettingsScreen() {
           disabled={!privacyMode}
         />
 
-        <Text className="text-xs font-bold text-muted px-1 mt-3">
-          {t('settings.data.section')}
-        </Text>
+        <Text className="text-xs font-bold text-muted px-1 mt-3">{t('settings.data.section')}</Text>
 
         <View className="bg-surface rounded-2xl p-4 border border-border gap-3">
           <View className="gap-1">
@@ -112,8 +122,6 @@ export function SettingsScreen() {
             whole flow (row, confirm, progress, result) lives in one component. */}
         <RestoreSection />
         <UpdatesSettingsSection />
-
-
       </ScrollView>
     </View>
   );

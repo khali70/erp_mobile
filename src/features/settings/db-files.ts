@@ -1,4 +1,4 @@
-import { Directory, File, Paths } from 'expo-file-system';
+import { File, Paths } from 'expo-file-system';
 import { sqlite } from '@/db/client';
 import { walSidecarPaths } from './restore-validation';
 
@@ -29,11 +29,6 @@ export function databasesDir(): string {
   return Paths.dirname(sqlite.databasePath);
 }
 
-/** The same directory as a `Directory`, for the File-API side of the work. */
-export function databasesDirectory(): Directory {
-  return new Directory(toFileUri(databasesDir()));
-}
-
 /** A path inside the databases directory. */
 export function databasesPath(fileName: string): string {
   return Paths.join(databasesDir(), fileName);
@@ -45,11 +40,4 @@ export function deleteSidecars(path: string): void {
     const file = new File(toFileUri(sidecar));
     if (file.exists) file.delete();
   }
-}
-
-/** Delete a database file and its sidecars. Missing files are fine. */
-export function deleteWithSidecars(path: string): void {
-  const file = new File(toFileUri(path));
-  if (file.exists) file.delete();
-  deleteSidecars(path);
 }
