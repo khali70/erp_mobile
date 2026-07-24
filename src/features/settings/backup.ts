@@ -103,7 +103,12 @@ export async function backupDatabase(): Promise<BackupResult> {
     const totalBytes = (erp.size ?? 0) + (attachments.size ?? 0);
     if (exceedsBackupSizeLimit(totalBytes)) throw new BackupError('too-large', totalBytes);
 
-    const bytes = buildBackupZip(erp.bytesSync(), attachments.bytesSync());
+    // `bytes()` (async), NOT `bytesSync()`: on a device without JSI the sync
+    // native call can hand JS a Promise instead of a Uint8Array, and fflate then
+    // zips the Promise's KEYS as empty folders — a lossless-looking archive with
+    // none of the owner's data. Awaiting the async form guarantees real bytes.
+    const [erpBytes, attachmentsBytes] = await Promise.all([erp.bytes(), attachments.bytes()]);
+    const bytes = buildBackupZip(erpBytes, attachmentsBytes);
 
     if (archive.exists) archive.delete();
     archive.create();

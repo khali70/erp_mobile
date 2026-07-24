@@ -108,8 +108,29 @@ export function isZipHeader(bytes: Uint8Array): boolean {
   return (third === 0x03 && fourth === 0x04) || (third === 0x05 && fourth === 0x06);
 }
 
+/**
+ * fflate's zip walker treats every entry value that is NOT an `ArrayBuffer` view
+ * as a SUBDIRECTORY and recurses into its enumerable keys. Hand it a thenable —
+ * e.g. the result of `File.bytesSync()` when that native call resolves to a
+ * Promise instead of bytes on a device without JSI — and it silently writes
+ * `erp.db/then/`, `erp.db/catch/`, `erp.db/_x/` … : a valid zip full of empty
+ * folders, no ledger, no error. A backup that fails LOUDLY here beats one that
+ * hands the owner a plausible-looking archive with none of their data in it.
+ */
+function assertBytes(value: Uint8Array, entry: string): void {
+  if (!ArrayBuffer.isView(value)) {
+    throw new TypeError(
+      `Backup entry "${entry}" is not raw bytes (got ${
+        value === null ? 'null' : typeof value
+      }); refusing to write an empty archive.`,
+    );
+  }
+}
+
 /** Build the archive. `attachments` may be an EMPTY database, never omitted. */
 export function buildBackupZip(erp: Uint8Array, attachments: Uint8Array): Uint8Array {
+  assertBytes(erp, ZIP_ENTRY_ERP);
+  assertBytes(attachments, ZIP_ENTRY_ATTACHMENTS);
   return zipSync(
     { [ZIP_ENTRY_ERP]: erp, [ZIP_ENTRY_ATTACHMENTS]: attachments },
     { level: ZIP_COMPRESSION_LEVEL },

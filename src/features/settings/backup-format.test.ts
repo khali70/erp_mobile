@@ -257,6 +257,15 @@ describe('backup archive', () => {
     expect([...(contents.attachments as Uint8Array)]).toEqual([...attachments]);
   });
 
+  it('refuses a thenable payload instead of zipping a Promise as empty folders', () => {
+    // The device-side failure: `bytesSync()` handed back a Promise, not bytes.
+    // fflate would walk its keys into `erp.db/then/`, `erp.db/_x/` … — a valid
+    // zip with no ledger. The guard must turn that into a loud throw.
+    const promise = Promise.resolve(erp) as unknown as Uint8Array;
+    expect(() => buildBackupZip(promise, attachments)).toThrow(/not raw bytes/);
+    expect(() => buildBackupZip(erp, promise)).toThrow(/not raw bytes/);
+  });
+
   it('round-trips a payload that does not compress — a receipt photo is already compressed', () => {
     // Pseudo-random bytes stand in for JPEG data: this is the case the low
     // compression level is chosen for, and it must survive exactly.

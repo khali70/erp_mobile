@@ -121,7 +121,12 @@
       "shoes": "Shoes",
       "pants": "Pants",
       "shirts": "Shirts",
+      "shirt": "Shirt",
       "accessories": "Accessories",
+      "winterwear": "Winterwear",
+      "childrenwear": "Children's wear",
+      "underwear": "Underwear",
+      "assets": "Assets",
       "other": "Other"
     },
     "form": {
@@ -175,6 +180,19 @@
       "name": "Name",
       "namePlaceholder": "e.g. Ahmed Mohamed",
       "phone": "Phone number"
+    },
+    "contacts": {
+      "listTitle": "From your contacts",
+      "hide": "Hide suggestions",
+      "loading": "Reading your contacts…",
+      "noMatch": "No matching contact — just type the name",
+      "import": "From contacts",
+      "permBody": "Allow access to your contacts and the name box will fill in a customer's or supplier's number for you.",
+      "permGrant": "Allow contacts",
+      "permDenied": "Contacts are blocked. Turn them on in Settings, or just type the name and number.",
+      "unavailable": "Contacts aren't available right now — type the name and number.",
+      "truncated_one": "Showing the first match — keep typing to narrow it down.",
+      "truncated_other": "Showing the first {{n}} matches — keep typing to narrow it down."
     }
   },
   "customers": {
@@ -609,24 +627,27 @@
     },
     "backup": {
       "label": "Back up database",
-      "hint": "Save a copy of all your data to a file, then share it to Downloads, Drive, or Files. Keep it safe — local data is erased if the app is uninstalled.",
+      "hint": "Save all your data — books and receipt photos together — to a single .zip file, then share it to Downloads, Drive, or Files. Keep it safe: local data is erased if the app is uninstalled.",
       "button": "Back up now",
       "working": "Preparing backup…",
-      "errorTitle": "Backup failed"
+      "errorTitle": "Backup failed",
+      "errorTooLarge": "Your data ({{size}} MB) is larger than this phone can compress into one file (limit {{limit}} MB). Delete some old receipt photos or free up space, then try again."
     },
     "restore": {
       "label": "Restore from backup",
       "hint": "Replace the app’s current data with the contents of a backup file. Everything recorded on this phone is erased and replaced by the file — use it only after losing the phone or reinstalling the app.",
       "button": "Restore from backup",
       "target": {
-        "title": "What do you want to restore?",
-        "hint": "A backup is saved as two files: one for the books, one for receipt photos. Choose what to restore.",
-        "erp": "Books & stock",
-        "erpHint": "Items, documents, customers, suppliers, and the cash book. The file name starts with erp-backup",
-        "attachments": "Receipt photos",
-        "attachmentsHint": "Photos and attachments on documents. The file name starts with erp-attachments",
-        "both": "Both",
-        "bothHint": "You will be asked to pick the two files, one after the other.",
+        "title": "Which file are you restoring?",
+        "hint": "A backup is now a single .zip file holding the books and the receipt photos together. The other options are for files made by earlier versions.",
+        "zip": "Full backup (.zip)",
+        "zipHint": "One archive with everything: items, documents, customers, suppliers, cash book, and receipt photos. The file name starts with rafuf-backup and ends in .zip",
+        "merged": "Full backup (older .db file)",
+        "mergedHint": "A single .db file holding the books and the receipt photos together, made by an earlier app version. Its name starts with rafuf-backup and ends in .db",
+        "erp": "Books only (older backup)",
+        "erpHint": "An older erp-backup file with no receipt photos, from an earlier app version.",
+        "attachments": "Receipt photos only (older backup)",
+        "attachmentsHint": "An older erp-attachments file, from an earlier app version.",
         "cancel": "Cancel"
       },
       "validating": {
@@ -635,13 +656,21 @@
       "preview": {
         "title": "Confirm restore",
         "file": "File",
+        "format": "Backup type",
+        "formatZip": "Full backup archive (.zip)",
+        "formatMerged": "Older full backup (.db file)",
+        "formatLedger": "Books-only file",
+        "formatAttachments": "Receipt-photos-only file",
         "size": "Size",
         "sizeValue": "{{value}} MB",
         "version": "Data version",
+        "createdAt": "Backup date",
         "contains": "This backup contains",
-        "counts": "{{documents}} documents · {{items}} items · {{parties}} customers and suppliers",
-        "attachmentsOnly": "Receipt-photo file — it holds no books.",
+        "countsMerged": "{{documents}} documents · {{items}} items · {{parties}} customers and suppliers · {{attachments}} receipt photos",
+        "countsLedger": "{{documents}} documents · {{items}} items · {{parties}} customers and suppliers — no receipt photos",
+        "countsAttachments": "{{attachments}} receipt photos — no books",
         "migrationNote": "This backup is from an older version; the app will upgrade it after restoring.",
+        "ledgerOnlyNote": "This file carries no receipt photos, so some document images may not open after restoring.",
         "warning": "Warning: everything recorded on this phone right now — every document, item, debt, and cash entry — is erased and replaced by this file. The app saves a safety copy of your current data before it starts; that copy is the only way back.",
         "confirmLabel": "Type “{{word}}” to confirm replacing your data",
         "confirmWord": "RESTORE",
@@ -656,16 +685,19 @@
       "success": {
         "title": "Restore complete",
         "body": "Your data has been replaced. Fully close the app and open it again for the restored data to appear.",
-        "attachmentsMissing": "Receipt photos were not restored, so some document images may not open. You can restore the photo file later from the same screen.",
+        "attachmentsMissing": "The file you restored carries no receipt photos, so some document images may not open. If you still have a receipt-photos file (erp-attachments), you can restore it from the same screen.",
         "restart": "Got it — I’ll close the app"
       },
       "error": {
         "title": "Restore failed",
         "safe": "None of your current data was touched.",
-        "notSqlite": "That file is not a backup from this app. Pick a .db file the app itself created.",
+        "notSqlite": "That file is not a backup from this app. Pick a file the app itself created.",
+        "notZip": "That file is not a backup archive. If you have an older .db backup, pick it under one of the older-backup options.",
+        "zipMissingLedger": "That is an archive, but it holds no books from this app. Pick a backup the app created (its name starts with rafuf-backup).",
         "unknownSchema": "That is a database file, but not one belonging to this app.",
-        "wrongSlotErp": "That is the books & stock file, and you picked it in the receipt-photos slot. Try again and pick it in the right slot.",
-        "wrongSlotAttachments": "That is the receipt-photos file, and you picked it in the books & stock slot. Try again and pick it in the right slot.",
+        "wrongSlotMerged": "That is an older full backup in .db form. Try again and pick it under “Full backup (older .db file)”.",
+        "wrongSlotErp": "That is an older books-only file with no receipt photos. Try again and pick it under “Books only”.",
+        "wrongSlotAttachments": "That is an older receipt-photos file. Try again and pick it under “Receipt photos only”.",
         "schemaTooNew": "This backup was made by a newer version of the app. Update the app first, then try again — restoring it now could corrupt your data.",
         "fileMissing": "The file could not be read. It may have been moved or deleted mid-way.",
         "noSpace": "Not enough space on the phone to save a safety copy before restoring. Free some space and try again.",

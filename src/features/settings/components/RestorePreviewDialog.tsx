@@ -32,10 +32,8 @@ interface RestorePreviewDialogProps {
  */
 export function RestorePreviewDialog({ preview, onConfirm, onCancel }: RestorePreviewDialogProps) {
   const { t, i18n } = useTranslation();
-  const [typed, setTyped] = useState('');
 
   const word = t('settings.restore.preview.confirmWord');
-  const armed = typed.trim().toLocaleLowerCase() === word.toLocaleLowerCase();
   const lang = i18n.language;
 
   return (
@@ -45,7 +43,7 @@ export function RestorePreviewDialog({ preview, onConfirm, onCancel }: RestorePr
         <Text className="text-base font-bold text-ink">{t('settings.restore.preview.title')}</Text>
       </View>
 
-      <ScrollView className="max-h-[62%]" contentContainerClassName="gap-3">
+      <ScrollView className="max-h-[80%]" contentContainerClassName="gap-3">
         <View className="gap-2 rounded-2xl border border-border bg-background p-3.5">
           <RestoreDetailRow label={t('settings.restore.preview.file')} value={preview.fileName} />
           {/* WHICH of the four backup shapes this is — the owner may have all
@@ -101,22 +99,14 @@ export function RestorePreviewDialog({ preview, onConfirm, onCancel }: RestorePr
           </Text>
         </View>
 
-        <LabeledInput
-          label={t('settings.restore.preview.confirmLabel', { word })}
-          value={typed}
-          onChangeText={setTyped}
-          placeholder={t('settings.restore.preview.confirmPlaceholder')}
-        />
+
       </ScrollView>
 
       <Pressable
         onPress={onConfirm}
-        disabled={!armed}
         accessibilityRole="button"
         accessibilityLabel={t('settings.restore.preview.confirm')}
-        accessibilityState={{ disabled: !armed }}
         className="rounded-xl bg-danger py-3 active:opacity-80"
-        style={{ opacity: armed ? 1 : 0.4 }}
       >
         <Text className="text-sm font-bold text-surface text-center">
           {t('settings.restore.preview.confirm')}

@@ -1,4 +1,4 @@
-# ERP Mobile — Project Reference
+# Rafuf (رفوف) — Project Reference
 
 > Single source of truth for **what this app is** and **what every screen does**.
 > Each screen's local `*.md` links back here. Read this first.
