@@ -31,7 +31,7 @@ export default function App() {
     if (interrupted) return; // do not boot the db against a half-written file
     runMigrations();
     seedCategoriesIfEmpty(); // registry must exist before demo items reference it
-    seedDemoDataIfEmpty(); // self-gated on __DEV__ (DEMO_SEED_ENABLED): a no-op in prod
+    // seedDemoDataIfEmpty(); // self-gated on __DEV__ (DEMO_SEED_ENABLED): a no-op in prod
     setReady(true);
   }, [interrupted]);
 

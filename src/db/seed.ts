@@ -23,11 +23,14 @@ export const DEMO_SEED_ENABLED = __DEV__;
 // Users can add more at runtime — these are just the starting registry.
 const DEFAULT_CATEGORIES: readonly { name: string; color: string; i18nKey: string }[] = [
   { name: 'tshirts', color: 'emerald', i18nKey: 'tshirts' },
-  { name: 'jackets', color: 'cyan', i18nKey: 'jackets' },
   { name: 'shoes', color: 'amber', i18nKey: 'shoes' },
   { name: 'pants', color: 'violet', i18nKey: 'pants' },
   { name: 'shirts', color: 'sky', i18nKey: 'shirts' },
-  { name: 'accessories', color: 'pink', i18nKey: 'accessories' },
+  { name: 'winterwear', color: 'blue', i18nKey: 'winterwear' },
+  { name: 'childrenwear', color: 'orange', i18nKey: 'childrenwear' },
+  { name: 'underwear', color: 'rose', i18nKey: 'underwear' },
+  { name: "shirt", color: "blue", i18nKey: "shirt" },
+  { name: 'assets', color: 'pink', i18nKey: 'assets' },
   { name: 'other', color: 'slate', i18nKey: 'other' },
 ];
 

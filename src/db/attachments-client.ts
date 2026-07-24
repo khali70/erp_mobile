@@ -1,5 +1,5 @@
 import { openDatabaseSync, type SQLiteDatabase } from 'expo-sqlite';
-import { ATTACHMENTS_DDL } from './ddl';
+import { applyAttachmentsSchema } from './migrate-core';
 
 // Separate DB file for receipt attachment BLOBs. Kept out of erp.db so the hot
 // ERP tables stay lean (fast VACUUM / small page cache) and so a backup can copy
@@ -19,5 +19,5 @@ export function initAttachmentsDb(): void {
  * (the singleton is closed for the swap). Idempotent, like its caller.
  */
 export function migrateAttachmentsDatabase(handle: SQLiteDatabase): void {
-  handle.execSync(ATTACHMENTS_DDL);
+  applyAttachmentsSchema(handle);
 }
