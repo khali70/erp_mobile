@@ -98,9 +98,7 @@ export function ItemFormSheet({ visible, initial, onClose, onSave }: ItemFormShe
                   label={t('inventory.form.costPrice')}
                   value={draft.costPrice}
                   onChangeText={(v) => update('costPrice', v)}
-                  keyboardType="numeric"
-                    editable={false}
-
+                    keyboardType="numeric"
                 />
               </View>
               <View className="flex-1">
