@@ -1,7 +1,8 @@
-import { View, Text, TextInput } from 'react-native';
+import { View, Text } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import colors from '@/theme/colors';
 import { ROW } from '@/theme/rtl';
+import { NumericInput } from '@/components/ui/NumericInput';
 
 interface SettleAmountFieldProps {
   /** The amount as TYPED (major units). Pre-filled with the outstanding balance. */
@@ -20,7 +21,7 @@ export function SettleAmountField({ value, onChange }: SettleAmountFieldProps) {
   const { t } = useTranslation();
   return (
     <View className={`${ROW} items-center justify-between`}>
-      <TextInput
+      <NumericInput
         value={value}
         onChangeText={onChange}
         keyboardType="numeric"

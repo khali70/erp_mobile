@@ -1,6 +1,7 @@
-import { View, Text, TextInput } from 'react-native';
+import { View, Text } from 'react-native';
 import colors from '@/theme/colors';
 import { ROW } from '@/theme/rtl';
+import { NumericInput } from '@/components/ui/NumericInput';
 
 interface PriceRangeInputProps {
   /** Raw text of the lower bound — MAJOR units (EGP) for money ranges. */
@@ -43,7 +44,7 @@ export function PriceRangeInput({
     <View className={`${ROW} gap-3`}>
       <View className="flex-1 gap-1">
         <Text className="text-[11px] text-muted text-right">{caption(minLabel)}</Text>
-        <TextInput
+        <NumericInput
           className="bg-background text-ink px-3.5 py-2.5 rounded-xl border border-border text-sm text-right"
           value={minValue}
           onChangeText={onChangeMin}
@@ -55,7 +56,7 @@ export function PriceRangeInput({
       </View>
       <View className="flex-1 gap-1">
         <Text className="text-[11px] text-muted text-right">{caption(maxLabel)}</Text>
-        <TextInput
+        <NumericInput
           className="bg-background text-ink px-3.5 py-2.5 rounded-xl border border-border text-sm text-right"
           value={maxValue}
           onChangeText={onChangeMax}

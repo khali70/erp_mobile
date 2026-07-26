@@ -1,8 +1,9 @@
-import { View, Text, TextInput } from 'react-native';
+import { View, Text } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import colors from '@/theme/colors';
 import { ROW } from '@/theme/rtl';
 import { formatMoneyMajor } from '@/utils/numerals';
+import { NumericInput } from '@/components/ui/NumericInput';
 
 interface SplitAmountRowProps {
   /** The CASH half, as typed (major units). */
@@ -28,7 +29,7 @@ export function SplitAmountRow({ cashValue, onChangeCash, instapayPart }: SplitA
   return (
     <View className="gap-2 bg-background rounded-xl p-3">
       <View className={`${ROW} items-center justify-between`}>
-        <TextInput
+        <NumericInput
           value={cashValue}
           onChangeText={onChangeCash}
           keyboardType="numeric"

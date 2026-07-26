@@ -6,6 +6,7 @@ import { getDocumentAsync } from 'expo-document-picker';
 import { File } from 'expo-file-system';
 import { fromMinor, lineTotal, toMajor, toMinor } from '@/utils/money';
 import { normalizeDigits, toLocaleDigits } from '@/utils/numerals';
+import { evaluateNumeric } from '@/utils/mathInput';
 import { parseStockCsv, parseAmount, type ImportRow } from '../utils/importStock';
 import { useItems } from '@/features/inventory/hooks/useItems';
 import { useSettingsStore } from '@/store/settings-store';

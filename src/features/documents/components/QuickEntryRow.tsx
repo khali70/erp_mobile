@@ -7,6 +7,7 @@ import { useCategories } from '@/features/inventory/hooks/useCategories';
 import { TagInput } from '@/features/inventory/components/TagInput';
 import type { QuickEntryValues, QuickEntryLocks } from '../types';
 import { LockableField } from './LockableField';
+import { NumericInput } from '@/components/ui/NumericInput';
 
 interface QuickEntryRowProps {
   values: QuickEntryValues;
@@ -122,7 +123,7 @@ export function QuickEntryRow({
           locked={locks.price}
           onToggleLock={() => onToggleLock('price')}
         >
-          <TextInput
+          <NumericInput
             className="bg-background text-ink px-3 py-2.5 rounded-xl border border-border text-sm"
             value={values.price}
             onChangeText={(v) => onChange('price', v)}
@@ -137,7 +138,7 @@ export function QuickEntryRow({
           locked={locks.qty}
           onToggleLock={() => onToggleLock('qty')}
         >
-          <TextInput
+          <NumericInput
             className="bg-background text-ink px-3 py-2.5 rounded-xl border border-border text-sm"
             value={values.qty}
             onChangeText={(v) => onChange('qty', v)}

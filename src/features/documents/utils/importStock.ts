@@ -2,6 +2,7 @@ import { File, Paths } from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
 import { parseCsv, buildCsv } from '@/utils/csv';
 import { newId } from '@/utils/id';
+import { evaluateNumeric } from '@/utils/mathInput';
 
 // Maps a stock CSV into editable draft rows for the review sheet. Headers are
 // matched case-insensitively against known aliases (English + Arabic), so column
@@ -99,7 +100,7 @@ export function parseStockCsv(text: string): ParseStockResult {
 
 /** Positive finite parse; blank/garbage → NaN so validation can flag it. */
 export const parseAmount = (s: string): number => {
-  const n = parseFloat(s.replace(',', '.'));
+  const n = evaluateNumeric(s);
   return Number.isFinite(n) ? n : NaN;
 };
 

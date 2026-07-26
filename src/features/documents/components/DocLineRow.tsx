@@ -1,10 +1,12 @@
 import { useState } from 'react';
-import { View, Text, Pressable, TextInput } from 'react-native';
+import { View, Text, Pressable } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import Feather from '@expo/vector-icons/Feather';
 import colors from '@/theme/colors';
 import { ROW } from '@/theme/rtl';
-import { formatMoneyMajor, formatNumber, normalizeDigits } from '@/utils/numerals';
+import { formatMoneyMajor, formatNumber } from '@/utils/numerals';
+import { NumericInput } from '@/components/ui/NumericInput';
+import { evaluateNumeric } from '@/utils/mathInput';
 import type { DocLine, DocMode } from '../types';
 
 interface DocLineRowProps {
@@ -34,7 +36,7 @@ interface DocLineRowProps {
  * valuation and is never noticed again.
  */
 const parseNum = (text: string): number => {
-  const n = parseFloat(normalizeDigits(text));
+  const n = evaluateNumeric(text);
   return Number.isFinite(n) ? n : 0;
 };
 
@@ -111,7 +113,7 @@ export function DocLineRow({
           {rateEditable ? (
             <View className={`${ROW} items-center gap-2 mt-1`}>
               <Text className="text-muted text-xs">{currency}</Text>
-              <TextInput
+              <NumericInput
                 className="min-w-16 bg-background text-ink text-sm font-bold text-center px-2 py-1.5 rounded-lg border border-primary/40"
                 keyboardType="decimal-pad"
                 value={line.unitPrice ? String(line.unitPrice) : ''}
@@ -157,7 +159,7 @@ export function DocLineRow({
           >
             <Feather name="minus" size={16} color={colors.muted} />
           </Pressable>
-          <TextInput
+          <NumericInput
             className="w-12 h-11 text-center text-ink font-extrabold"
             keyboardType="decimal-pad"
             value={line.qty ? String(line.qty) : ''}
@@ -208,4 +210,4 @@ export function DocLineRow({
       ) : null}
     </View>
   );
-}
+};
