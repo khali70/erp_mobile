@@ -55,6 +55,8 @@ export interface Party {
 /** The fast-entry row's field values (strings as typed; prices are major). */
 export interface QuickEntryValues {
   category: string;
+  /** Fixed leading part of the line name (e.g. brand/type); lockable to persist across adds. */
+  titlePrefix: string;
   title: string;
   price: string;
   qty: string;

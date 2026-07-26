@@ -62,22 +62,43 @@ export function QuickEntryRow({
         </ScrollView>
       </LockableField>
 
-      {/* Title + autocomplete */}
-      <View className="gap-1">
-        <Text className="text-[11px] font-semibold text-muted">{t('documents.quick.title')}</Text>
-        <View className={`${ROW} items-center gap-1 bg-background border border-border rounded-xl px-3`}>
+      {/* Title: fixed prefix (lockable) + variable part + autocomplete */}
+      <View className={`${ROW} gap-3 items-start`}>
+        {/* Fixed prefix — lock to reuse across many lines (e.g. brand) */}
+        <LockableField
+          className="w-28"
+          label={t('documents.quick.titlePrefix')}
+          locked={locks.titlePrefix}
+          onToggleLock={() => onToggleLock('titlePrefix')}
+        >
           <TextInput
-            className="flex-1 text-sm text-ink py-2.5"
-            value={values.title}
-            onChangeText={(v) => onChange('title', v)}
-            placeholder={t('documents.quick.titlePlaceholder')}
+            className="bg-background text-ink px-3 py-2.5 rounded-xl border border-border text-sm"
+            value={values.titlePrefix}
+            onChangeText={(v) => onChange('titlePrefix', v)}
+            placeholder={t('documents.quick.titlePrefixPlaceholder')}
             placeholderTextColor={colors.muted}
-            returnKeyType="done"
-            onSubmitEditing={() => canAdd && onAdd()}
-            blurOnSubmit={false}
           />
+        </LockableField>
+
+        {/* Variable part */}
+        <View className="flex-1 gap-1">
+          <Text className="text-[11px] font-semibold text-muted">{t('documents.quick.title')}</Text>
+          <View className={`${ROW} items-center gap-1 bg-background border border-border rounded-xl px-3`}>
+            <TextInput
+              className="flex-1 text-sm text-ink py-2.5"
+              value={values.title}
+              onChangeText={(v) => onChange('title', v)}
+              placeholder={t('documents.quick.titlePlaceholder')}
+              placeholderTextColor={colors.muted}
+              returnKeyType="done"
+              onSubmitEditing={() => canAdd && onAdd()}
+              blurOnSubmit={false}
+            />
+          </View>
         </View>
-        {values.title.trim() !== '' && suggestions.length > 0 && (
+      </View>
+      {values.title.trim() !== '' && suggestions.length > 0 && (
+        <View className="gap-1 -mt-1">
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerClassName={`${ROW} gap-2 pt-0.5`}>
             {suggestions.map((name) => (
               <Pressable
@@ -90,8 +111,8 @@ export function QuickEntryRow({
               </Pressable>
             ))}
           </ScrollView>
-        )}
-      </View>
+        </View>
+      )}
 
       {/* Price + qty */}
       <View className={`${ROW} gap-3`}>

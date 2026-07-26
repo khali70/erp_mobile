@@ -267,6 +267,8 @@
     "quick": {
       "title": "Product title",
       "titlePlaceholder": "e.g. White cotton shirt",
+      "titlePrefix": "Prefix",
+      "titlePrefixPlaceholder": "e.g. Nike",
       "price": "Price",
       "qty": "Qty",
       "add": "Add line"

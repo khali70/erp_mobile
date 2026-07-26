@@ -275,6 +275,8 @@
     "quick": {
       "title": "اسم المنتج",
       "titlePlaceholder": "مثال: قميص قطن أبيض",
+      "titlePrefix": "بادئة",
+      "titlePrefixPlaceholder": "مثال: نايك",
       "price": "السعر",
       "qty": "الكمية",
       "add": "إضافة سطر"

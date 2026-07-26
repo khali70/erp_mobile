@@ -43,6 +43,7 @@ const nextId = () => `l${seq++}`;
 
 const EMPTY_QUICK: QuickEntryValues = {
   category: '',
+  titlePrefix: '',
   title: '',
   price: '',
   qty: '',
@@ -51,6 +52,7 @@ const EMPTY_QUICK: QuickEntryValues = {
 };
 const NO_LOCKS: QuickEntryLocks = {
   category: false,
+  titlePrefix: false,
   title: false,
   price: false,
   qty: false,
@@ -468,8 +470,10 @@ export function useDocumentForm(mode: DocMode) {
   // Fast-entry add: an ad-hoc line (itemId resolved at save via find-or-create).
   // A repeat title+category bumps qty; then unlocked fields clear for the next.
   const addQuickLine = useCallback(() => {
-    const title = quick.title.trim();
-    if (!title) return;
+    const variable = quick.title.trim();
+    if (!variable) return;
+    // Fixed prefix (e.g. brand) leads the variable descriptor: "Samsung" + "Galaxy A54".
+    const title = [quick.titlePrefix.trim(), variable].filter(Boolean).join(' ');
     const price = Math.max(0, parseFloat(quick.price) || 0);
     const qty = Math.max(1, parseInt(quick.qty, 10) || 1);
     const category = quick.category || undefined;
@@ -493,6 +497,7 @@ export function useDocumentForm(mode: DocMode) {
     // Reset unlocked fields; title always clears so entry keeps flowing.
     setQuick((prev) => ({
       category: locks.category ? prev.category : '',
+      titlePrefix: locks.titlePrefix ? prev.titlePrefix : '',
       title: '',
       price: locks.price ? prev.price : '',
       qty: locks.qty ? prev.qty : '',
