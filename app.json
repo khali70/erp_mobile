@@ -1,7 +1,7 @@
 {
   "expo": {
     "name": "Rafuf",
-    "slug": "rafuf",
+    "slug": "erp-mobile",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -38,7 +38,9 @@
       "permissions": [
         "android.permission.USE_BIOMETRIC",
         "android.permission.USE_FINGERPRINT",
-        "android.permission.READ_CONTACTS"
+        "android.permission.READ_CONTACTS",
+        "android.permission.CAMERA",
+        "android.permission.RECORD_AUDIO"
       ],
       "package": "com.khali70.rafuf"
     },
@@ -78,6 +80,7 @@
           }
         }
       ]
-    ]
+    ],
+    "owner": "khali70"
   }
 }
