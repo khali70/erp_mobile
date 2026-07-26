@@ -33,7 +33,7 @@ export function QuickEntryRow({
 }: QuickEntryRowProps) {
   const { t } = useTranslation();
   const { categories } = useCategories();
-  const canAdd = values.title.trim() !== '';
+  const canAdd = values.title.trim() !== '' && values.category.trim() !== '';
 
   return (
     <View className="bg-surface rounded-2xl p-3.5 border border-primary/30 gap-3">
