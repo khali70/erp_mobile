@@ -172,3 +172,54 @@ npm test            # jest — existing tests must pass
 ```
 
 If you added AR/EN keys, confirm both `src/i18n/locales/ar.json` and `src/i18n/locales/en.json` have them.
+
+---
+
+# 📱 Device Verification (noqa) — after static checks pass
+
+Static checks (typecheck/lint/test) prove the code compiles. They do NOT prove the feature works on a device. After they pass, verify the real user flow on the connected device with noqa.
+
+## When to run
+
+- ALWAYS for a new screen/flow, or any change touching UI, navigation, permissions, camera/audio, or DB writes.
+- Skip only for pure-logic changes with no observable UI (say so in the report).
+
+## Setup (graceful if unavailable)
+
+```bash
+# noqa CLI is not on PATH; use the app runner binary:
+export NOQA=/Applications/noqa.app/Contents/Resources/runner/arm64/noqa_runner
+"$NOQA" status                       # must show a signed-in account
+"$NOQA" devices                      # list; then connect the target
+"$NOQA" devices connect <DEVICE_ID>  # e.g. a physical Android serial
+```
+
+If `noqa_runner` is missing, the noqa app is not signed in, or no device is connected: STOP device testing, report "device verification skipped: <reason>", and list the manual steps a human should run. Do NOT block the deliverable on it.
+
+## Drive the flow (grounding — describe elements in plain language)
+
+```bash
+"$NOQA" screen                                          # dump the a11y hierarchy (current UI)
+"$NOQA" action tap  --description "<element in AR or EN>"
+"$NOQA" action type --description "<field>" --text "..."
+```
+
+- Grounding taps have latency (~5-8s) — account for it when timing recordings/animations.
+- Pre-grant Android runtime permissions instead of tapping OS dialogs, e.g.
+  `adb shell pm grant com.khali70.rafuf android.permission.RECORD_AUDIO`.
+- NEVER trigger a blocking JS dialog (`alert`/`confirm`) — it freezes the automation channel.
+
+## Verify state, not just pixels
+
+For DB-backed features, confirm the write actually landed — do not trust the UI alone:
+
+```bash
+adb shell 'run-as com.khali70.rafuf cat files/SQLite/erp.db' > /tmp/erp.db
+sqlite3 /tmp/erp.db "SELECT ... FROM <table> ORDER BY created_at DESC LIMIT 5;"
+```
+
+Check both the row (status/foreign keys/soft-delete columns) and any on-disk artifacts the feature writes (e.g. `run-as ... ls files/<dir>/`).
+
+## Report
+
+Add a "Device verification" section: device used, the exact scenario steps run, the observed result per step, and the DB/filesystem proof (or the reason it was skipped). Follow the `noqa-testing` skill for anything beyond this quick loop.
