@@ -7,7 +7,12 @@
 import Database from 'better-sqlite3';
 import { drizzle } from 'drizzle-orm/better-sqlite3';
 import * as schema from '../schema';
-import { EXPENSES_DDL, TRANSACTIONS_DDL, TRANSACTIONS_INDEXES_DDL } from '../ddl';
+import {
+  EXPENSES_DDL,
+  TRANSACTIONS_DDL,
+  TRANSACTIONS_INDEXES_DDL,
+  VOICE_NOTES_DDL,
+} from '../ddl';
 
 const DDL = `
 CREATE TABLE items (
@@ -125,5 +130,7 @@ export function makeTestDb(): TestDb {
   sqlite.exec(TRANSACTIONS_DDL);
   sqlite.exec(TRANSACTIONS_INDEXES_DDL);
   sqlite.exec(EXPENSES_DDL);
+  // Same string the app boots with (src/db/ddl.ts) — the voice-notes buffer.
+  sqlite.exec(VOICE_NOTES_DDL);
   return drizzle(sqlite, { schema });
 }

@@ -23,8 +23,8 @@ export function DocFormModals({ f, mode, addTitle }: DocFormModalsProps) {
         visible={f.itemPickerOpen}
         items={f.items}
         stock={f.stock}
-        onClose={() => f.setItemPickerOpen(false)}
-        onSelect={f.appendItem}
+        onClose={f.closeItemPicker}
+        onSelect={f.pickItem}
       />
 
       <PartyPicker

@@ -7,6 +7,7 @@ import { SuppliersListScreen } from '@/features/parties/screens/SuppliersListScr
 import { NewOutgoingScreen } from '@/features/documents/screens/NewOutgoingScreen';
 import { NewIncomingScreen } from '@/features/documents/screens/NewIncomingScreen';
 import { DocumentsListScreen } from '@/features/documents/screens/DocumentsListScreen';
+import { VoiceNotesScreen } from '@/features/voice-notes/screens/VoiceNotesScreen';
 import { DocumentDetailScreen } from '@/features/documents/screens/DocumentDetailScreen';
 import { ExpensesScreen } from '@/features/expenses/screens/ExpensesScreen';
 import { CashBookScreen } from '@/features/cashbook/screens/CashBookScreen';
@@ -24,9 +25,13 @@ export type RootStackParamList = {
   ItemMovement: { itemId: string; itemName: string; unit: string };
   Customers: undefined;
   Suppliers: undefined;
-  NewOutgoing: undefined;
-  NewIncoming: undefined;
+  // An optional voiceNoteId rides along when the document is being created FROM a
+  // captured voice note — a successful save marks that note processed and links
+  // it to the new document. Undefined for a plain new-document entry.
+  NewOutgoing: { voiceNoteId?: string } | undefined;
+  NewIncoming: { voiceNoteId?: string } | undefined;
   Documents: undefined;
+  VoiceNotes: undefined;
   DocumentDetail: { documentId: string };
   Expenses: undefined;
   CashBook: undefined;
@@ -54,6 +59,7 @@ export function RootNavigator() {
       <Stack.Screen name="NewOutgoing" component={NewOutgoingScreen} />
       <Stack.Screen name="NewIncoming" component={NewIncomingScreen} />
       <Stack.Screen name="Documents" component={DocumentsListScreen} />
+      <Stack.Screen name="VoiceNotes" component={VoiceNotesScreen} />
       <Stack.Screen name="DocumentDetail" component={DocumentDetailScreen} />
       <Stack.Screen name="Expenses" component={ExpensesScreen} />
       <Stack.Screen name="CashBook" component={CashBookScreen} />

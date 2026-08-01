@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { View, Text, Pressable } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import Feather from '@expo/vector-icons/Feather';
@@ -25,7 +25,22 @@ interface DocLineRowProps {
   onQty: (qty: number) => void;
   onPrice: (price: number) => void;
   onDelete: () => void;
+  /**
+   * Tap the product name → swap it for another catalog item. The line keeps its
+   * qty; price/cost/stock re-resolve from the newly chosen item. Omitted on the
+   * read-only detail screen and on fast-entry lines that have no catalog anchor.
+   */
+  onSwap?: () => void;
+  /**
+   * Long-press OR double-tap the row → open the full line editor. Omitted on the
+   * read-only detail screen, where the gesture is inert. The row does not own the
+   * modal; it only reports intent by line id.
+   */
+  onEditRequest?: (lineId: string) => void;
 }
+
+/** Two taps within this window (ms) on the card body count as a double-tap. */
+const DOUBLE_TAP_MS = 280;
 
 /**
  * Parse a free-typed numeric field; empty / malformed → 0 (never NaN).
@@ -61,10 +76,29 @@ export function DocLineRow({
   onQty,
   onPrice,
   onDelete,
+  onSwap,
+  onEditRequest,
 }: DocLineRowProps) {
   const { t, i18n } = useTranslation();
   const lang = i18n.language;
   const currency = t('common.currency');
+
+  // Double-tap detection on the card body. A tap on an inner control (stepper,
+  // price box, delete) never reaches here — those Pressables/TextInputs consume
+  // the touch — so this cannot swallow the existing inline behaviour. The first
+  // tap on empty card area is a no-op; a second within the window opens the editor.
+  const lastTap = useRef(0);
+  const requestEdit = () => onEditRequest?.(line.id);
+  const handleTap = () => {
+    if (!onEditRequest) return;
+    const now = Date.now();
+    if (now - lastTap.current < DOUBLE_TAP_MS) {
+      lastTap.current = 0;
+      requestEdit();
+    } else {
+      lastTap.current = now;
+    }
+  };
 
   // THE CEILING. `+` does not become a no-op tap — it becomes DISABLED, and it
   // looks it. A control that silently ignores you is a bug you blame on yourself.
@@ -99,7 +133,16 @@ export function DocLineRow({
   //   hasCost && line.unitPrice > 0 ? Math.round((profit / line.unitPrice) * 100) : 0;
 
   return (
-    <View className="bg-surface rounded-2xl p-3.5 border border-border">
+    <Pressable
+      className="bg-surface rounded-2xl p-3.5 border border-border"
+      onPress={handleTap}
+      onLongPress={onEditRequest ? requestEdit : undefined}
+      delayLongPress={500}
+      // A View-like Pressable: no button role, so it never steals the a11y focus
+      // or the tap target from the real controls nested inside it.
+      accessibilityLabel={onEditRequest ? `${t('documents.editLine.title')} — ${line.name}` : undefined}
+      accessibilityHint={onEditRequest ? t('documents.editLine.hint') : undefined}
+    >
       <View className={`${ROW} w-full justify-between`}>
         <View className="items-start">
           <Text className="text-[11px] text-muted font-medium">{totalLabel}</Text>
@@ -108,7 +151,19 @@ export function DocLineRow({
           </Text>
         </View>
         <View className="flex-1 items-end">
-          <Text className="text-ink text-sm font-extrabold text-right">{line.name}</Text>
+          {onSwap ? (
+            <Pressable
+              className={`${ROW} items-center gap-1.5`}
+              onPress={onSwap}
+              accessibilityRole="button"
+              accessibilityLabel={`${t('documents.swapItem')} — ${line.name}`}
+            >
+              <Text className="text-ink text-sm font-extrabold text-right">{line.name}</Text>
+              <Feather name="repeat" size={12} color={colors.muted} />
+            </Pressable>
+          ) : (
+            <Text className="text-ink text-sm font-extrabold text-right">{line.name}</Text>
+          )}
 
           {rateEditable ? (
             <View className={`${ROW} items-center gap-2 mt-1`}>
@@ -208,6 +263,6 @@ export function DocLineRow({
           <Feather name="info" size={13} color={colors.warning} />
         </View>
       ) : null}
-    </View>
+    </Pressable>
   );
 };

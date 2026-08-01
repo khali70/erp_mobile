@@ -20,6 +20,7 @@ import {
 import type { Account } from '@/repositories/transaction-repository';
 import { WALKIN_CUSTOMER_ID, WALKIN_SUPPLIER_ID } from '@/db/sentinels';
 import { attachmentRepository } from '@/repositories/attachment-repository';
+import { voiceNoteRepository } from '@/repositories/voice-note-repository.client';
 import { itemRepository } from '@/repositories/item-repository.client';
 import { tagRepository } from '@/repositories/tag-repository.client';
 import { pickPhoto, pickFile, ingest, removeAttachment as removeAttachmentFile } from '@/utils/attachments';
@@ -68,7 +69,7 @@ const normKey = (s: string) => s.trim().toLowerCase();
  * own JSX — this hook owns the behaviour: draft auto-save, party resolution,
  * line mutation, scan-append and ledger posting.
  */
-export function useDocumentForm(mode: DocMode) {
+export function useDocumentForm(mode: DocMode, voiceNoteId?: string) {
   const navigation = useNavigation();
   const { t, i18n } = useTranslation();
   const lang = i18n.language;
@@ -83,6 +84,10 @@ export function useDocumentForm(mode: DocMode) {
   const [chosen, setChosen] = useState(Boolean(draft.partyName));
   const [pickerOpen, setPickerOpen] = useState(false);
   const [itemPickerOpen, setItemPickerOpen] = useState(false);
+  // When set, the item picker is SWAPPING the product on this line rather than
+  // appending a new one. Cleared on pick or on close so a stale swap target can
+  // never hijack the next "add line" tap.
+  const [swapLineId, setSwapLineId] = useState<string | null>(null);
   // Quick-add opens the party form sheet prefilled from the picker's query,
   // rather than silently creating a bare party.
   const [partyFormInitial, setPartyFormInitial] = useState<PartyDraft | null>(null);
@@ -392,6 +397,53 @@ export function useDocumentForm(mode: DocMode) {
     return true;
   };
 
+  // Swap the PRODUCT on an existing line for another catalog item. The line keeps
+  // its id and the qty the owner already typed (re-clamped to the NEW item's
+  // ceiling); everything price-related — unit price/cost, list, cost, min,
+  // pricingMode — is re-resolved fresh from the catalog, because a haggled price
+  // for the old product means nothing for the new one. Never rewrites the catalog.
+  const swapLineItem = useCallback(
+    (id: string, item: InventoryItem) =>
+      setLines((prev) =>
+        prev.map((l) => {
+          if (l.id !== id) return l;
+          const next: DocLine = { ...lineFromItem(item), id: l.id };
+          next.qty = clampQty(next, prev, stock.onHand, stock.enforced, Math.max(1, l.qty));
+          return next;
+        }),
+      ),
+    [lineFromItem, stock],
+  );
+
+  // Open the picker in SWAP mode targeting one line; the dispatcher below routes
+  // the selection to swapLineItem instead of appendItem.
+  const requestSwapItem = useCallback((id: string) => {
+    setSwapLineId(id);
+    setItemPickerOpen(true);
+  }, []);
+
+  // One selection handler for the picker: swap when a target line is set,
+  // otherwise append. Clears the swap target so it can't leak to the next open.
+  const pickItem = useCallback(
+    (item: InventoryItem) => {
+      if (swapLineId) {
+        swapLineItem(swapLineId, item);
+        setSwapLineId(null);
+        return;
+      }
+      appendItem(item);
+    },
+    // appendItem/swapLineItem are stable enough for this closure; swapLineId gates it.
+    [swapLineId, swapLineItem],
+  );
+
+  // Closing the picker (no pick) must drop any swap target — otherwise the next
+  // "add line" tap would silently swap the last-targeted line instead.
+  const closeItemPicker = useCallback(() => {
+    setItemPickerOpen(false);
+    setSwapLineId(null);
+  }, []);
+
   // Scan path: a repeat barcode bumps the existing line instead of stacking a
   // duplicate row. Crucially it does NOT re-read the price — re-scanning an item
   // after haggling it down must not snap the line back to the list price.
@@ -448,6 +500,27 @@ export function useDocumentForm(mode: DocMode) {
     setLines((prev) => prev.map((l) => (l.id === id ? { ...l, unitPrice: Math.max(0, unitPrice) } : l)));
   const removeLine = (id: string) => setLines((prev) => prev.filter((l) => l.id !== id));
 
+  // FULL-LINE EDIT (long-press / double-tap sheet). One atomic patch of several
+  // fields at once — the piecemeal setQty/setPrice can only touch one field and
+  // would flicker totals mid-edit. Direction-scoping is enforced by the SHEET
+  // (which fields it offers); here we still apply the same floors the inline
+  // controls do so no path can slip a bad number past: qty clamps to the item's
+  // ceiling (sale) and stays ≥ 0, unit price stays ≥ 0. `unitPrice` and `qty`
+  // arrive already parsed as numbers; text fields are trimmed to undefined when
+  // blank, matching how fast-entry lines carry them.
+  const updateLine = (id: string, patch: Partial<DocLine>) =>
+    setLines((prev) =>
+      prev.map((l) => {
+        if (l.id !== id) return l;
+        const next: DocLine = { ...l, ...patch };
+        if (patch.unitPrice !== undefined) next.unitPrice = Math.max(0, patch.unitPrice);
+        if (patch.qty !== undefined) {
+          next.qty = clampQty(l, prev, stock.onHand, stock.enforced, Math.max(0, patch.qty));
+        }
+        return next;
+      }),
+    );
+
   const setQuickField = useCallback(
     <K extends keyof QuickEntryValues>(field: K, value: QuickEntryValues[K]) =>
       setQuick((prev) => ({ ...prev, [field]: value })),
@@ -475,8 +548,8 @@ export function useDocumentForm(mode: DocMode) {
     if (!variable) return;
     // Fixed prefix (e.g. brand) leads the variable descriptor: "Samsung" + "Galaxy A54".
     const title = [quick.titlePrefix.trim(), variable].filter(Boolean).join(' ');
-    const price = Math.max(0, parseFloat(quick.price) || 0);
-    const qty = Math.max(1, parseInt(quick.qty, 10) || 1);
+    const price = Math.max(0, evaluateNumeric(quick.price) || 0);
+    const qty = Math.max(1, evaluateNumeric(quick.qty) || 1);
     const category = quick.category || undefined;
     const tags = quick.tags.length ? quick.tags : undefined;
     const note = quick.note.trim() || undefined;
@@ -784,6 +857,10 @@ export function useDocumentForm(mode: DocMode) {
       );
       // Backfill the doc id onto the attachment bytes now that it exists.
       if (attachments.length) attachmentRepository.assignDocument(attachments.map((a) => a.id), docId);
+      // Born from a voice note? Mark it processed and stamp the document it became
+      // — this is the hand-off that closes the capture-now / process-later loop.
+      // Tolerant: a note that was discarded meanwhile just updates nothing.
+      if (voiceNoteId) voiceNoteRepository.markProcessed(voiceNoteId, docId);
       clearDraft(); // posted to the ledger — the scratch buffer is done
       Alert.alert(t('documents.saved'), t('documents.savedBody'), [
         { text: t('documents.ok'), onPress: () => navigation.goBack() },
@@ -875,6 +952,9 @@ export function useDocumentForm(mode: DocMode) {
     setPickerOpen,
     itemPickerOpen,
     setItemPickerOpen,
+    closeItemPicker,
+    pickItem,
+    requestSwapItem,
     scanning,
     setScanning,
     csvImportOpen,
@@ -901,6 +981,7 @@ export function useDocumentForm(mode: DocMode) {
     mutateQty,
     setQty,
     setPrice,
+    updateLine,
     removeLine,
     save,
     discardDraft,

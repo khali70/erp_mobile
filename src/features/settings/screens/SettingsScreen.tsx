@@ -10,6 +10,7 @@ import { useSettingsStore } from '@/store/settings-store';
 import { UpdatesSettingsSection } from '@/features/updates/components/UpdatesSettingsSection';
 import { SettingsSwitchRow } from '../components/SettingsSwitchRow';
 import { RestoreSection } from '../components/RestoreSection';
+import { AboutSection } from '../components/AboutSection';
 import { backupDatabase, BackupError } from '../backup';
 import { toMegabytes } from '../utils/file-size';
 
@@ -122,6 +123,8 @@ export function SettingsScreen() {
             whole flow (row, confirm, progress, result) lives in one component. */}
         <RestoreSection />
         <UpdatesSettingsSection />
+        {/* Credit + version last: informational, never something you act on. */}
+        <AboutSection />
       </ScrollView>
     </View>
   );

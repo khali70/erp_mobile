@@ -62,6 +62,13 @@ export function HomeScreen() {
       badge: stats?.docCount ? num(stats.docCount) : undefined,
     },
     {
+      key: 'voice',
+      route: 'VoiceNotes',
+      icon: <Feather name="mic" size={22} color={colors.accent} />,
+      iconBgClass: 'bg-accent-light',
+      badge: undefined,
+    },
+    {
       key: 'goods',
       route: 'Items',
       icon: <Feather name="package" size={22} color={colors.primary} />,

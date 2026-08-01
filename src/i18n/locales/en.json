@@ -48,6 +48,7 @@
       "title": "Sections",
       "count": "{{n}} sections",
       "documents": "Documents",
+      "voice": "Voice notes",
       "goods": "Goods",
       "expenses": "Expenses",
       "reports": "Reports",
@@ -296,6 +297,7 @@
     "lineTotal": "Total",
     "lineCost": "Line cost",
     "editRate": "Edit price",
+    "swapItem": "Change product",
     "listPrice": "List price",
     "cost": "Cost",
     "margin": "Profit",
@@ -405,7 +407,62 @@
     },
     "qtyMax": "Only {{n}} available",
     "qtyOverStock": "Asking for {{requested}} — only {{available}} available",
-    "overStock": "These exceed available stock: {{names}}"
+    "overStock": "These exceed available stock: {{names}}",
+    "editLine": {
+      "title": "Edit line",
+      "hint": "Long-press or double-tap to edit this line",
+      "save": "Save line",
+      "errors": {
+        "name": "Enter a title",
+        "qty": "Enter a quantity greater than zero",
+        "unitPrice": "Price cannot be negative",
+        "belowMin": "Price is below the minimum ({{min}})"
+      }
+    }
+  },
+  "voiceNotes": {
+    "title": "Voice notes",
+    "empty": "No voice notes. Tap the mic to record one while you work, then turn it into an incoming or outgoing document later.",
+    "filters": {
+      "pending": "To review",
+      "processed": "Done",
+      "all": "All"
+    },
+    "status": {
+      "pending": "To review",
+      "processed": "Done"
+    },
+    "record": {
+      "title": "Record a voice note",
+      "start": "Record",
+      "stop": "Stop",
+      "ready": "Ready",
+      "recording": "Recording…",
+      "tooShort": "Too short — hold on a moment longer while recording.",
+      "permissionDenied": "Microphone access is off. Enable it in Settings to record voice notes."
+    },
+    "row": {
+      "play": "Play",
+      "pause": "Pause",
+      "addIncoming": "Incoming",
+      "addOutgoing": "Outgoing",
+      "markDone": "Mark done",
+      "discard": "Discard",
+      "converted": "Added to documents"
+    },
+    "discard": {
+      "title": "Discard voice note",
+      "body": "This deletes the recording for good. This cannot be undone.",
+      "confirm": "Discard"
+    },
+    "queue": {
+      "title": "Notes queue",
+      "position": "{{index}} / {{total}}",
+      "next": "Next"
+    },
+    "player": {
+      "seek": "Seek"
+    }
   },
   "payments": {
     "paid": "Paid",
@@ -720,6 +777,11 @@
         "failedTitle": "Could not put the data back",
         "failedBody": "The app could not restore the safety copy. Try closing the app and opening it again."
       }
+    },
+    "about": {
+      "section": "About",
+      "version": "Version {{version}}",
+      "developedBy": "Developed by"
     }
   },
   "privacy": {

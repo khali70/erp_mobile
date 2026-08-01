@@ -239,6 +239,33 @@ export const expenses = sqliteTable('expenses', {
   attachments: text('attachments'),
 });
 
+// VOICE NOTES — the capture-now / process-later buffer that sits IN FRONT of the
+// documents feature. Mid-work the owner records a quick verbal memo of a
+// transaction ("received 20 sacks cement from Ahmed, 4000 pounds"); at day's end
+// he plays each back and turns it into an Incoming/Outgoing document.
+//
+// Audio bytes are NOT stored here, and NOT in attachments.db either. A voice memo
+// is a standalone media file that expo-audio plays straight from a URI, so the
+// bytes live on the filesystem (Paths.document/voice-notes/) and `file_path`
+// points at them. Keeping them off SQLite honours the same "no BLOBs in the hot
+// DB" rule the receipt attachments follow, and avoids having to dump bytes back
+// out to a temp file on every single playback.
+//
+// `status` is the lifecycle: 'pending' (freshly captured, awaiting review),
+// 'processed' (converted into a document — `linked_document_id` is set), or
+// 'discarded' (thrown away). A discard also deletes the audio file.
+export const voiceNotes = sqliteTable('voice_notes', {
+  ...standard,
+  filePath: text('file_path').notNull(), // file:// URI on local storage
+  durationMs: integer('duration_ms').notNull().default(0),
+  mime: text('mime').notNull(), // e.g. audio/m4a
+  sizeBytes: integer('size_bytes').notNull().default(0),
+  status: text('status').notNull().default('pending'), // 'pending' | 'processed' | 'discarded'
+  note: text('note'), // optional typed memo
+  linkedDocumentId: text('linked_document_id'), // set when a document is created from this note
+  processedAt: integer('processed_at'), // epoch ms the note was converted / marked done
+});
+
 export type Item = typeof items.$inferSelect;
 export type NewItem = typeof items.$inferInsert;
 export type Category = typeof categories.$inferSelect;
@@ -250,3 +277,5 @@ export type DocumentLine = typeof documentLines.$inferSelect;
 export type Transaction = typeof transactions.$inferSelect;
 export type ExpenseRow = typeof expenses.$inferSelect;
 export type NewExpenseRow = typeof expenses.$inferInsert;
+export type VoiceNoteRow = typeof voiceNotes.$inferSelect;
+export type NewVoiceNoteRow = typeof voiceNotes.$inferInsert;

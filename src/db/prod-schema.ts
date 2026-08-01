@@ -5,6 +5,7 @@ import {
   EXPENSES_DDL,
   TRANSACTIONS_DDL,
   TRANSACTIONS_INDEXES_DDL,
+  VOICE_NOTES_DDL,
 } from './ddl';
 import { sentinelInsertSql } from './sentinels';
 
@@ -46,6 +47,7 @@ export function buildErpSchemaSql(): string {
     trim(CORE_DDL),
     trim(TRANSACTIONS_DDL),
     trim(EXPENSES_DDL),
+    trim(VOICE_NOTES_DDL),
     trim(TRANSACTIONS_INDEXES_DDL),
     trim(DOCS_PARTY_INDEX_DDL),
     '-- Sentinel parties — REQUIRED integrity rows (documents.party_id is never null).',

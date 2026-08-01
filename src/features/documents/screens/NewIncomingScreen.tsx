@@ -1,9 +1,13 @@
-import { View, ScrollView, Pressable, Text, TextInput } from 'react-native';
+import { useState } from 'react';
+import { View, ScrollView, Text, TextInput } from 'react-native';
+import { useNavigation, useRoute, type RouteProp } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useTranslation } from 'react-i18next';
-import Feather from '@expo/vector-icons/Feather';
 import colors from '@/theme/colors';
-import { ROW } from '@/theme/rtl';
+import type { RootStackParamList } from '@/navigation/RootNavigator';
 import { ScreenHeader } from '@/components/ui/ScreenHeader';
+import { useConvertQueue } from '@/features/voice-notes/hooks/useConvertQueue';
+import { VoiceQueueCard } from '@/features/voice-notes/components/VoiceQueueCard';
 import { useDocumentForm } from '../hooks/useDocumentForm';
 import { StoreDateCard } from '../components/StoreDateCard';
 import { PartyCard } from '../components/PartyCard';
@@ -14,15 +18,28 @@ import { PaymentCard } from '../components/PaymentCard';
 import { AttachmentsCard } from '../components/AttachmentsCard';
 import { SaveDocButton } from '../components/SaveDocButton';
 import { DocFormModals } from '../components/DocFormModals';
+import { EditDocLineSheet } from '../components/EditDocLineSheet';
 
 /** وارد جديد · فاتورة مشتريات — new incoming document / purchase. Supplier party,
  *  unit costs, supplier debt note, and no barcode scan. Owns its own layout. */
 export function NewIncomingScreen() {
   const { t } = useTranslation();
-  const f = useDocumentForm('purchase');
+  // Carried in when this purchase is being created FROM a captured voice note;
+  // a successful save marks that note processed (see useDocumentForm).
+  const route = useRoute<RouteProp<RootStackParamList, 'NewIncoming'>>();
+  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+  // The pending voice-note queue this purchase is being entered from. The active
+  // note is the nav param (or the head of what remains), and it is what
+  // useDocumentForm marks processed on save — so the RIGHT note closes out.
+  const queue = useConvertQueue(route.params?.voiceNoteId);
+  const f = useDocumentForm('purchase', queue.activeId ?? route.params?.voiceNoteId);
   // Quick-add is always an add (even when prefilled); the sheet keys "edit" off
   // a non-null initial, which we prefill — so both titles use the add copy.
   const addTitle = t('suppliers.form.addTitle');
+  // Which line the Edit-Line sheet targets; null = closed. Purchase lines carry
+  // no stock ceiling, so no maxQty is passed.
+  const [editLineId, setEditLineId] = useState<string | null>(null);
+  const editLine = f.lines.find((l) => l.id === editLineId) ?? null;
 
   return (
     <View className="flex-1 bg-background">
@@ -32,6 +49,19 @@ export function NewIncomingScreen() {
         backLabel={t('common.back')}
         action={{ icon: 'check', onPress: f.save, accessibilityLabel: t('documents.save') }}
       />
+
+      {queue.hasQueue && queue.active && (
+        <VoiceQueueCard
+          note={queue.active}
+          index={queue.index}
+          total={queue.total}
+          onNext={
+            queue.nextId
+              ? () => navigation.setParams({ voiceNoteId: queue.nextId ?? undefined })
+              : undefined
+          }
+        />
+      )}
 
       <ScrollView contentContainerClassName="px-4 py-4 pb-10 gap-4" showsVerticalScrollIndicator={false}>
         <StoreDateCard ns={f.ns} docDate={f.docDate} />
@@ -55,6 +85,8 @@ export function NewIncomingScreen() {
           onSetQty={f.setQty}
           onSetPrice={f.setPrice}
           onRemove={f.removeLine}
+          onSwapItem={f.requestSwapItem}
+          onEditRequest={setEditLineId}
           onAddLine={() => f.setItemPickerOpen(true)}
           entryMode={f.entryMode}
           onSetEntryMode={f.setEntryMode}
@@ -101,6 +133,14 @@ export function NewIncomingScreen() {
       </ScrollView>
 
       <DocFormModals f={f} mode="purchase" addTitle={addTitle} />
+
+      <EditDocLineSheet
+        visible={editLine !== null}
+        line={editLine}
+        mode="purchase"
+        onClose={() => setEditLineId(null)}
+        onSave={(patch) => editLine && f.updateLine(editLine.id, patch)}
+      />
     </View>
   );
 }

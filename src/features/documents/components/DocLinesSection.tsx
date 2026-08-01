@@ -23,6 +23,10 @@ interface DocLinesSectionProps {
   onSetQty: (id: string, qty: number) => void;
   onSetPrice: (id: string, price: number) => void;
   onRemove: (id: string) => void;
+  /** Swap the product on a line (catalog lines only). Opens the item picker. */
+  onSwapItem?: (id: string) => void;
+  /** Long-press / double-tap a row → open the full line editor (by line id). */
+  onEditRequest: (id: string) => void;
   onAddLine: () => void;
   /** Sale-only: when provided, renders the barcode scan toggle. */
   scanning?: boolean;
@@ -48,6 +52,8 @@ export function DocLinesSection({
   onSetQty,
   onSetPrice,
   onRemove,
+  onSwapItem,
+  onEditRequest,
   onAddLine,
   scanning,
   onToggleScan,
@@ -110,6 +116,10 @@ export function DocLinesSection({
               onQty={(q) => onSetQty(line.id, q)}
               onPrice={(p) => onSetPrice(line.id, p)}
               onDelete={() => onRemove(line.id)}
+              // Only real catalog lines can swap product; a fast-entry line has no
+              // catalog anchor to swap FROM, so the affordance is withheld.
+              onSwap={onSwapItem && line.itemId !== null ? () => onSwapItem(line.id) : undefined}
+              onEditRequest={onEditRequest}
             />
           ))}
         </View>

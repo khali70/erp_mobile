@@ -6,6 +6,7 @@ import {
   EXPENSES_DDL,
   TRANSACTIONS_DDL,
   TRANSACTIONS_INDEXES_DDL,
+  VOICE_NOTES_DDL,
 } from './ddl';
 import { backfillWalkInParties, seedSentinels, type SentinelDb } from './sentinels';
 
@@ -48,6 +49,11 @@ export function applyErpSchema(sqlite: SqlExecutor, db: SentinelDb): void {
   // adds it. Table first, column second, indexes last.
   sqlite.execSync(TRANSACTIONS_DDL);
   sqlite.execSync(EXPENSES_DDL);
+
+  // VOICE NOTES — the capture-now / process-later buffer. A brand-new, additive
+  // table (older builds simply never read it), so it needs no back-fill and no
+  // schema-version bump; its own CREATE + index are self-contained and idempotent.
+  sqlite.execSync(VOICE_NOTES_DDL);
 
   // Additive column back-fills for DBs created by an earlier schema.
   // SQLite has no "ADD COLUMN IF NOT EXISTS"; a duplicate add throws — ignore it.

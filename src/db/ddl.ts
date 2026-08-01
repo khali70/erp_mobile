@@ -224,6 +224,32 @@ CREATE INDEX IF NOT EXISTS idx_docs_party ON documents(party_id, kind, status);
 `;
 
 /**
+ * THE VOICE NOTES table — the capture-now / process-later buffer in front of the
+ * documents feature. Metadata ONLY: the audio bytes live on the filesystem
+ * (Paths.document/voice-notes/), and `file_path` points at them, so this table
+ * stays lean and never holds a BLOB. Every statement is `IF NOT EXISTS` — it
+ * fires on every boot. The `idx_voice_status` index backs the review list, which
+ * filters by status (default: pending) and orders newest-first.
+ */
+export const VOICE_NOTES_DDL = `
+CREATE TABLE IF NOT EXISTS voice_notes (
+  id TEXT PRIMARY KEY,
+  created_at INTEGER NOT NULL,
+  updated_at INTEGER NOT NULL,
+  deleted_at INTEGER,
+  file_path TEXT NOT NULL,
+  duration_ms INTEGER NOT NULL DEFAULT 0,
+  mime TEXT NOT NULL,
+  size_bytes INTEGER NOT NULL DEFAULT 0,
+  status TEXT NOT NULL DEFAULT 'pending',
+  note TEXT,
+  linked_document_id TEXT,
+  processed_at INTEGER
+);
+CREATE INDEX IF NOT EXISTS idx_voice_status ON voice_notes(status, created_at);
+`;
+
+/**
  * The ATTACHMENTS table — receipt/proof BLOBs. Lives in a SEPARATE database file
  * (attachments.db), not erp.db, so the hot ERP tables stay lean. The constant
  * lives here so `attachments-client.ts` (which imports expo-sqlite) and the
