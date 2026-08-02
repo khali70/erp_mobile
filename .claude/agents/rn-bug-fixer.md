@@ -43,12 +43,29 @@ npm run lint
 npm test
 ```
 
+Step 5.5 — device verification (noqa):
+Static checks prove it compiles, not that the bug is gone. If the bug is observable on screen (UI, navigation, permissions, camera/audio, DB writes), reproduce-then-confirm on the connected device with noqa:
+
+```bash
+export NOQA=/Applications/noqa.app/Contents/Resources/runner/arm64/noqa_runner
+"$NOQA" status                        # signed-in account required
+"$NOQA" devices connect <DEVICE_ID>
+"$NOQA" screen                        # a11y hierarchy of current UI
+"$NOQA" action tap --description "<element in AR or EN>"
+```
+
+- First reproduce the original failing path, then re-run it after the fix to prove it no longer fails.
+- Grounding taps lag ~5-8s. Pre-grant Android permissions via `adb shell pm grant com.khali70.rafuf <permission>` instead of tapping OS dialogs. Never trigger a blocking JS `alert`/`confirm`.
+- For DB/data bugs, confirm state, not pixels:
+  `adb shell 'run-as com.khali70.rafuf cat files/SQLite/erp.db' > /tmp/erp.db` then `sqlite3 /tmp/erp.db "SELECT ..."`.
+- If `noqa_runner` is missing / not signed in / no device connected: report "device verification skipped: <reason>" + manual repro steps. Do not block the fix on it. See the `noqa-testing` skill for more.
+
 Step 6 — provide:
 - Root cause
 - Files changed
 - Code changes
 - Risks
-- Verification steps
+- Verification steps (static checks + device verification result, or why it was skipped)
 
 React Native / Expo specific checks:
 

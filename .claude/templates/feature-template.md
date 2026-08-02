@@ -53,3 +53,19 @@ Repository: `src/repositories/supplier-repository.ts`
 
 - No backend sync in this feature
 - Balance shown with the numerals util (Arabic digits)
+
+---
+
+## DEVICE TEST SCENARIO (noqa)
+
+Ordered end-to-end flow the builder runs on a connected device after static checks pass. WHAT to test lives here; HOW (commands) lives in the `noqa-testing` skill.
+
+- Pre-state: seed at least 2 suppliers in the local DB.
+- Steps:
+  1. Open the Suppliers screen → list renders the seeded rows.
+  2. Type a query in the search bar → list filters (debounced).
+  3. Pull-to-refresh → list re-reads and shows all rows again.
+  4. Tap a row → navigates to Supplier detail with the correct id.
+- DB assertion: no writes expected (read-only feature); confirm the tapped id matches the detail route param.
+- Empty path: with 0 suppliers, the empty state shows instead of the list.
+- Pass condition: list → search → refresh → detail navigation all work, RTL layout correct in AR.

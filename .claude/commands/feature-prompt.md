@@ -144,6 +144,17 @@ What this feature is about, based on the inputs.
 
 - Clear success conditions for implementation
 
+### DEVICE TEST SCENARIO (noqa)
+
+A concrete, ordered end-to-end scenario the builder runs on a connected device with noqa AFTER static checks pass. Author it from the feature intent — the generator knows the flow, the builder only knows how to tap.
+
+- List each user step in sequence, in the app's language where it helps grounding (AR/EN), e.g. "tap the mic FAB → record ~3s → stop → drag the seek bar to mid → tap play".
+- For every step that writes data, state the expected **DB/filesystem assertion**, not just the visual, e.g. "a `voice_notes` row exists with `status='pending'` and its `.m4a` file is on disk".
+- Call out permissions to pre-grant (e.g. `RECORD_AUDIO`) and any state that must exist first (seed rows, prior notes).
+- Note the empty/error path to eyeball (e.g. "empty queue → card hidden").
+- End with the pass condition: what proves the feature works end-to-end.
+- The builder follows the `noqa-testing` skill for command syntax; this section supplies the WHAT, the skill supplies the HOW.
+
 ---
 
 ## FINAL NOTE

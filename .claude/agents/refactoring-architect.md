@@ -64,6 +64,23 @@ Rules:
 - If a test fails: either your refactor changed behavior (revert) or the test needs a mechanical update for a renamed public API (update it). Never delete a test to go green.
 - If you cannot run a command, say so explicitly in "Risks" rather than claiming success.
 
+## Device Verification (noqa) — behavior must be identical
+
+A refactor is only correct if the app behaves EXACTLY as before. Static checks catch type/lint/test regressions but not observable-behavior drift. If your refactor touched UI, navigation, permissions, camera/audio, or DB writes, smoke-test the affected flow on the connected device with noqa and confirm it matches pre-refactor behavior.
+
+```bash
+export NOQA=/Applications/noqa.app/Contents/Resources/runner/arm64/noqa_runner
+"$NOQA" status                        # signed-in account required
+"$NOQA" devices connect <DEVICE_ID>
+"$NOQA" screen                        # a11y hierarchy of current UI
+"$NOQA" action tap --description "<element in AR or EN>"
+```
+
+- Exercise the exact flow you refactored; it must look and behave the same.
+- For data paths, confirm state not pixels: `adb shell 'run-as com.khali70.rafuf cat files/SQLite/erp.db' > /tmp/erp.db` then `sqlite3 /tmp/erp.db "SELECT ..."`.
+- Grounding taps lag ~5-8s. Pre-grant Android permissions via `adb shell pm grant com.khali70.rafuf <permission>`. Never trigger a blocking JS `alert`/`confirm`.
+- If `noqa_runner` is missing / not signed in / no device connected: report "device verification skipped: <reason>" under "Risks / Manual verification" with the manual steps. Do not block on it. See the `noqa-testing` skill.
+
 ---
 
 # What Good Refactoring Looks Like
