@@ -127,7 +127,7 @@ export function QuickEntryRow({
             className="bg-background text-ink px-3 py-2.5 rounded-xl border border-border text-sm"
             value={values.price}
             onChangeText={(v) => onChange('price', v)}
-            keyboardType="numeric"
+            keyboardType="number-pad"
             placeholder="0"
             placeholderTextColor={colors['slate-400']}
           />

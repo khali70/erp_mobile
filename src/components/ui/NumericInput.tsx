@@ -52,7 +52,7 @@ export function NumericInput({
     <TextInput
       {...rest}
       value={buffer ?? value}
-      keyboardType={keyboardType}
+      keyboardType="default"
       onFocus={() => {
         setBuffer(value);
         onFocus?.();
