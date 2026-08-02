@@ -60,6 +60,17 @@ export const ZIP_ENTRY_ERP = 'erp.db';
 export const ZIP_ENTRY_ATTACHMENTS = 'attachments.db';
 
 /**
+ * Voice recordings ride along under this prefix, one `.m4a` per entry named
+ * `voice-notes/<basename>`. The basename is the file name as it sits in the live
+ * voice dir; restore drops each back under the SAME basename, which is the whole
+ * mechanism that lets a restored `voice_notes` row (whose stored uri is an
+ * absolute path from a DIFFERENT install) resolve its audio by basename with no
+ * DB migration. Two entries beside the databases (`erp.db`, `attachments.db`) is
+ * why the prefix ends in a slash: it cannot collide with either.
+ */
+export const ZIP_ENTRY_VOICE_PREFIX = 'voice-notes/';
+
+/**
  * DEFLATE level 1 — fast, not thorough, and that is the right trade here.
  *
  * The archive holds two files whose bytes fall into very different classes. The
@@ -127,14 +138,31 @@ function assertBytes(value: Uint8Array, entry: string): void {
   }
 }
 
-/** Build the archive. `attachments` may be an EMPTY database, never omitted. */
-export function buildBackupZip(erp: Uint8Array, attachments: Uint8Array): Uint8Array {
+/**
+ * Build the archive. `attachments` may be an EMPTY database, never omitted.
+ * `voiceFiles` is keyed by BASENAME (the `.m4a` file name); each is written under
+ * `voice-notes/<basename>`. Defaulting it to `{}` keeps every existing two-arg
+ * caller working and a shop with no recordings producing exactly the archive it
+ * did before. Every voice entry is `assertBytes`-guarded for the same reason the
+ * databases are: a thenable slipping in becomes a valid zip full of empty folders.
+ */
+export function buildBackupZip(
+  erp: Uint8Array,
+  attachments: Uint8Array,
+  voiceFiles: Record<string, Uint8Array> = {},
+): Uint8Array {
   assertBytes(erp, ZIP_ENTRY_ERP);
   assertBytes(attachments, ZIP_ENTRY_ATTACHMENTS);
-  return zipSync(
-    { [ZIP_ENTRY_ERP]: erp, [ZIP_ENTRY_ATTACHMENTS]: attachments },
-    { level: ZIP_COMPRESSION_LEVEL },
-  );
+  const entries: Record<string, Uint8Array> = {
+    [ZIP_ENTRY_ERP]: erp,
+    [ZIP_ENTRY_ATTACHMENTS]: attachments,
+  };
+  for (const [name, bytes] of Object.entries(voiceFiles)) {
+    const entry = `${ZIP_ENTRY_VOICE_PREFIX}${name}`;
+    assertBytes(bytes, entry);
+    entries[entry] = bytes;
+  }
+  return zipSync(entries, { level: ZIP_COMPRESSION_LEVEL });
 }
 
 export type ZipReadFailure = 'not-zip' | 'zip-missing-ledger';
@@ -143,6 +171,12 @@ export type ZipContents = {
   erp: Uint8Array;
   /** Absent when the archive carries no attachments entry — tolerated. */
   attachments: Uint8Array | null;
+  /**
+   * Voice recordings keyed by BASENAME. Empty for an archive that carries none,
+   * including every archive an OLDER build wrote (it never knew the prefix), so
+   * new-app-reads-old-zip is `{}` and old-app-reads-new-zip ignores the entries.
+   */
+  voice: Record<string, Uint8Array>;
 };
 
 /**
@@ -162,9 +196,19 @@ export function readBackupZip(bytes: Uint8Array): ZipContents | ZipReadFailure {
   const erp = entries[ZIP_ENTRY_ERP];
   if (!erp || erp.length === 0) return 'zip-missing-ledger';
   const attachments = entries[ZIP_ENTRY_ATTACHMENTS];
+  const voice: Record<string, Uint8Array> = {};
+  for (const [name, bytes] of Object.entries(entries)) {
+    if (!name.startsWith(ZIP_ENTRY_VOICE_PREFIX)) continue;
+    const base = name.slice(ZIP_ENTRY_VOICE_PREFIX.length);
+    // A zero-length entry is fflate's rendering of a bare directory record;
+    // skipping it keeps the map to real recordings only.
+    if (!base || bytes.length === 0) continue;
+    voice[base] = bytes;
+  }
   return {
     erp,
     attachments: attachments && attachments.length > 0 ? attachments : null,
+    voice,
   };
 }
 

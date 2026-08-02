@@ -1,13 +1,15 @@
 import { Directory, File, Paths } from 'expo-file-system';
 import { newId } from '@/utils/id';
+import { VOICE_DIR } from './voiceFilePath';
 import type { PersistedRecording } from '../types';
 
 // A voice memo is a standalone media file expo-audio plays straight from a URI,
-// so — like receipt photos, unlike receipt bytes — it lives on the filesystem,
+// so (like receipt photos, unlike receipt bytes) it lives on the filesystem,
 // NOT in SQLite. expo-audio records into the CACHE dir, which the OS may purge;
 // we move it into the DOCUMENT dir (safe from eviction) under one folder so the
-// recordings are easy to back up and clean up as a group.
-const VOICE_DIR = 'voice-notes';
+// recordings are easy to back up and clean up as a group. The folder name lives
+// in ./voiceFilePath, shared with the backup/restore side and the by-basename
+// resolver, so the three cannot drift.
 
 /**
  * Move a freshly stopped recording out of the cache and into permanent storage,

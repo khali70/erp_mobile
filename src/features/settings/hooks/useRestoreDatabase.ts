@@ -44,6 +44,8 @@ export function useRestoreDatabase() {
   const [preview, setPreview] = useState<RestorePreview | null>(null);
   const [error, setError] = useState<RestoreError | null>(null);
   const [restored, setRestored] = useState<RestoreTarget[]>([]);
+  /** Voice recordings that could not be written back — a non-blocking warning. */
+  const [voiceFailed, setVoiceFailed] = useState(0);
   /**
    * Latched, never cleared: once anything has been replaced, the live handles
    * are closed for the rest of this process and the app is in a state no dialog
@@ -65,6 +67,7 @@ export function useRestoreDatabase() {
   /** Open the "what are you restoring?" step. */
   const start = useCallback(() => {
     setRestored([]);
+    setVoiceFailed(0);
     reset();
     setPhase('choosing');
   }, [reset]);
@@ -96,6 +99,7 @@ export function useRestoreDatabase() {
       const result = await applyRestore(preview);
       setRestartRequired(true);
       setRestored(result.restored);
+      setVoiceFailed(result.voiceFailed);
       setPreview(null);
       setPhase('done');
     } catch (e) {
@@ -140,6 +144,12 @@ export function useRestoreDatabase() {
      * documents may not open. Never true for a full backup carrying both halves.
      */
     attachmentsMissing: restored.includes('erp') && !restored.includes('attachments'),
+    /**
+     * Some voice recordings could not be written back after the ledger was
+     * restored. Non-blocking: the books and receipts are already in place. The
+     * success dialog surfaces a "some recordings may be missing" note.
+     */
+    voiceRecordingsMissing: voiceFailed > 0,
     start,
     choose,
     confirm,

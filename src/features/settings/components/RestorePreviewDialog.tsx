@@ -79,6 +79,14 @@ export function RestorePreviewDialog({ preview, onConfirm, onCancel }: RestorePr
               attachments: formatNumber(preview.counts.attachments, lang),
             })}
           />
+          {/* Recordings ride inside a full backup only; shown when any are present
+              so the owner can check the count before replacing their data. */}
+          {preview.counts.voiceNotes > 0 && (
+            <RestoreDetailRow
+              label={t('settings.restore.preview.voiceNotes')}
+              value={formatNumber(preview.counts.voiceNotes, lang)}
+            />
+          )}
         </View>
 
         {preview.format !== 'attachments' && !preview.hasAttachments && (

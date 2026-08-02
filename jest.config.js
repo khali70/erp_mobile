@@ -39,10 +39,10 @@ module.exports = {
       setupFilesAfterEnv: ['<rootDir>/jest.setup.hooks.js'],
       moduleNameMapper: {
         '^@/(.*)$': '<rootDir>/src/$1',
-        // `expo-modules-core` is hoisted UNDER `expo` (it is not a direct
-        // dependency), and jest-expo's own setup requires it by bare name from
-        // inside node_modules/jest-expo — where Node's resolution cannot see it.
-        '^expo-modules-core(.*)$': '<rootDir>/node_modules/expo/node_modules/expo-modules-core$1',
+        // jest-expo's own setup requires `expo-modules-core` by bare name from
+        // inside node_modules/jest-expo; map it explicitly to where the installer
+        // hoisted it (root node_modules) so resolution never depends on nesting.
+        '^expo-modules-core(.*)$': '<rootDir>/node_modules/expo-modules-core$1',
       },
       testMatch: ['<rootDir>/src/**/*.test.tsx'],
       clearMocks: true,

@@ -200,6 +200,85 @@ describe('round trip: zip', () => {
   });
 });
 
+describe('voice recordings ride along and land by basename', () => {
+  const clipA = new Uint8Array([11, 22, 33, 44, 55]);
+  const clipB = new Uint8Array([9, 0, 9, 0, 9, 0]);
+
+  /** A full archive whose voice map is `voice`, from a real backup source. */
+  function voiceArchive(voice: Record<string, Uint8Array>): string {
+    const source = seedBackupSource();
+    const archive = path.join(h.pickDir, 'with-voice.zip');
+    fs.writeFileSync(
+      archive,
+      buildBackupZip(
+        new Uint8Array(fs.readFileSync(source.ledger)),
+        new Uint8Array(fs.readFileSync(source.attachments)),
+        voice,
+      ),
+    );
+    return archive;
+  }
+
+  it('writes every recording into the live voice dir under its basename', async () => {
+    seedLive();
+    const archive = voiceArchive({ 'a.m4a': clipA, 'b.m4a': clipB });
+
+    const preview = await inspectCandidate(h.io, 'zip', picked(archive));
+    expect(preview.counts.voiceNotes).toBe(2);
+
+    const result = await applyRestore(h.io, preview);
+    expect(result.voiceRestored).toBe(2);
+    expect(result.voiceFailed).toBe(0);
+    expect(result.restored).toEqual(['erp', 'attachments']);
+
+    expect(fs.existsSync(path.join(h.voiceDir, 'a.m4a'))).toBe(true);
+    expect(new Uint8Array(fs.readFileSync(path.join(h.voiceDir, 'a.m4a')))).toEqual(clipA);
+    expect(new Uint8Array(fs.readFileSync(path.join(h.voiceDir, 'b.m4a')))).toEqual(clipB);
+  });
+
+  it('a failing voice write is a WARNING, not a rollback — the ledger stays restored', async () => {
+    seedLive();
+    const source = seedBackupSource();
+    const expectedLedger = dumpDatabase(source.ledger);
+    const archive = path.join(h.pickDir, 'with-voice.zip');
+    fs.writeFileSync(
+      archive,
+      buildBackupZip(
+        new Uint8Array(fs.readFileSync(source.ledger)),
+        new Uint8Array(fs.readFileSync(source.attachments)),
+        { 'a.m4a': clipA, 'b.m4a': clipB },
+      ),
+    );
+
+    const preview = await inspectCandidate(h.io, 'zip', picked(archive));
+    h.failVoiceWrite = true;
+
+    // Resolves — the recordings are best-effort and run AFTER the point of no return.
+    const result = await applyRestore(h.io, preview);
+    expect(result.voiceFailed).toBe(2);
+    expect(result.voiceRestored).toBe(0);
+
+    // The books were still swapped in, the marker cleared, nothing left staged.
+    expect(dumpDatabase(h.livePath('erp'))).toEqual(expectedLedger);
+    expect(h.marker.value).toBeNull();
+    expect(stagedLeftovers(h.dbDir)).toEqual([]);
+    expect(fs.existsSync(path.join(h.voiceDir, 'a.m4a'))).toBe(false);
+  });
+
+  it('an archive with no recordings restores exactly as before', async () => {
+    seedLive();
+    const archive = voiceArchive({});
+
+    const preview = await inspectCandidate(h.io, 'zip', picked(archive));
+    expect(preview.counts.voiceNotes).toBe(0);
+
+    const result = await applyRestore(h.io, preview);
+    expect(result.voiceRestored).toBe(0);
+    expect(result.voiceFailed).toBe(0);
+    expect(result.restored).toEqual(['erp', 'attachments']);
+  });
+});
+
 describe('round trip: merged .db written by the older build', () => {
   it('splits the payload back out and restores both halves intact', async () => {
     seedLive();

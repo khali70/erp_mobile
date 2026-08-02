@@ -1,9 +1,10 @@
 import { openDatabaseAsync } from 'expo-sqlite';
-import { File, FileMode, Paths } from 'expo-file-system';
+import { Directory, File, FileMode, Paths } from 'expo-file-system';
 import { sqlite } from '@/db/client';
 import { attachmentsDb, migrateAttachmentsDatabase } from '@/db/attachments-client';
 import { drizzleFor, migrateErpDatabase } from '@/db/migrate';
 import { storage } from '@/store/mmkv';
+import { VOICE_DIR } from '@/features/voice-notes/utils/voiceFilePath';
 import { databasesPath, toFileUri } from './db-files';
 import type { RestoreDb, RestoreIo } from './restore-engine';
 import type { RestoreTarget } from './backup-format';
@@ -93,6 +94,12 @@ export const expoRestoreIo: RestoreIo = {
     if (file.exists) file.delete();
   },
   availableDiskSpace: () => Paths.availableDiskSpace,
+
+  voiceDirPath: () => new Directory(Paths.document, VOICE_DIR).uri,
+  ensureDir: (path) => {
+    const dir = new Directory(toFileUri(path));
+    if (!dir.exists) dir.create({ intermediates: true });
+  },
 
   checkpointLive: (target) => liveHandle(target).execAsync('PRAGMA wal_checkpoint(TRUNCATE);'),
   closeLive: (target) => liveHandle(target).closeAsync(),

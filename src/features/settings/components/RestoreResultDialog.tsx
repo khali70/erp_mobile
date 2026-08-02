@@ -9,6 +9,8 @@ interface RestoreResultDialogProps {
   visible: boolean;
   /** The ledger was restored but its attachments file was not. */
   attachmentsMissing: boolean;
+  /** Some voice recordings could not be written back after the swap. */
+  voiceRecordingsMissing: boolean;
   onAcknowledge: () => void;
 }
 
@@ -25,6 +27,7 @@ interface RestoreResultDialogProps {
 export function RestoreResultDialog({
   visible,
   attachmentsMissing,
+  voiceRecordingsMissing,
   onAcknowledge,
 }: RestoreResultDialogProps) {
   const { t } = useTranslation();
@@ -41,6 +44,13 @@ export function RestoreResultDialog({
         <View className="rounded-2xl bg-warning-light p-3.5">
           <Text className="text-xs text-warning-dark text-right leading-5">
             {t('settings.restore.success.attachmentsMissing')}
+          </Text>
+        </View>
+      )}
+      {voiceRecordingsMissing && (
+        <View className="rounded-2xl bg-warning-light p-3.5">
+          <Text className="text-xs text-warning-dark text-right leading-5">
+            {t('settings.restore.success.voiceNotesMissing')}
           </Text>
         </View>
       )}

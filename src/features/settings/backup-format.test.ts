@@ -305,6 +305,57 @@ describe('backup archive', () => {
   });
 });
 
+describe('voice recordings ride along in the archive', () => {
+  const erp = new Uint8Array([1, 2, 3, 4, 5, 6, 7, 8]);
+  const attachments = new Uint8Array([9, 8, 7, 6]);
+  const clipA = new Uint8Array([10, 20, 30, 40, 50]);
+  const clipB = new Uint8Array([99, 1, 99, 1]);
+
+  it('writes each recording under voice-notes/<basename> beside the databases', () => {
+    const entries = unzipSync(
+      buildBackupZip(erp, attachments, { 'a.m4a': clipA, 'b.m4a': clipB }),
+    );
+    expect(Object.keys(entries).sort()).toEqual([
+      ZIP_ENTRY_ATTACHMENTS,
+      ZIP_ENTRY_ERP,
+      'voice-notes/a.m4a',
+      'voice-notes/b.m4a',
+    ]);
+  });
+
+  it('round-trips the recordings byte for byte, keyed by basename', () => {
+    const read = readBackupZip(
+      buildBackupZip(erp, attachments, { 'a.m4a': clipA, 'b.m4a': clipB }),
+    );
+    expect(typeof read).not.toBe('string');
+    const contents = read as { voice: Record<string, Uint8Array> };
+    expect(Object.keys(contents.voice).sort()).toEqual(['a.m4a', 'b.m4a']);
+    expect([...contents.voice['a.m4a']]).toEqual([...clipA]);
+    expect([...contents.voice['b.m4a']]).toEqual([...clipB]);
+  });
+
+  it('defaults to no recordings — a two-arg call is unchanged', () => {
+    const entries = unzipSync(buildBackupZip(erp, attachments));
+    expect(Object.keys(entries).some((n) => n.startsWith('voice-notes/'))).toBe(false);
+    const read = readBackupZip(buildBackupZip(erp, attachments)) as {
+      voice: Record<string, Uint8Array>;
+    };
+    expect(read.voice).toEqual({});
+  });
+
+  it('reads an OLD archive (no voice prefix) as an empty voice map', () => {
+    const read = readBackupZip(
+      zipSync({ [ZIP_ENTRY_ERP]: erp, [ZIP_ENTRY_ATTACHMENTS]: attachments }),
+    ) as { voice: Record<string, Uint8Array> };
+    expect(read.voice).toEqual({});
+  });
+
+  it('guards a thenable recording the same way it guards the databases', () => {
+    const promise = Promise.resolve(clipA) as unknown as Uint8Array;
+    expect(() => buildBackupZip(erp, attachments, { 'a.m4a': promise })).toThrow(/not raw bytes/);
+  });
+});
+
 describe('size ceiling', () => {
   it('refuses only past the documented limit', () => {
     expect(exceedsBackupSizeLimit(MAX_BACKUP_BYTES)).toBe(false);

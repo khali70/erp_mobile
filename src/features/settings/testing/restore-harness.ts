@@ -31,10 +31,14 @@ export type Harness = {
   reopenLive(): void;
   /** MMKV stand-in, survives building a second io ("next launch"). */
   marker: { value: string | null };
+  /** The live voice-notes directory these tests write restored recordings into. */
+  voiceDir: string;
   cleanup(): void;
   /** Fault injection: throw from the next call whose path matches. */
   failCopyInto: string | null;
   failMigrateErp: boolean;
+  /** Fault injection: make every voice write throw, to prove it does NOT roll back. */
+  failVoiceWrite: boolean;
   /** Every marker value seen at the moment a live file was overwritten. */
   markerDuringSwap: (string | null)[];
 };
@@ -84,6 +88,9 @@ export function createHarness(): Harness {
   const dbDir = path.join(root, 'databases');
   const cacheDir = path.join(root, 'cache');
   const pickDir = path.join(root, 'downloads');
+  // The live voice dir is NOT pre-created: the engine must `ensureDir` it, just
+  // as it does on a device where a shop that never recorded has no folder.
+  const voiceDir = path.join(root, 'documents', 'voice-notes');
   for (const dir of [dbDir, cacheDir, pickDir]) fs.mkdirSync(dir, { recursive: true });
 
   const livePath = (target: 'erp' | 'attachments') => path.join(dbDir, LIVE_FILES[target]);
@@ -114,6 +121,7 @@ export function createHarness(): Harness {
       }
     },
     marker: { value: null },
+    voiceDir,
     cleanup: () => {
       for (const target of ['erp', 'attachments'] as const) {
         try {
@@ -127,6 +135,7 @@ export function createHarness(): Harness {
     },
     failCopyInto: null,
     failMigrateErp: false,
+    failVoiceWrite: false,
     markerDuringSwap: [],
   };
 
@@ -153,7 +162,15 @@ export function createHarness(): Harness {
         return new Uint8Array(0);
       }
     },
-    writeBytes: (p, bytes) => fs.writeFileSync(p, bytes),
+    writeBytes: (p, bytes) => {
+      // Model a device that cannot write the restored recordings (permissions,
+      // full disk under the doc dir): only the voice writes fail, proving the
+      // ledger swap that already completed is NOT rolled back.
+      if (state.failVoiceWrite && p.startsWith(voiceDir)) {
+        throw new Error('injected voice write failure');
+      }
+      fs.writeFileSync(p, bytes);
+    },
     copyFile: (from, to) => {
       // Record what the boot gate would have seen at the exact moment a live
       // file was about to be overwritten.
@@ -172,6 +189,9 @@ export function createHarness(): Harness {
       if (fs.existsSync(p)) fs.rmSync(p);
     },
     availableDiskSpace: () => 10 * 1024 * 1024 * 1024,
+
+    voiceDirPath: () => voiceDir,
+    ensureDir: (p) => fs.mkdirSync(p, { recursive: true }),
 
     checkpointLive: async (target) => {
       live[target]?.exec('PRAGMA wal_checkpoint(TRUNCATE);');

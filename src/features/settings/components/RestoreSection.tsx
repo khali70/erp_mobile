@@ -54,6 +54,7 @@ export function RestoreSection() {
       <RestoreResultDialog
         visible={restore.phase === 'done'}
         attachmentsMissing={restore.attachmentsMissing}
+        voiceRecordingsMissing={restore.voiceRecordingsMissing}
         onAcknowledge={restore.acknowledge}
       />
 

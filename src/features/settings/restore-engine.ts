@@ -126,6 +126,15 @@ export type RestoreIo = {
   removeFile(path: string): void;
   availableDiskSpace(): number;
 
+  /**
+   * Absolute path (or uri) of the live voice-notes directory. Only touched by the
+   * ADDITIVE, best-effort voice restore, which runs AFTER the ledger swap has
+   * fully succeeded — never part of the marker, the snapshots, or the rollback.
+   */
+  voiceDirPath(): string;
+  /** Create a directory and any missing parents. A no-op if it already exists. */
+  ensureDir(path: string): void;
+
   /** `PRAGMA wal_checkpoint(TRUNCATE)` on the live handle. */
   checkpointLive(target: RestoreTarget): Promise<void>;
   closeLive(target: RestoreTarget): Promise<void>;
@@ -179,6 +188,8 @@ export type RestorePreview = {
     items: number;
     parties: number;
     attachments: number;
+    /** Voice recordings carried in the archive — zero for every non-zip format. */
+    voiceNotes: number;
   };
   /**
    * Internal — the validated staged file per live database. Carried on the
@@ -186,12 +197,28 @@ export type RestorePreview = {
    * re-reading the picker's result.
    */
   stagedPaths: Partial<Record<RestoreTarget, string>>;
+  /**
+   * Internal — the archive's voice recordings, keyed by basename. Carried on the
+   * preview so the confirm step writes the EXACT bytes it inspected without
+   * re-reading the picker. Written back as a best-effort ADDITIVE step AFTER the
+   * ledger swap succeeds; they are NOT a `RestoreTarget`, never snapshotted, and
+   * never rolled back. `{}` for every non-zip format.
+   */
+  voiceEntries: Record<string, Uint8Array>;
 };
 
 export type RestoreResult = {
   restored: RestoreTarget[];
   rollbackAvailable: boolean;
   requiresRestart: true;
+  /** Voice recordings written back after the swap (additive, post-ledger). */
+  voiceRestored: number;
+  /**
+   * Voice recordings that failed to write. A NON-BLOCKING warning surfaced in the
+   * UI — never a rollback: the books are already safely in place and the marker
+   * already cleared before a single recording is touched.
+   */
+  voiceFailed: number;
 };
 
 /** Defined in ./restore-validation so the pure message mapper can read it. */
@@ -385,7 +412,9 @@ const countOne = async (db: RestoreDb, sql: string): Promise<number> =>
  * CANDIDATE, which is not a live database and never will be unless the owner
  * confirms. Soft-deleted rows are excluded, as they are everywhere.
  */
-async function ledgerCounts(db: RestoreDb): Promise<Omit<RestorePreview['counts'], 'attachments'>> {
+async function ledgerCounts(
+  db: RestoreDb,
+): Promise<Omit<RestorePreview['counts'], 'attachments' | 'voiceNotes'>> {
   return {
     documents: await countOne(db, 'SELECT COUNT(*) AS c FROM documents WHERE deleted_at IS NULL;'),
     items: await countOne(db, 'SELECT COUNT(*) AS c FROM items WHERE deleted_at IS NULL;'),
@@ -444,6 +473,7 @@ async function inspectZip(io: RestoreIo, picked: PickedBackupFile): Promise<Rest
   const counts = {
     ...(await withStagedDb(io, ledgerPath, ledgerCounts)),
     attachments: 0,
+    voiceNotes: Object.keys(contents.voice).length,
   };
 
   let attachmentsPath: string | undefined;
@@ -472,6 +502,7 @@ async function inspectZip(io: RestoreIo, picked: PickedBackupFile): Promise<Rest
       erp: ledgerPath,
       ...(attachmentsPath ? { attachments: attachmentsPath } : {}),
     },
+    voiceEntries: contents.voice,
   };
 }
 
@@ -492,6 +523,8 @@ async function inspectDatabase(
   const counts = await withStagedDb(io, stagedPath, async (db) => ({
     ...(hasLedger ? await ledgerCounts(db) : { documents: 0, items: 0, parties: 0 }),
     attachments: hasAttachments ? await attachmentCount(db) : 0,
+    // A bare database carries no recordings — those only ride inside a zip.
+    voiceNotes: 0,
   }));
 
   return {
@@ -508,6 +541,7 @@ async function inspectDatabase(
     // A merged file is promoted ONTO the ledger; its receipts are split out of
     // it afterwards, which is why it has no attachments entry here.
     stagedPaths: slot === 'attachments' ? { attachments: stagedPath } : { erp: stagedPath },
+    voiceEntries: {},
   };
 }
 
@@ -593,7 +627,53 @@ export async function applyRestore(io: RestoreIo, preview: RestorePreview): Prom
 
   io.clearMarker();
   clearStaging(io);
-  return { restored: targets, rollbackAvailable: true, requiresRestart: true };
+
+  // (6) VOICE — additive, best-effort, and strictly AFTER the ledger swap +
+  // migrate have fully succeeded and the marker is cleared. A recording that
+  // cannot be written is a NON-BLOCKING warning on the result, never a rollback:
+  // the books are already in place, and a restored row resolves its audio by
+  // basename, so a file landing here under the backup's name is all it takes.
+  const voice = writeVoiceRecordings(io, preview.voiceEntries);
+  return { restored: targets, rollbackAvailable: true, requiresRestart: true, ...voice };
+}
+
+/** Join a directory path/uri and a basename with a single separator. */
+function voiceFilePath(dir: string, name: string): string {
+  return `${dir.replace(/[/\\]+$/, '')}/${name}`;
+}
+
+/**
+ * Drop the archive's voice recordings into the live voice dir. Each write is
+ * guarded on its own so ONE unwritable file cannot take the rest down, and the
+ * whole thing is caught by the caller's contract: it runs after the point of no
+ * return has already been cleared, so a failure counts rather than throws.
+ */
+function writeVoiceRecordings(
+  io: RestoreIo,
+  entries: Record<string, Uint8Array>,
+): { voiceRestored: number; voiceFailed: number } {
+  const names = Object.keys(entries);
+  if (names.length === 0) return { voiceRestored: 0, voiceFailed: 0 };
+
+  try {
+    io.ensureDir(io.voiceDirPath());
+  } catch {
+    // No directory to write into means none of them can land.
+    return { voiceRestored: 0, voiceFailed: names.length };
+  }
+
+  const dir = io.voiceDirPath();
+  let voiceRestored = 0;
+  let voiceFailed = 0;
+  for (const name of names) {
+    try {
+      io.writeBytes(voiceFilePath(dir, name), entries[name]);
+      voiceRestored += 1;
+    } catch {
+      voiceFailed += 1;
+    }
+  }
+  return { voiceRestored, voiceFailed };
 }
 
 /**

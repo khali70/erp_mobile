@@ -2,7 +2,7 @@
   "expo": {
     "name": "Rafuf",
     "slug": "erp-mobile",
-    "version": "1.0.0",
+    "version": "1.1.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "automatic",
@@ -49,6 +49,12 @@
     },
     "plugins": [
       "expo-sqlite",
+      [
+        "expo-audio",
+        {
+          "microphonePermission": "Allow $(PRODUCT_NAME) to use the microphone to record voice notes."
+        }
+      ],
       "expo-image",
       "expo-sharing",
       "expo-secure-store",
@@ -79,7 +85,10 @@
             "backgroundColor": "#08483F"
           }
         }
-      ]
+      ],
+      "expo-status-bar",
+      "expo-asset",
+      "expo-font"
     ],
     "owner": "khali70"
   }

@@ -1,8 +1,9 @@
 import type { SQLiteDatabase } from 'expo-sqlite';
-import { File, Paths } from 'expo-file-system';
+import { Directory, File, Paths } from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
 import { sqlite } from '@/db/client';
 import { attachmentsDb } from '@/db/attachments-client';
+import { VOICE_DIR, basename } from '@/features/voice-notes/utils/voiceFilePath';
 import { buildBackupZip, exceedsBackupSizeLimit, MAX_BACKUP_BYTES } from './backup-format';
 import { deleteSidecars, toFileUri } from './db-files';
 
@@ -84,6 +85,18 @@ async function snapshot(db: SQLiteDatabase, fileName: string): Promise<File> {
   return dest;
 }
 
+/**
+ * The live voice recordings, or none. Enumerated from the voice dir the feature
+ * writes into; a shop that has never recorded has no directory at all, which is
+ * not an error. These are the ORIGINAL files, not snapshots — they are only READ
+ * for the archive and must never be deleted on the way out.
+ */
+function liveVoiceFiles(): File[] {
+  const dir = new Directory(Paths.document, VOICE_DIR);
+  if (!dir.exists) return [];
+  return dir.list().filter((entry): entry is File => entry instanceof File);
+}
+
 export async function backupDatabase(): Promise<BackupResult> {
   const stamp = new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-');
   const fileName = `rafuf-backup-${stamp}.zip`;
@@ -97,18 +110,27 @@ export async function backupDatabase(): Promise<BackupResult> {
     snapshots.push(attachments);
 
     // SIZE FIRST, before a single byte is read into JS. `zipSync` needs both
-    // databases in memory at once plus its output buffer; past the ceiling the
-    // OS kills the app mid-zip and the owner is told nothing. A refusal they can
-    // act on ("free space / fewer photos") beats a crash that looks like a bug.
-    const totalBytes = (erp.size ?? 0) + (attachments.size ?? 0);
+    // databases AND every voice recording in memory at once plus its output
+    // buffer; past the ceiling the OS kills the app mid-zip and the owner is told
+    // nothing. A refusal they can act on ("free space / fewer photos") beats a
+    // crash that looks like a bug. The voice files are MEASURED here (`.size`)
+    // and only read below, so nothing is pulled into JS until the gate passes.
+    const voiceFiles = liveVoiceFiles();
+    const voiceBytesTotal = voiceFiles.reduce((sum, file) => sum + (file.size ?? 0), 0);
+    const totalBytes = (erp.size ?? 0) + (attachments.size ?? 0) + voiceBytesTotal;
     if (exceedsBackupSizeLimit(totalBytes)) throw new BackupError('too-large', totalBytes);
 
     // `bytes()` (async), NOT `bytesSync()`: on a device without JSI the sync
     // native call can hand JS a Promise instead of a Uint8Array, and fflate then
     // zips the Promise's KEYS as empty folders — a lossless-looking archive with
-    // none of the owner's data. Awaiting the async form guarantees real bytes.
+    // none of the owner's data. Awaiting the async form guarantees real bytes,
+    // for the recordings exactly as for the databases.
     const [erpBytes, attachmentsBytes] = await Promise.all([erp.bytes(), attachments.bytes()]);
-    const bytes = buildBackupZip(erpBytes, attachmentsBytes);
+    const voiceMap: Record<string, Uint8Array> = {};
+    for (const file of voiceFiles) {
+      voiceMap[basename(file.uri)] = await file.bytes();
+    }
+    const bytes = buildBackupZip(erpBytes, attachmentsBytes, voiceMap);
 
     if (archive.exists) archive.delete();
     archive.create();

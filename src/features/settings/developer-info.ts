@@ -32,14 +32,14 @@ export const DEVELOPER_INFO: DeveloperInfo = {
     en: 'Ahmed Khalifa',
   },
   title: {
-    ar: 'مهندس برمجيات أول - تطبيقات الهاتف والأنظمة',
+    ar: 'مهندس برمجيات ',
     en: 'Senior Software Engineer - Mobile & Systems',
   },
   contacts: [
     {
       icon: 'mail',
-      value: 'hazemelmogy455@gmail.com',
-      url: 'mailto:hazemelmogy455@gmail.com',
+      value: 'ahmed_khalifa_dev@icloud.com',
+      url: 'mailto:ahmed_khalifa_dev@icloud.com',
     },
   ],
 };

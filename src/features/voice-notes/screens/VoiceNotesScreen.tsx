@@ -8,6 +8,7 @@ import { ScreenHeader } from '@/components/ui/ScreenHeader';
 import { FilterChips, type FilterOption } from '@/components/ui/FilterChips';
 import { useVoiceNotes } from '../hooks/useVoiceNotes';
 import { useVoicePlayer } from '../hooks/useVoicePlayer';
+import { resolveVoiceUri } from '../utils/voiceFilePath';
 import { VoiceNotesList } from '../components/VoiceNotesList';
 import { RecordFab } from '../components/RecordFab';
 import type { VoiceFilter, VoiceNote } from '../types';
@@ -47,13 +48,15 @@ export function VoiceNotesScreen() {
     { key: 'all', label: t('voiceNotes.filters.all'), activeClass: 'bg-primary' },
   ];
 
+  // Resolve BY BASENAME: a restored note's stored uri is an absolute path from a
+  // different install; the file it plays lives in THIS device's voice dir.
   const togglePlay = useCallback(
-    (note: VoiceNote) => player.toggle(note.id, note.filePath),
+    (note: VoiceNote) => player.toggle(note.id, resolveVoiceUri(note.filePath)),
     [player],
   );
 
   const seekNote = useCallback(
-    (note: VoiceNote, ms: number) => player.seek(note.id, note.filePath, ms),
+    (note: VoiceNote, ms: number) => player.seek(note.id, resolveVoiceUri(note.filePath), ms),
     [player],
   );
 

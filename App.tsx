@@ -3,7 +3,7 @@ import '@/i18n';
 import { useEffect, useState } from 'react';
 import { StatusBar } from 'expo-status-bar';
 import { NavigationContainer } from '@react-navigation/native';
-import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { RootNavigator } from '@/navigation/RootNavigator';
 import { runMigrations } from '@/db/migrate';
@@ -50,11 +50,17 @@ export default function App() {
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>
         <NavigationContainer>
-          {/* Mounted only after the ready gate above, so the boot-time OTA check
-              never runs before migrations/seed and never gates the splash. */}
-          <UpdatesProvider>
-            <RootNavigator />
-          </UpdatesProvider>
+          {/* Android draws edge-to-edge, so the gesture pill / nav buttons sit on
+              top of the app unless something reserves that strip. Reserved once
+              here rather than per screen; the top edge stays a per-screen job
+              because headers paint their own colour up into the notch. */}
+          <SafeAreaView edges={['bottom']} className="flex-1 bg-background">
+            {/* Mounted only after the ready gate above, so the boot-time OTA check
+                never runs before migrations/seed and never gates the splash. */}
+            <UpdatesProvider>
+              <RootNavigator />
+            </UpdatesProvider>
+          </SafeAreaView>
           <StatusBar style="auto" />
         </NavigationContainer>
       </SafeAreaProvider>

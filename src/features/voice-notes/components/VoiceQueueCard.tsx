@@ -6,6 +6,7 @@ import colors from '@/theme/colors';
 import { ROW } from '@/theme/rtl';
 import { formatNumber } from '@/utils/numerals';
 import { useVoicePlayer } from '../hooks/useVoicePlayer';
+import { resolveVoiceUri } from '../utils/voiceFilePath';
 import { SeekBar } from './SeekBar';
 import type { VoiceNote } from '../types';
 
@@ -35,8 +36,15 @@ export function VoiceQueueCard({ note, index, total, onNext }: VoiceQueueCardPro
   const isActive = player.activeId === note.id;
   const isPlaying = player.playingId === note.id;
 
-  const toggle = useCallback(() => player.toggle(note.id, note.filePath), [player, note]);
-  const seek = useCallback((ms: number) => player.seek(note.id, note.filePath, ms), [player, note]);
+  // Resolve BY BASENAME so a restored note plays from this device's voice dir.
+  const toggle = useCallback(
+    () => player.toggle(note.id, resolveVoiceUri(note.filePath)),
+    [player, note],
+  );
+  const seek = useCallback(
+    (ms: number) => player.seek(note.id, resolveVoiceUri(note.filePath), ms),
+    [player, note],
+  );
 
   return (
     <View className="bg-surface border-b border-border px-4 py-3 gap-2">

@@ -14,7 +14,9 @@ module.exports = function (api) {
           extensions: ['.ts', '.tsx', '.js', '.jsx', '.json'],
         },
       ],
-      'react-native-reanimated/plugin',
+      // reanimated 4 moved the worklets babel plugin into react-native-worklets;
+      // it must stay LAST in the plugin list.
+      'react-native-worklets/plugin',
     ],
   };
 };

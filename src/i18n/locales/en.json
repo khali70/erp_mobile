@@ -728,6 +728,7 @@
         "countsMerged": "{{documents}} documents · {{items}} items · {{parties}} customers and suppliers · {{attachments}} receipt photos",
         "countsLedger": "{{documents}} documents · {{items}} items · {{parties}} customers and suppliers — no receipt photos",
         "countsAttachments": "{{attachments}} receipt photos — no books",
+        "voiceNotes": "Voice recordings",
         "migrationNote": "This backup is from an older version; the app will upgrade it after restoring.",
         "ledgerOnlyNote": "This file carries no receipt photos, so some document images may not open after restoring.",
         "warning": "Warning: everything recorded on this phone right now — every document, item, debt, and cash entry — is erased and replaced by this file. The app saves a safety copy of your current data before it starts; that copy is the only way back.",
@@ -745,6 +746,7 @@
         "title": "Restore complete",
         "body": "Your data has been replaced. Fully close the app and open it again for the restored data to appear.",
         "attachmentsMissing": "The file you restored carries no receipt photos, so some document images may not open. If you still have a receipt-photos file (erp-attachments), you can restore it from the same screen.",
+        "voiceNotesMissing": "Some voice recordings could not be written back, so they may be missing. Your books and receipt photos were restored normally.",
         "restart": "Got it — I’ll close the app"
       },
       "error": {
