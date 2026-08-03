@@ -61,6 +61,14 @@ jest.mock('@/repositories/debt-repository.client', () => ({
     return mockRepos.debts;
   },
 }));
+// The hook marks a voice note processed after a save. Its `.client` singleton
+// binds expo-sqlite AND expo-file-system at import time, so it has to be swapped
+// here too, otherwise merely importing the hook opens the real database.
+jest.mock('@/repositories/voice-note-repository.client', () => ({
+  get voiceNoteRepository() {
+    return mockRepos.voiceNotes;
+  },
+}));
 
 /** The setting is a persisted singleton — reset it, or one test arms the next. */
 beforeEach(() => {
