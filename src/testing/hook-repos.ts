@@ -30,6 +30,10 @@ import {
   createExpenseRepository,
   type ExpenseRepository,
 } from '@/repositories/expense-repository';
+import {
+  createVoiceNoteRepository,
+  type VoiceNoteDb,
+} from '@/repositories/voice-note-repository';
 
 /** Fixed clock. Every repo, every row, every test. */
 export const T0 = 1_760_000_000_000;
@@ -44,6 +48,9 @@ export interface HookRepoHarness {
   debts: ReturnType<typeof createDebtRepository>;
   tags: ReturnType<typeof createTagRepository>;
   expenses: ExpenseRepository;
+  voiceNotes: ReturnType<typeof createVoiceNoteRepository>;
+  /** Audio files the voice-note repo asked to delete, in call order. */
+  removedAudioFiles: string[];
 }
 
 let current: HookRepoHarness | null = null;
@@ -52,6 +59,9 @@ let current: HookRepoHarness | null = null;
 export function resetHookRepos(): HookRepoHarness {
   const db = makeTestDb();
   seedSentinels(db, T0);
+  // The audio bytes are a filesystem concern the test process has no business
+  // touching; record the request instead so a discard can still be asserted.
+  const removedAudioFiles: string[] = [];
   current = {
     db,
     documents: createDocumentRepository(db),
@@ -62,6 +72,11 @@ export function resetHookRepos(): HookRepoHarness {
     debts: createDebtRepository(db, () => T0),
     tags: createTagRepository(db),
     expenses: createExpenseRepository(db, () => T0),
+    voiceNotes: createVoiceNoteRepository(db as unknown as VoiceNoteDb, {
+      clock: () => T0,
+      removeFile: (filePath) => removedAudioFiles.push(filePath),
+    }),
+    removedAudioFiles,
   };
   return current;
 }
@@ -102,5 +117,11 @@ export const repos = {
   },
   get expenses(): ExpenseRepository {
     return hookRepos().expenses;
+  },
+  get voiceNotes(): HookRepoHarness['voiceNotes'] {
+    return hookRepos().voiceNotes;
+  },
+  get removedAudioFiles(): string[] {
+    return hookRepos().removedAudioFiles;
   },
 };

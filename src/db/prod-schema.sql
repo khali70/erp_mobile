@@ -139,6 +139,22 @@ CREATE TABLE IF NOT EXISTS expenses (
 );
 CREATE INDEX IF NOT EXISTS idx_expenses_incurred ON expenses(incurred_at);
 
+CREATE TABLE IF NOT EXISTS voice_notes (
+  id TEXT PRIMARY KEY,
+  created_at INTEGER NOT NULL,
+  updated_at INTEGER NOT NULL,
+  deleted_at INTEGER,
+  file_path TEXT NOT NULL,
+  duration_ms INTEGER NOT NULL DEFAULT 0,
+  mime TEXT NOT NULL,
+  size_bytes INTEGER NOT NULL DEFAULT 0,
+  status TEXT NOT NULL DEFAULT 'pending',
+  note TEXT,
+  linked_document_id TEXT,
+  processed_at INTEGER
+);
+CREATE INDEX IF NOT EXISTS idx_voice_status ON voice_notes(status, created_at);
+
 CREATE INDEX IF NOT EXISTS idx_tx_ref ON transactions(ref_kind, ref_id);
 CREATE INDEX IF NOT EXISTS idx_tx_occurred ON transactions(occurred_at);
 CREATE INDEX IF NOT EXISTS idx_tx_account ON transactions(account);
