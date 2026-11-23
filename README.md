@@ -1,5 +1,7 @@
 # Rafuf (رفوف)
 
+![Rafuf: stock, debts and profit for small shops, offline](docs/screenshots/banner.webp)
+
 Arabic-first, offline-first retail ERP for small shops. Stock, debts, expenses, and
 profit on one phone, with no internet connection required.
 
@@ -17,6 +19,16 @@ real shop owner.
   on older 32-bit `armeabi-v7a` devices.
 - Sideloading requires enabling "Install unknown apps" for your browser or file manager.
 - The app is fully offline. No account, no server, no network permission needed to use it.
+
+## Screenshots
+
+| Home | New sale | Products | Pick an item |
+| --- | --- | --- | --- |
+| ![Home: stock value, monthly profit, debts and shortcuts](docs/screenshots/home.webp) | ![New sale document with barcode scan and payment method](docs/screenshots/new-sale.webp) | ![Products list with stock value and quantities](docs/screenshots/products.webp) | ![Item picker with in-stock filter](docs/screenshots/pick-item.webp) |
+
+| Documents | Sale document | Reports | Voice notes |
+| --- | --- | --- | --- |
+| ![Incoming and outgoing documents list](docs/screenshots/documents.webp) | ![A saved sale document with customer and items](docs/screenshots/document.webp) | ![Reports: cash book, debts, expenses, profit](docs/screenshots/reports.webp) | ![Voice notes recorded during work, turned into documents later](docs/screenshots/voice-notes.webp) |
 
 ## Why it exists
 
